@@ -39,12 +39,19 @@ class EspeakEngine(context: Context) {
     private val speaking = AtomicBoolean(false)
     @Volatile private var currentOnDone: (() -> Unit)? = null
     @Volatile private var currentOnError: ((String) -> Unit)? = null
+    @Volatile private var currentLangCode: String? = null
+    @Volatile private var currentGender: VoiceGender? = null
+    private var framesWrittenThisUtterance = 0L
 
     private val synthCallback = object : SpeechSynthesis.SynthReadyCallback {
         override fun onSynthDataReady(audioData: ByteArray?) {
             if (audioData == null || audioData.isEmpty()) return
             try {
                 audioTrack?.write(audioData, 0, audioData.size)
+                // 16-bit mono PCM -> 2 bytes/frame. Logged per-utterance below as
+                // the same kind of hard "real audio was produced" evidence used
+                // for Piper's sample counts, rather than just "no exception".
+                framesWrittenThisUtterance += audioData.size / 2
             } catch (e: Exception) {
                 Log.e(TAG, "AudioTrack write failed", e)
             }
@@ -55,6 +62,11 @@ class EspeakEngine(context: Context) {
             val done = currentOnDone
             currentOnDone = null
             currentOnError = null
+            Log.i(
+                TAG,
+                "eSpeak synth: lang=$currentLangCode gender=$currentGender framesWritten=$framesWrittenThisUtterance"
+            )
+            framesWrittenThisUtterance = 0L
             try {
                 audioTrack?.stop()
             } catch (e: Exception) { /* ignore */ }
@@ -100,7 +112,7 @@ class EspeakEngine(context: Context) {
 
     fun availableLanguageCodes(): Set<String> = voicesByLang.keys
 
-    fun speak(text: String, langCode: String, onDone: () -> Unit, onError: (String) -> Unit) {
+    fun speak(text: String, langCode: String, gender: VoiceGender = VoiceGender.FEMALE, onDone: () -> Unit, onError: (String) -> Unit) {
         if (!ready) {
             onError("Offline speech engine is not ready yet")
             return
@@ -121,10 +133,18 @@ class EspeakEngine(context: Context) {
         }
         currentOnDone = onDone
         currentOnError = onError
+        currentLangCode = langCode
+        currentGender = gender
         speaking.set(true)
         worker.execute {
             try {
-                val variant = VoiceVariant.parseVoiceVariant("female") ?: VoiceVariant.parseVoiceVariant("male")
+                // GENDER_MALE/GENDER_FEMALE (via nativeSetVoiceByProperties) lets
+                // espeak-ng pick a gender-appropriate variant for *this* voice's
+                // language itself, rather than hardcoding a single numbered
+                // variant (e.g. "m3") that may not exist/sound right for every
+                // one of the 100+ bundled languages.
+                val variantName = if (gender == VoiceGender.MALE) "male" else "female"
+                val variant = VoiceVariant.parseVoiceVariant(variantName) ?: VoiceVariant.parseVoiceVariant("female")
                 synth?.setVoice(voice, variant!!)
                 audioTrack?.play()
                 synth?.synthesize(text, false)

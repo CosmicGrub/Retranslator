@@ -17,6 +17,8 @@ import com.retroid.translator.audio.MicPipeline
 import com.retroid.translator.audio.RecordingsStore
 import com.retroid.translator.engine.LanguageCatalog
 import com.retroid.translator.engine.TranslationEngine
+import com.retroid.translator.engine.VoiceGender
+import com.retroid.translator.engine.VoicePreferences
 import com.retroid.translator.engine.VoskModelCatalog
 import com.google.mlkit.nl.translate.TranslateLanguage
 import java.io.File
@@ -32,6 +34,7 @@ class ConversationsFragment : Fragment() {
 
     private var turnIsA = true
     private var player: MediaPlayer? = null
+    private fun selectedGender(): VoiceGender = if (binding.radioMaleConv.isChecked) VoiceGender.MALE else VoiceGender.FEMALE
 
     override fun onCreateView(inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?): View {
         _binding = FragmentConversationsBinding.inflate(inflater, container, false)
@@ -42,9 +45,19 @@ class ConversationsFragment : Fragment() {
         super.onViewCreated(view, savedInstanceState)
         recordingsStore = RecordingsStore(requireContext(), "conversations")
         setupSpinners()
+        setupGenderToggle()
         updateTurnIndicator()
         binding.btnConversationMic.setOnClickListener { onMicTap() }
         refreshRecordingsList()
+    }
+
+    private fun setupGenderToggle() {
+        val gender = VoicePreferences.getGender(requireContext())
+        binding.radioMaleConv.isChecked = gender == VoiceGender.MALE
+        binding.radioFemaleConv.isChecked = gender == VoiceGender.FEMALE
+        binding.radioGroupGenderConv.setOnCheckedChangeListener { _, _ ->
+            VoicePreferences.setGender(requireContext(), selectedGender())
+        }
     }
 
     private fun setupSpinners() {
@@ -135,7 +148,7 @@ class ConversationsFragment : Fragment() {
                             if (_binding == null) return@onResult
                             appendTranscript("   → (${LanguageCatalog.displayNameFor(dstCode)}): $translated")
                             val router = mainActivity?.app?.tts
-                            router?.speak(translated, dstCode, onDone = { switchTurn() }, onError = { switchTurn() })
+                            router?.speak(translated, dstCode, selectedGender(), onDone = { switchTurn() }, onError = { switchTurn() })
                                 ?: switchTurn()
                         },
                         onError = onError@{ err ->

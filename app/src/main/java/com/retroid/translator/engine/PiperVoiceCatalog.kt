@@ -12,15 +12,25 @@ package com.retroid.translator.engine
  * unlike some Piper voices whose training data carries research-only or
  * NC-only restrictions.
  *
+ * Piper's overall voice catalog only covers a subset of languages, and most
+ * of those have just ONE speaker/gender available, not a male/female pair.
+ * A male+female pair only exists here for a language when Piper genuinely
+ * ships both with an acceptable license (currently true for all 4 languages
+ * this app covers: en/de/es/fr). Where that's not the case for a future
+ * language, add a single-gender entry rather than skipping the language -
+ * [EspeakEngine] is the real "every language, both genders" floor; this
+ * catalog is strictly a per-language, per-gender upgrade on top of it.
+ *
  * Only mlKitCode values also present in ML Kit's TranslateLanguage list are
  * ever surfaced in the UI (same "intersect at runtime" pattern as
  * [VoskModelCatalog]).
  */
 data class PiperVoiceInfo(
     val mlKitCode: String,
-    val voiceId: String,       // e.g. "en_US-ljspeech-medium"
+    val gender: VoiceGender,
+    val voiceId: String,       // e.g. "en_US-ljspeech-medium" - also the on-disk storage key
     val displayName: String,
-    val quality: String,       // "medium" | "low"
+    val quality: String,       // "medium" | "low" | "high"
     val url: String,
     val approxSizeMiB: Int,
     val license: String,
@@ -31,33 +41,71 @@ object PiperVoiceCatalog {
     private const val RELEASE_BASE = "https://github.com/k2-fsa/sherpa-onnx/releases/download/tts-models"
 
     val VOICES: List<PiperVoiceInfo> = listOf(
+        // --- English ---
         // Trained from scratch on the public-domain LJSpeech dataset - no
         // "finetuned from a research-license voice" ancestry to worry about.
         PiperVoiceInfo(
-            "en", "en_US-ljspeech-medium", "English (US) - ljspeech", "medium",
+            "en", VoiceGender.FEMALE, "en_US-ljspeech-medium", "English (US) - ljspeech", "medium",
             "$RELEASE_BASE/vits-piper-en_US-ljspeech-medium.tar.bz2", 65,
             "Public domain (LJSpeech dataset)", "https://keithito.com/LJ-Speech-Dataset/"
         ),
         PiperVoiceInfo(
-            "de", "de_DE-thorsten-medium", "German - thorsten", "medium",
+            "en", VoiceGender.MALE, "en_US-joe-medium", "English (US) - joe", "medium",
+            "$RELEASE_BASE/vits-piper-en_US-joe-medium.tar.bz2", 65,
+            "CC0", "https://github.com/OHF-Voice/voice-datasets"
+        ),
+        // --- German ---
+        PiperVoiceInfo(
+            "de", VoiceGender.MALE, "de_DE-thorsten-medium", "German - thorsten", "medium",
             "$RELEASE_BASE/vits-piper-de_DE-thorsten-medium.tar.bz2", 65,
             "CC0", "https://github.com/thorstenMueller/Thorsten-Voice"
         ),
         PiperVoiceInfo(
-            "es", "es_ES-davefx-medium", "Spanish - davefx", "medium",
+            "de", VoiceGender.FEMALE, "de_DE-kerstin-low", "German - kerstin", "low",
+            "$RELEASE_BASE/vits-piper-de_DE-kerstin-low.tar.bz2", 65,
+            "CC0", "https://github.com/rhasspy/dataset-voice-kerstin"
+        ),
+        // --- Spanish ---
+        PiperVoiceInfo(
+            "es", VoiceGender.MALE, "es_ES-davefx-medium", "Spanish - davefx", "medium",
             "$RELEASE_BASE/vits-piper-es_ES-davefx-medium.tar.bz2", 65,
             "CC0", "https://github.com/NabuCasa/voice-datasets"
         ),
+        // es_MX rather than es_ES - the best-licensed genuinely-female Spanish
+        // Piper voice found (checked several es_ES female candidates first;
+        // this is the one with an unambiguous permissive license).
         PiperVoiceInfo(
-            "fr", "fr_FR-siwis-medium", "French - siwis", "medium",
+            "es", VoiceGender.FEMALE, "es_MX-claude-high", "Spanish (Mexico) - claude", "high",
+            "$RELEASE_BASE/vits-piper-es_MX-claude-high.tar.bz2", 65,
+            "Apache-2.0", "https://huggingface.co/spaces/HirCoir/Piper-TTS-Spanish"
+        ),
+        // --- French ---
+        PiperVoiceInfo(
+            "fr", VoiceGender.FEMALE, "fr_FR-siwis-medium", "French - siwis", "medium",
             "$RELEASE_BASE/vits-piper-fr_FR-siwis-medium.tar.bz2", 65,
             "CC-BY 4.0", "https://datashare.is.ed.ac.uk/handle/10283/2353"
         ),
+        // Note: this voice's *base checkpoint* was finetuned from the English
+        // "ryan" voice (which this catalog otherwise excludes for its own
+        // CC-BY-NC-SA dataset license) - but gilles's own French dataset,
+        // the one actually being licensed here, is CC0 in its own right. Same
+        // "the voice's own dataset license is what's recorded" policy already
+        // applied to thorsten/davefx (both finetuned from the Blizzard/Lessac
+        // voice, which is itself excluded from this catalog).
+        PiperVoiceInfo(
+            "fr", VoiceGender.MALE, "fr_FR-gilles-low", "French - gilles", "low",
+            "$RELEASE_BASE/vits-piper-fr_FR-gilles-low.tar.bz2", 65,
+            "CC0", "https://www.kaggle.com/datasets/bryanpark/french-single-speaker-speech-dataset"
+        ),
     )
 
-    private val byCode = VOICES.associateBy { it.mlKitCode }
+    private val byKey = VOICES.associateBy { it.mlKitCode to it.gender }
 
-    fun forLanguage(mlKitCode: String): PiperVoiceInfo? = byCode[mlKitCode]
+    /** The single voice for this exact (language, gender) pair, if Piper has one with an acceptable license. */
+    fun forLanguageAndGender(mlKitCode: String, gender: VoiceGender): PiperVoiceInfo? = byKey[mlKitCode to gender]
 
-    fun supportedCodes(): Set<String> = byCode.keys
+    /** Every catalog entry for a language, regardless of gender (0, 1, or 2 entries). */
+    fun allForLanguage(mlKitCode: String): List<PiperVoiceInfo> = VOICES.filter { it.mlKitCode == mlKitCode }
+
+    fun supportedCodes(): Set<String> = VOICES.map { it.mlKitCode }.toSet()
 }

@@ -19,14 +19,20 @@ import java.util.concurrent.atomic.AtomicBoolean
  * Neural text-to-speech: sherpa-onnx (Apache-2.0, k2-fsa) driving an
  * on-demand-downloaded Piper VITS voice model (see [PiperVoiceCatalog]).
  * Unlike [EspeakEngine] (always available, bundled in the APK), a voice must
- * be downloaded before this can speak a given language - [TtsRouter] is what
- * decides whether to use this or fall back to eSpeak.
+ * be downloaded before this can speak - [TtsRouter] is what decides whether
+ * to use this or fall back to eSpeak.
+ *
+ * Every voice is identified by its [PiperVoiceInfo.voiceId] (e.g.
+ * "en_US-joe-medium"), which also doubles as its on-disk storage key -
+ * since a language can now have both a male and a female voice downloaded
+ * at once (see [PiperVoiceCatalog]), keying storage by language code alone
+ * is no longer enough to tell them apart.
  *
  * Only one voice is kept loaded/resident at a time - loading a different
- * language's voice releases the previous native OfflineTts instance first
- * (same "one model in RAM" discipline as [VoskEngine], since a Piper medium
- * voice's ONNX weights are themselves ~60MB and this device has ~1GB usable
- * RAM alongside everything else already running).
+ * voice releases the previous native OfflineTts instance first (same "one
+ * model in RAM" discipline as [VoskEngine], since a Piper medium voice's
+ * ONNX weights are themselves ~60MB and this device has ~1GB usable RAM
+ * alongside everything else already running).
  */
 class PiperTtsEngine(context: Context) {
     private val appContext = context.applicationContext
@@ -34,18 +40,38 @@ class PiperTtsEngine(context: Context) {
     private val worker = Executors.newSingleThreadExecutor()
 
     private var tts: OfflineTts? = null
-    @Volatile var loadedLangCode: String? = null
+    @Volatile var loadedVoiceId: String? = null
         private set
 
     private var audioTrack: AudioTrack? = null
     private var trackSampleRate = -1
     private val speaking = AtomicBoolean(false)
 
+    init {
+        // One-time cleanup: before voices were keyed by voiceId (to support a
+        // male+female pair per language), they lived at piper-voices/<langCode>/.
+        // Those short-code directories are now dead weight - reclaim the space
+        // rather than leaving ~65MB orphaned per previously-downloaded language.
+        worker.execute { migrateLegacyLayoutBlocking() }
+    }
+
+    private fun migrateLegacyLayoutBlocking() {
+        val root = File(appContext.filesDir, "piper-voices")
+        val legacyCodes = setOf("en", "de", "es", "fr")
+        legacyCodes.forEach { code ->
+            val d = File(root, code)
+            if (d.isDirectory) {
+                Log.i(TAG, "Removing legacy voice layout dir ${d.path}")
+                d.deleteRecursively()
+            }
+        }
+    }
+
     // ---------------------------------------------------------------------
     // Voice-pack storage / download
     // ---------------------------------------------------------------------
 
-    fun voiceRootDir(langCode: String): File = File(appContext.filesDir, "piper-voices/$langCode")
+    fun voiceRootDir(info: PiperVoiceInfo): File = File(appContext.filesDir, "piper-voices/${info.voiceId}")
 
     /**
      * The extracted voice directory (containing `<voiceId>.onnx`, `tokens.txt`,
@@ -67,9 +93,8 @@ class PiperTtsEngine(context: Context) {
      * only reliable fix is to never attempt to load an incomplete voice in
      * the first place.
      */
-    fun effectiveVoiceDir(langCode: String): File? {
-        val info = PiperVoiceCatalog.forLanguage(langCode) ?: return null
-        val root = voiceRootDir(langCode)
+    fun effectiveVoiceDir(info: PiperVoiceInfo): File? {
+        val root = voiceRootDir(info)
         if (!root.exists()) return null
         // The archive extracts into one nested "vits-piper-<voiceId>" folder.
         val nested = File(root, "vits-piper-${info.voiceId}")
@@ -92,35 +117,30 @@ class PiperTtsEngine(context: Context) {
         return REQUIRED_ESPEAK_DATA_FILES.all { File(dataDir, it).isFile }
     }
 
-    fun isVoiceDownloaded(langCode: String): Boolean = effectiveVoiceDir(langCode) != null
+    fun isVoiceDownloaded(info: PiperVoiceInfo): Boolean = effectiveVoiceDir(info) != null
 
     fun downloadVoice(
         context: Context,
-        langCode: String,
+        info: PiperVoiceInfo,
         onProgress: (percent: Int) -> Unit = {},
         onDone: (success: Boolean, error: String?) -> Unit
     ) {
-        val info = PiperVoiceCatalog.forLanguage(langCode)
-        if (info == null) {
-            onDone(false, "No natural voice available for this language yet")
-            return
-        }
         DownloadManager.downloadAndExtractTarBz2(
-            context, info.url, voiceRootDir(langCode), requireWifi = true,
+            context, info.url, voiceRootDir(info), requireWifi = true,
             onProgress = onProgress
         ) { success, error ->
-            if (success && loadedLangCode == langCode) {
-                // The previously-loaded voice for this language, if any, is now stale.
+            if (success && loadedVoiceId == info.voiceId) {
+                // The previously-loaded copy of this exact voice, if any, is now stale.
                 unloadBlocking()
             }
             var actualSuccess = success
             var actualError = error
-            if (success && !isVoiceDownloaded(langCode)) {
+            if (success && !isVoiceDownloaded(info)) {
                 // The download/unzip reported success but the result doesn't pass
                 // completeness validation - treat it as a failure and clean up
                 // rather than leaving a half-extracted pack that would crash on load.
-                Log.w(TAG, "Voice pack for $langCode failed completeness check after extraction; discarding it")
-                DownloadManager.deleteDir(voiceRootDir(langCode))
+                Log.w(TAG, "Voice pack ${info.voiceId} failed completeness check after extraction; discarding it")
+                DownloadManager.deleteDir(voiceRootDir(info))
                 actualSuccess = false
                 actualError = "Downloaded pack was incomplete, please try again"
             }
@@ -128,25 +148,24 @@ class PiperTtsEngine(context: Context) {
         }
     }
 
-    fun deleteVoice(langCode: String) {
-        if (loadedLangCode == langCode) unloadBlocking()
-        DownloadManager.deleteDir(voiceRootDir(langCode))
+    fun deleteVoice(info: PiperVoiceInfo) {
+        if (loadedVoiceId == info.voiceId) unloadBlocking()
+        DownloadManager.deleteDir(voiceRootDir(info))
     }
 
     // ---------------------------------------------------------------------
     // Model loading
     // ---------------------------------------------------------------------
 
-    fun loadVoiceAsync(langCode: String, onResult: (success: Boolean, error: String?) -> Unit) {
-        if (loadedLangCode == langCode && tts != null) {
+    fun loadVoiceAsync(info: PiperVoiceInfo, onResult: (success: Boolean, error: String?) -> Unit) {
+        if (loadedVoiceId == info.voiceId && tts != null) {
             onResult(true, null)
             return
         }
         worker.execute {
             try {
-                val dir = effectiveVoiceDir(langCode)
-                val info = PiperVoiceCatalog.forLanguage(langCode)
-                if (dir == null || info == null) {
+                val dir = effectiveVoiceDir(info)
+                if (dir == null) {
                     mainHandler.post { onResult(false, "Natural voice pack not downloaded yet") }
                     return@execute
                 }
@@ -168,13 +187,13 @@ class PiperTtsEngine(context: Context) {
                     throw IllegalStateException("sherpa-onnx returned an invalid sample rate")
                 }
                 tts = t
-                loadedLangCode = langCode
-                Log.i(TAG, "Piper voice loaded: lang=$langCode voice=${info.voiceId} sampleRate=${t.sampleRate()}")
+                loadedVoiceId = info.voiceId
+                Log.i(TAG, "Piper voice loaded: lang=${info.mlKitCode} gender=${info.gender} voice=${info.voiceId} sampleRate=${t.sampleRate()}")
                 mainHandler.post { onResult(true, null) }
             } catch (e: Throwable) {
-                Log.e(TAG, "Failed to load Piper voice for $langCode", e)
+                Log.e(TAG, "Failed to load Piper voice ${info.voiceId}", e)
                 tts = null
-                loadedLangCode = null
+                loadedVoiceId = null
                 mainHandler.post { onResult(false, e.message ?: "Failed to load natural voice") }
             }
         }
@@ -192,20 +211,20 @@ class PiperTtsEngine(context: Context) {
     private fun releaseTtsLocked() {
         try { tts?.release() } catch (e: Exception) { /* ignore */ }
         tts = null
-        loadedLangCode = null
+        loadedVoiceId = null
     }
 
     // ---------------------------------------------------------------------
     // Synthesis + playback
     // ---------------------------------------------------------------------
 
-    /** True only once a voice for exactly this language is loaded and ready to speak. */
-    fun isReadyFor(langCode: String): Boolean = tts != null && loadedLangCode == langCode
+    /** True only once exactly this voice is loaded and ready to speak. */
+    fun isReadyFor(info: PiperVoiceInfo): Boolean = tts != null && loadedVoiceId == info.voiceId
 
-    fun speak(text: String, langCode: String, onDone: () -> Unit, onError: (String) -> Unit) {
+    fun speak(text: String, info: PiperVoiceInfo, onDone: () -> Unit, onError: (String) -> Unit) {
         val t = tts
-        if (t == null || loadedLangCode != langCode) {
-            onError("Natural voice not loaded for this language")
+        if (t == null || loadedVoiceId != info.voiceId) {
+            onError("Natural voice not loaded")
             return
         }
         if (text.isBlank()) {
@@ -223,7 +242,7 @@ class PiperTtsEngine(context: Context) {
                 val rtf = if (audioMs > 0) synthMs.toFloat() / audioMs.toFloat() else -1f
                 Log.i(
                     TAG,
-                    "Piper synth: lang=$langCode chars=${text.length} samples=${audio.samples.size} " +
+                    "Piper synth: voice=${info.voiceId} gender=${info.gender} chars=${text.length} samples=${audio.samples.size} " +
                         "sampleRate=${audio.sampleRate} synthMs=$synthMs audioMs=$audioMs rtf=%.2f".format(rtf)
                 )
                 val track = ensureAudioTrack(audio.sampleRate)

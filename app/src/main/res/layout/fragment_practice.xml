@@ -33,6 +33,28 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content" />
 
+        <RadioGroup
+            android:id="@+id/radioGroupGenderPractice"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:layout_marginTop="6dp">
+
+            <RadioButton
+                android:id="@+id/radioFemalePractice"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="♀ Female voice"
+                android:checked="true" />
+
+            <RadioButton
+                android:id="@+id/radioMalePractice"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="16dp"
+                android:text="♂ Male voice" />
+        </RadioGroup>
+
         <com.google.android.material.textfield.TextInputLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"

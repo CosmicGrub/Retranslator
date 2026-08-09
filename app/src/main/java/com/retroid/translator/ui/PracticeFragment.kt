@@ -17,7 +17,8 @@ import com.retroid.translator.audio.RecordingsStore
 import com.retroid.translator.databinding.FragmentPracticeBinding
 import com.retroid.translator.databinding.ItemRecordingBinding
 import com.retroid.translator.engine.LanguageCatalog
-import com.retroid.translator.engine.PiperVoiceCatalog
+import com.retroid.translator.engine.VoiceGender
+import com.retroid.translator.engine.VoicePreferences
 import java.io.File
 
 class PracticeFragment : Fragment() {
@@ -30,6 +31,7 @@ class PracticeFragment : Fragment() {
     private val mainActivity get() = activity as? MainActivity
     private var player: MediaPlayer? = null
     private var lastAttempt: File? = null
+    private fun selectedGender(): VoiceGender = if (binding.radioMalePractice.isChecked) VoiceGender.MALE else VoiceGender.FEMALE
 
     override fun onCreateView(inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?): View {
         _binding = FragmentPracticeBinding.inflate(inflater, container, false)
@@ -40,6 +42,7 @@ class PracticeFragment : Fragment() {
         super.onViewCreated(view, savedInstanceState)
         recordingsStore = RecordingsStore(requireContext(), "practice")
         setupSpinner()
+        setupGenderToggle()
 
         binding.btnHearReference.setOnClickListener { hearReference() }
         binding.btnRecordAttempt.setOnClickListener { toggleRecordAttempt() }
@@ -48,6 +51,16 @@ class PracticeFragment : Fragment() {
 
         refreshRecordingsList()
         refreshNaturalVoiceStatus()
+    }
+
+    private fun setupGenderToggle() {
+        val gender = VoicePreferences.getGender(requireContext())
+        binding.radioMalePractice.isChecked = gender == VoiceGender.MALE
+        binding.radioFemalePractice.isChecked = gender == VoiceGender.FEMALE
+        binding.radioGroupGenderPractice.setOnCheckedChangeListener { _, _ ->
+            VoicePreferences.setGender(requireContext(), selectedGender())
+            refreshNaturalVoiceStatus()
+        }
     }
 
     private fun setupSpinner() {
@@ -73,7 +86,7 @@ class PracticeFragment : Fragment() {
             return
         }
         val code = selectedCode()
-        app.tts.speak(text, code, onDone = {}, onError = { err ->
+        app.tts.speak(text, code, selectedGender(), onDone = {}, onError = { err ->
             if (isAdded) Toast.makeText(requireContext(), err, Toast.LENGTH_LONG).show()
         })
     }
@@ -85,14 +98,16 @@ class PracticeFragment : Fragment() {
     private fun refreshNaturalVoiceStatus() {
         val app = mainActivity?.app ?: return
         val code = selectedCode()
-        val info = PiperVoiceCatalog.forLanguage(code)
+        val gender = selectedGender()
+        val info = app.tts.naturalVoiceInfo(code, gender)
         if (info == null) {
-            binding.textNaturalVoiceStatusPractice.text = "No natural voice available yet for ${LanguageCatalog.displayNameFor(code)} - using eSpeak (built-in, robotic)."
+            val genderLabel = if (gender == VoiceGender.MALE) "male" else "female"
+            binding.textNaturalVoiceStatusPractice.text = "No natural $genderLabel voice available yet for ${LanguageCatalog.displayNameFor(code)} - using eSpeak (built-in, robotic)."
             binding.btnDownloadNaturalVoicePractice.visibility = View.GONE
             return
         }
         binding.btnDownloadNaturalVoicePractice.visibility = View.VISIBLE
-        if (app.piper.isVoiceDownloaded(code)) {
+        if (app.tts.isNaturalVoiceDownloaded(code, gender)) {
             binding.textNaturalVoiceStatusPractice.text = "Natural voice (${info.displayName}) downloaded — reference pronunciation uses it automatically."
             binding.btnDownloadNaturalVoicePractice.text = "Re-download natural voice"
         } else {
@@ -104,14 +119,15 @@ class PracticeFragment : Fragment() {
     private fun downloadNaturalVoice() {
         val app = mainActivity?.app ?: return
         val code = selectedCode()
+        val gender = selectedGender()
         binding.textNaturalVoiceStatusPractice.text = "Downloading natural voice (Wi-Fi required)…"
-        app.piper.downloadVoice(
-            requireContext(), code,
+        app.tts.downloadNaturalVoice(
+            requireContext(), code, gender,
             onProgress = { pct ->
                 if (_binding != null) binding.textNaturalVoiceStatusPractice.text = "Downloading natural voice… $pct%"
             }
-        ) { success, error ->
-            if (_binding == null) return@downloadVoice
+        ) onDownloadDone@{ success, error ->
+            if (_binding == null) return@onDownloadDone
             if (success) {
                 Toast.makeText(requireContext(), "Natural voice downloaded.", Toast.LENGTH_SHORT).show()
             } else {

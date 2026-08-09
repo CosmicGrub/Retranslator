@@ -53,6 +53,28 @@
                 android:layout_weight="1" />
         </LinearLayout>
 
+        <RadioGroup
+            android:id="@+id/radioGroupGenderConv"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:layout_marginTop="6dp">
+
+            <RadioButton
+                android:id="@+id/radioFemaleConv"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="♀ Female voice"
+                android:checked="true" />
+
+            <RadioButton
+                android:id="@+id/radioMaleConv"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="16dp"
+                android:text="♂ Male voice" />
+        </RadioGroup>
+
         <TextView
             android:id="@+id/textTurnIndicator"
             android:layout_width="match_parent"
