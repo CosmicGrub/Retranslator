@@ -47,7 +47,26 @@ class PiperTtsEngine(context: Context) {
 
     fun voiceRootDir(langCode: String): File = File(appContext.filesDir, "piper-voices/$langCode")
 
-    /** The extracted voice directory (containing `<voiceId>.onnx`, `tokens.txt`, `espeak-ng-data/`), or null if not downloaded. */
+    /**
+     * The extracted voice directory (containing `<voiceId>.onnx`, `tokens.txt`,
+     * `espeak-ng-data/`), or null if not downloaded *or the download/extraction
+     * was interrupted partway through* (e.g. the app got backgrounded/killed,
+     * or the device lost connectivity mid-download).
+     *
+     * This deliberately checks more than "does the .onnx file exist": a real
+     * bug found during on-device testing was that an interrupted download can
+     * leave a directory where the (small, early-in-the-archive) .onnx file
+     * and tokens.txt made it to disk but espeak-ng-data - a much bigger,
+     * later part of the same tar stream - did not. sherpa-onnx's native VITS
+     * loader requires four specific files inside espeak-ng-data (phontab,
+     * phonindex, phondata, intonations) and previously we had no Kotlin-side
+     * check for that: constructing OfflineTts against such a directory logs
+     * "Errors found in config!" natively and then a *second* native call
+     * (getSampleRate on the resulting null/invalid handle) segfaults the
+     * whole process - not something a Kotlin try/catch can recover from. The
+     * only reliable fix is to never attempt to load an incomplete voice in
+     * the first place.
+     */
     fun effectiveVoiceDir(langCode: String): File? {
         val info = PiperVoiceCatalog.forLanguage(langCode) ?: return null
         val root = voiceRootDir(langCode)
@@ -55,7 +74,22 @@ class PiperTtsEngine(context: Context) {
         // The archive extracts into one nested "vits-piper-<voiceId>" folder.
         val nested = File(root, "vits-piper-${info.voiceId}")
         val direct = if (File(nested, "${info.voiceId}.onnx").exists()) nested else root
-        return if (File(direct, "${info.voiceId}.onnx").exists()) direct else null
+        return if (isCompleteVoiceDir(direct, info)) direct else null
+    }
+
+    private fun isCompleteVoiceDir(dir: File, info: PiperVoiceInfo): Boolean {
+        val model = File(dir, "${info.voiceId}.onnx")
+        val tokens = File(dir, "tokens.txt")
+        if (!model.isFile || model.length() < MIN_MODEL_BYTES) return false
+        if (!tokens.isFile || tokens.length() <= 0L) return false
+        val dataDir = File(dir, "espeak-ng-data")
+        if (!dataDir.isDirectory) return false
+        // These are the exact files sherpa-onnx's native VITS loader requires
+        // to exist inside --vits-data-dir (see OfflineTtsVitsModelConfig::Validate
+        // in sherpa-onnx/csrc/offline-tts-vits-model-config.cc) - checking for
+        // them directly, rather than just "the directory is non-empty", is what
+        // actually catches a partial extraction like the one found here.
+        return REQUIRED_ESPEAK_DATA_FILES.all { File(dataDir, it).isFile }
     }
 
     fun isVoiceDownloaded(langCode: String): Boolean = effectiveVoiceDir(langCode) != null
@@ -79,7 +113,18 @@ class PiperTtsEngine(context: Context) {
                 // The previously-loaded voice for this language, if any, is now stale.
                 unloadBlocking()
             }
-            onDone(success, error)
+            var actualSuccess = success
+            var actualError = error
+            if (success && !isVoiceDownloaded(langCode)) {
+                // The download/unzip reported success but the result doesn't pass
+                // completeness validation - treat it as a failure and clean up
+                // rather than leaving a half-extracted pack that would crash on load.
+                Log.w(TAG, "Voice pack for $langCode failed completeness check after extraction; discarding it")
+                DownloadManager.deleteDir(voiceRootDir(langCode))
+                actualSuccess = false
+                actualError = "Downloaded pack was incomplete, please try again"
+            }
+            onDone(actualSuccess, actualError)
         }
     }
 
@@ -242,5 +287,13 @@ class PiperTtsEngine(context: Context) {
 
     companion object {
         private const val TAG = "PiperTtsEngine"
+
+        // Real medium-tier Piper .onnx weights are ~60MB; anything drastically
+        // smaller means the download was truncated.
+        private const val MIN_MODEL_BYTES = 10_000_000L
+
+        // sherpa-onnx's native VITS loader (OfflineTtsVitsModelConfig::Validate)
+        // requires exactly these four files inside --vits-data-dir.
+        private val REQUIRED_ESPEAK_DATA_FILES = listOf("phontab", "phonindex", "phondata", "intonations")
     }
 }

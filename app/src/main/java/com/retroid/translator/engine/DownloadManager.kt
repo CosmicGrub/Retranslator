@@ -41,7 +41,7 @@ object DownloadManager {
         onProgress: (percent: Int) -> Unit = {},
         onDone: (success: Boolean, error: String?) -> Unit
     ) {
-        runDownload(context, url, "dl_${System.currentTimeMillis()}.zip", requireWifi, onProgress, onDone) { tmp ->
+        runDownload(context, url, "dl_${System.currentTimeMillis()}.zip", destDir, requireWifi, onProgress, onDone) { tmp ->
             if (destDir.exists()) destDir.deleteRecursively()
             destDir.mkdirs()
             ZipInputStream(tmp.inputStream().buffered()).use { zis ->
@@ -81,7 +81,7 @@ object DownloadManager {
         onProgress: (percent: Int) -> Unit = {},
         onDone: (success: Boolean, error: String?) -> Unit
     ) {
-        runDownload(context, url, "dl_${System.currentTimeMillis()}.tar.bz2", requireWifi, onProgress, onDone) { tmp ->
+        runDownload(context, url, "dl_${System.currentTimeMillis()}.tar.bz2", destDir, requireWifi, onProgress, onDone) { tmp ->
             if (destDir.exists()) destDir.deleteRecursively()
             destDir.mkdirs()
             BZip2CompressorInputStream(tmp.inputStream().buffered()).use { bz ->
@@ -109,11 +109,22 @@ object DownloadManager {
         }
     }
 
-    /** Shared Wi-Fi-gated "download to a temp file, then hand it off to [extract]" flow. */
+    /**
+     * Shared Wi-Fi-gated "download to a temp file, then hand it off to
+     * [extract]" flow. If anything goes wrong partway through - the download
+     * connection drops, the device loses connectivity, extraction throws -
+     * [destDir] is deleted rather than left containing a partial extraction.
+     * A caller that only checks "does the output directory / a marker file in
+     * it exist" to decide whether a pack is downloaded would otherwise treat
+     * a half-written pack as complete (this happened for real during
+     * on-device testing with a Piper voice pack: the small files landed
+     * before the connection dropped, the bulk of espeak-ng-data did not).
+     */
     private fun runDownload(
         context: Context,
         url: String,
         tmpName: String,
+        destDir: File,
         requireWifi: Boolean,
         onProgress: (percent: Int) -> Unit,
         onDone: (success: Boolean, error: String?) -> Unit,
@@ -163,6 +174,7 @@ object DownloadManager {
                 mainHandler.post { onDone(true, null) }
             } catch (e: Exception) {
                 Log.e(TAG, "Download/extract failed for $url", e)
+                try { if (destDir.exists()) destDir.deleteRecursively() } catch (e2: Exception) { /* ignore */ }
                 mainHandler.post { onDone(false, e.message ?: "Download failed") }
             } finally {
                 tmp?.delete()
