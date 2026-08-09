@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<menu xmlns:android="http://schemas.android.com/apk/res/android">
+    <item
+        android:id="@+id/nav_translate"
+        android:icon="@android:drawable/ic_menu_edit"
+        android:title="Translate" />
+    <item
+        android:id="@+id/nav_conversations"
+        android:icon="@android:drawable/ic_menu_call"
+        android:title="Conversations" />
+    <item
+        android:id="@+id/nav_practice"
+        android:icon="@android:drawable/ic_btn_speak_now"
+        android:title="Practice" />
+</menu>
