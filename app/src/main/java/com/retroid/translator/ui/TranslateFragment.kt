@@ -16,6 +16,7 @@ import com.retroid.translator.MainActivity
 import com.retroid.translator.databinding.FragmentTranslateBinding
 import com.retroid.translator.engine.DownloadManager
 import com.retroid.translator.engine.LanguageCatalog
+import com.retroid.translator.engine.PiperVoiceCatalog
 import com.retroid.translator.engine.TranslationEngine
 import com.retroid.translator.engine.VoskModelCatalog
 
@@ -40,6 +41,7 @@ class TranslateFragment : Fragment() {
         setupListeners()
         refreshModelStatus()
         refreshSttStatus()
+        refreshNaturalVoiceStatus()
     }
 
     private fun setupLanguageSpinners() {
@@ -61,6 +63,7 @@ class TranslateFragment : Fragment() {
             override fun onItemSelected(p: AdapterView<*>?, v: View?, pos: Int, id: Long) {
                 refreshModelStatus()
                 refreshSttStatus()
+                refreshNaturalVoiceStatus()
             }
             override fun onNothingSelected(p: AdapterView<*>?) {}
         }
@@ -85,6 +88,7 @@ class TranslateFragment : Fragment() {
 
         binding.btnDownloadModels.setOnClickListener { downloadTranslateModels() }
         binding.btnDownloadStt.setOnClickListener { downloadSttModel() }
+        binding.btnDownloadNaturalVoice.setOnClickListener { downloadNaturalVoice() }
         binding.btnTranslate.setOnClickListener { performTranslate() }
         binding.btnMic.setOnClickListener { startVoiceInput() }
         binding.btnSpeak.setOnClickListener { speakResult() }
@@ -303,16 +307,55 @@ class TranslateFragment : Fragment() {
             Toast.makeText(requireContext(), "Nothing to speak yet", Toast.LENGTH_SHORT).show()
             return
         }
-        if (!app.espeak.ready) {
-            Toast.makeText(requireContext(), "Offline speech engine still starting up, try again in a moment", Toast.LENGTH_SHORT).show()
-            return
-        }
         val target = selectedTargetCode()
-        app.espeak.speak(
+        app.tts.speak(
             text, target,
             onDone = {},
             onError = { err -> if (isAdded) Toast.makeText(requireContext(), err, Toast.LENGTH_LONG).show() }
         )
+    }
+
+    // ---------------------------------------------------------------------
+    // Natural-voice (Piper via sherpa-onnx) pack management, for the target language
+    // ---------------------------------------------------------------------
+
+    private fun refreshNaturalVoiceStatus() {
+        val app = mainActivity?.app ?: return
+        val code = selectedTargetCode()
+        val info = PiperVoiceCatalog.forLanguage(code)
+        if (info == null) {
+            binding.textNaturalVoiceStatus.text = "No natural voice available yet for ${LanguageCatalog.displayNameFor(code)} - eSpeak (built-in, robotic) will be used."
+            binding.btnDownloadNaturalVoice.visibility = View.GONE
+            return
+        }
+        binding.btnDownloadNaturalVoice.visibility = View.VISIBLE
+        if (app.piper.isVoiceDownloaded(code)) {
+            binding.textNaturalVoiceStatus.text = "Natural voice (${info.displayName}) downloaded — used automatically instead of eSpeak."
+            binding.btnDownloadNaturalVoice.text = "Re-download natural voice"
+        } else {
+            binding.textNaturalVoiceStatus.text = "Natural voice available: ${info.displayName} (~${info.approxSizeMiB}MB, Wi-Fi, ${info.license}). Falls back to eSpeak (robotic) until downloaded."
+            binding.btnDownloadNaturalVoice.text = "Download natural voice (Wi-Fi)"
+        }
+    }
+
+    private fun downloadNaturalVoice() {
+        val app = mainActivity?.app ?: return
+        val code = selectedTargetCode()
+        binding.textNaturalVoiceStatus.text = "Downloading natural voice (Wi-Fi required)…"
+        app.piper.downloadVoice(
+            requireContext(), code,
+            onProgress = { pct ->
+                if (_binding != null) binding.textNaturalVoiceStatus.text = "Downloading natural voice… $pct%"
+            }
+        ) { success, error ->
+            if (_binding == null) return@downloadVoice
+            if (success) {
+                Toast.makeText(requireContext(), "Natural voice downloaded. Used automatically from now on.", Toast.LENGTH_SHORT).show()
+            } else {
+                Toast.makeText(requireContext(), "Download failed: $error", Toast.LENGTH_LONG).show()
+            }
+            refreshNaturalVoiceStatus()
+        }
     }
 
     override fun onPause() {

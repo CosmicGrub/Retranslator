@@ -1,9 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
 
-    <!-- Needed only for the one-time ML Kit / Vosk language-pack downloads; all
-         translation, speech recognition and speech synthesis after that runs
-         fully offline, on-device, with no ongoing network dependency. -->
+    <!-- Needed only for the one-time ML Kit / Vosk / natural-voice (Piper via
+         sherpa-onnx) language-pack downloads; all translation, speech
+         recognition and speech synthesis after that runs fully offline,
+         on-device, with no ongoing network dependency. -->
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
 

@@ -52,6 +52,22 @@
             android:layout_marginTop="8dp"
             android:text="🔊 Hear reference pronunciation" />
 
+        <TextView
+            android:id="@+id/textNaturalVoiceStatusPractice"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:textSize="12sp"
+            android:layout_marginTop="4dp"
+            android:text="eSpeak (built-in, robotic, always available) is used unless a natural voice is downloaded." />
+
+        <Button
+            android:id="@+id/btnDownloadNaturalVoicePractice"
+            style="@style/Widget.MaterialComponents.Button.OutlinedButton"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="4dp"
+            android:text="Download natural voice (Wi-Fi)" />
+
         <Button
             android:id="@+id/btnRecordAttempt"
             android:layout_width="match_parent"

@@ -134,12 +134,9 @@ class ConversationsFragment : Fragment() {
                         onResult = onResult@{ translated ->
                             if (_binding == null) return@onResult
                             appendTranscript("   → (${LanguageCatalog.displayNameFor(dstCode)}): $translated")
-                            val engine = mainActivity?.app?.espeak
-                            if (engine != null && engine.supportsLanguage(dstCode)) {
-                                engine.speak(translated, dstCode, onDone = { switchTurn() }, onError = { switchTurn() })
-                            } else {
-                                switchTurn()
-                            }
+                            val router = mainActivity?.app?.tts
+                            router?.speak(translated, dstCode, onDone = { switchTurn() }, onError = { switchTurn() })
+                                ?: switchTurn()
                         },
                         onError = onError@{ err ->
                             if (_binding == null) return@onError

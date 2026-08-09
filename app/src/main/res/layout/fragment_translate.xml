@@ -94,6 +94,35 @@
             android:layout_marginTop="4dp"
             android:text="Download voice-input pack (Wi-Fi)" />
 
+        <View
+            android:layout_width="match_parent"
+            android:layout_height="1dp"
+            android:layout_marginVertical="10dp"
+            android:background="#22000000" />
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Spoken output for the translation (target language)"
+            android:textSize="12sp"
+            android:textStyle="bold" />
+
+        <TextView
+            android:id="@+id/textNaturalVoiceStatus"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:textSize="12sp"
+            android:layout_marginTop="4dp"
+            android:text="eSpeak (built-in, robotic, always available) is used unless a natural voice is downloaded." />
+
+        <Button
+            android:id="@+id/btnDownloadNaturalVoice"
+            style="@style/Widget.MaterialComponents.Button.OutlinedButton"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="4dp"
+            android:text="Download natural voice (Wi-Fi)" />
+
         <!-- Input -->
         <com.google.android.material.textfield.TextInputLayout
             android:layout_width="match_parent"

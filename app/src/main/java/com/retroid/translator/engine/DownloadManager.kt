@@ -6,6 +6,8 @@ import android.net.NetworkCapabilities
 import android.os.Handler
 import android.os.Looper
 import android.util.Log
+import org.apache.commons.compress.archivers.tar.TarArchiveInputStream
+import org.apache.commons.compress.compressors.bzip2.BZip2CompressorInputStream
 import java.io.File
 import java.net.HttpURLConnection
 import java.net.URL
@@ -39,6 +41,84 @@ object DownloadManager {
         onProgress: (percent: Int) -> Unit = {},
         onDone: (success: Boolean, error: String?) -> Unit
     ) {
+        runDownload(context, url, "dl_${System.currentTimeMillis()}.zip", requireWifi, onProgress, onDone) { tmp ->
+            if (destDir.exists()) destDir.deleteRecursively()
+            destDir.mkdirs()
+            ZipInputStream(tmp.inputStream().buffered()).use { zis ->
+                var entry = zis.nextEntry
+                val buf = ByteArray(64 * 1024)
+                while (entry != null) {
+                    val outFile = File(destDir, entry.name)
+                    if (entry.isDirectory) {
+                        outFile.mkdirs()
+                    } else {
+                        outFile.parentFile?.mkdirs()
+                        outFile.outputStream().use { out ->
+                            while (true) {
+                                val n = zis.read(buf)
+                                if (n < 0) break
+                                out.write(buf, 0, n)
+                            }
+                        }
+                    }
+                    zis.closeEntry()
+                    entry = zis.nextEntry
+                }
+            }
+        }
+    }
+
+    /**
+     * Same Wi-Fi-gated download UX as [downloadAndUnzip], but for the
+     * `.tar.bz2` archives Piper natural-voice packs ship as (sherpa-onnx's
+     * own "tts-models" release format) rather than `.zip`.
+     */
+    fun downloadAndExtractTarBz2(
+        context: Context,
+        url: String,
+        destDir: File,
+        requireWifi: Boolean = true,
+        onProgress: (percent: Int) -> Unit = {},
+        onDone: (success: Boolean, error: String?) -> Unit
+    ) {
+        runDownload(context, url, "dl_${System.currentTimeMillis()}.tar.bz2", requireWifi, onProgress, onDone) { tmp ->
+            if (destDir.exists()) destDir.deleteRecursively()
+            destDir.mkdirs()
+            BZip2CompressorInputStream(tmp.inputStream().buffered()).use { bz ->
+                TarArchiveInputStream(bz).use { tar ->
+                    val buf = ByteArray(64 * 1024)
+                    var entry = tar.nextTarEntry
+                    while (entry != null) {
+                        val outFile = File(destDir, entry.name)
+                        if (entry.isDirectory) {
+                            outFile.mkdirs()
+                        } else {
+                            outFile.parentFile?.mkdirs()
+                            outFile.outputStream().use { out ->
+                                while (true) {
+                                    val n = tar.read(buf)
+                                    if (n < 0) break
+                                    out.write(buf, 0, n)
+                                }
+                            }
+                        }
+                        entry = tar.nextTarEntry
+                    }
+                }
+            }
+        }
+    }
+
+    /** Shared Wi-Fi-gated "download to a temp file, then hand it off to [extract]" flow. */
+    private fun runDownload(
+        context: Context,
+        url: String,
+        tmpName: String,
+        requireWifi: Boolean,
+        onProgress: (percent: Int) -> Unit,
+        onDone: (success: Boolean, error: String?) -> Unit,
+        extract: (File) -> Unit
+    ) {
         if (requireWifi && !isOnWifi(context)) {
             onDone(false, "Wi-Fi required for the first-time download")
             return
@@ -46,7 +126,7 @@ object DownloadManager {
         executor.execute {
             var tmp: File? = null
             try {
-                tmp = File(context.cacheDir, "dl_${System.currentTimeMillis()}.zip")
+                tmp = File(context.cacheDir, tmpName)
                 val conn = (URL(url).openConnection() as HttpURLConnection).apply {
                     connectTimeout = 15_000
                     readTimeout = 30_000
@@ -79,34 +159,10 @@ object DownloadManager {
                     }
                 }
                 conn.disconnect()
-
-                // Unzip into destDir.
-                if (destDir.exists()) destDir.deleteRecursively()
-                destDir.mkdirs()
-                ZipInputStream(tmp.inputStream().buffered()).use { zis ->
-                    var entry = zis.nextEntry
-                    val buf = ByteArray(64 * 1024)
-                    while (entry != null) {
-                        val outFile = File(destDir, entry.name)
-                        if (entry.isDirectory) {
-                            outFile.mkdirs()
-                        } else {
-                            outFile.parentFile?.mkdirs()
-                            outFile.outputStream().use { out ->
-                                while (true) {
-                                    val n = zis.read(buf)
-                                    if (n < 0) break
-                                    out.write(buf, 0, n)
-                                }
-                            }
-                        }
-                        zis.closeEntry()
-                        entry = zis.nextEntry
-                    }
-                }
+                extract(tmp)
                 mainHandler.post { onDone(true, null) }
             } catch (e: Exception) {
-                Log.e(TAG, "Download/unzip failed for $url", e)
+                Log.e(TAG, "Download/extract failed for $url", e)
                 mainHandler.post { onDone(false, e.message ?: "Download failed") }
             } finally {
                 tmp?.delete()

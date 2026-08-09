@@ -5,6 +5,7 @@ import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import android.widget.AdapterView
 import android.widget.ArrayAdapter
 import android.widget.TextView
 import android.widget.Toast
@@ -16,6 +17,7 @@ import com.retroid.translator.audio.RecordingsStore
 import com.retroid.translator.databinding.FragmentPracticeBinding
 import com.retroid.translator.databinding.ItemRecordingBinding
 import com.retroid.translator.engine.LanguageCatalog
+import com.retroid.translator.engine.PiperVoiceCatalog
 import java.io.File
 
 class PracticeFragment : Fragment() {
@@ -42,8 +44,10 @@ class PracticeFragment : Fragment() {
         binding.btnHearReference.setOnClickListener { hearReference() }
         binding.btnRecordAttempt.setOnClickListener { toggleRecordAttempt() }
         binding.btnPlayAttempt.setOnClickListener { lastAttempt?.let { playFile(it) } }
+        binding.btnDownloadNaturalVoicePractice.setOnClickListener { downloadNaturalVoice() }
 
         refreshRecordingsList()
+        refreshNaturalVoiceStatus()
     }
 
     private fun setupSpinner() {
@@ -53,6 +57,10 @@ class PracticeFragment : Fragment() {
         adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item)
         binding.spinnerPracticeLang.adapter = adapter
         binding.spinnerPracticeLang.setSelection(languageCodes.indexOf(TranslateLanguage.ENGLISH).coerceAtLeast(0))
+        binding.spinnerPracticeLang.onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
+            override fun onItemSelected(p: AdapterView<*>?, v: View?, pos: Int, id: Long) = refreshNaturalVoiceStatus()
+            override fun onNothingSelected(p: AdapterView<*>?) {}
+        }
     }
 
     private fun selectedCode() = languageCodes[binding.spinnerPracticeLang.selectedItemPosition]
@@ -64,14 +72,53 @@ class PracticeFragment : Fragment() {
             Toast.makeText(requireContext(), "Type a word or phrase first", Toast.LENGTH_SHORT).show()
             return
         }
-        if (!app.espeak.ready) {
-            Toast.makeText(requireContext(), "Offline speech engine still starting up", Toast.LENGTH_SHORT).show()
-            return
-        }
         val code = selectedCode()
-        app.espeak.speak(text, code, onDone = {}, onError = { err ->
+        app.tts.speak(text, code, onDone = {}, onError = { err ->
             if (isAdded) Toast.makeText(requireContext(), err, Toast.LENGTH_LONG).show()
         })
+    }
+
+    // ---------------------------------------------------------------------
+    // Natural-voice (Piper via sherpa-onnx) pack management
+    // ---------------------------------------------------------------------
+
+    private fun refreshNaturalVoiceStatus() {
+        val app = mainActivity?.app ?: return
+        val code = selectedCode()
+        val info = PiperVoiceCatalog.forLanguage(code)
+        if (info == null) {
+            binding.textNaturalVoiceStatusPractice.text = "No natural voice available yet for ${LanguageCatalog.displayNameFor(code)} - using eSpeak (built-in, robotic)."
+            binding.btnDownloadNaturalVoicePractice.visibility = View.GONE
+            return
+        }
+        binding.btnDownloadNaturalVoicePractice.visibility = View.VISIBLE
+        if (app.piper.isVoiceDownloaded(code)) {
+            binding.textNaturalVoiceStatusPractice.text = "Natural voice (${info.displayName}) downloaded — reference pronunciation uses it automatically."
+            binding.btnDownloadNaturalVoicePractice.text = "Re-download natural voice"
+        } else {
+            binding.textNaturalVoiceStatusPractice.text = "Natural voice available: ${info.displayName} (~${info.approxSizeMiB}MB, Wi-Fi, ${info.license}). Using eSpeak (robotic) until downloaded."
+            binding.btnDownloadNaturalVoicePractice.text = "Download natural voice (Wi-Fi)"
+        }
+    }
+
+    private fun downloadNaturalVoice() {
+        val app = mainActivity?.app ?: return
+        val code = selectedCode()
+        binding.textNaturalVoiceStatusPractice.text = "Downloading natural voice (Wi-Fi required)…"
+        app.piper.downloadVoice(
+            requireContext(), code,
+            onProgress = { pct ->
+                if (_binding != null) binding.textNaturalVoiceStatusPractice.text = "Downloading natural voice… $pct%"
+            }
+        ) { success, error ->
+            if (_binding == null) return@downloadVoice
+            if (success) {
+                Toast.makeText(requireContext(), "Natural voice downloaded.", Toast.LENGTH_SHORT).show()
+            } else {
+                Toast.makeText(requireContext(), "Download failed: $error", Toast.LENGTH_LONG).show()
+            }
+            refreshNaturalVoiceStatus()
+        }
     }
 
     private fun toggleRecordAttempt() {

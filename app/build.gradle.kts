@@ -78,4 +78,21 @@ dependencies {
     // eSpeak NG (GPL-3.0, bundled as jniLibs/libttsespeak.so + assets/espeak-ng-data,
     // driven via the vendored com.reecedunn.espeak JNI bridge) provides fully
     // offline, in-app text-to-speech with no separate engine app required.
+
+    // sherpa-onnx (Apache-2.0, k2-fsa project) - neural TTS runtime that drives
+    // downloaded Piper VITS voice models for natural-sounding speech. There is
+    // no official Maven Central artifact, so this vendors the same two pieces
+    // the upstream release AAR (github.com/k2-fsa/sherpa-onnx/releases, tag
+    // v1.13.4, sherpa-onnx-1.13.4.aar) contains for our one target ABI: the
+    // compiled Kotlin/Java API classes (libs/sherpa-onnx-classes.jar) and the
+    // arm64-v8a native libs (jniLibs/arm64-v8a/lib{onnxruntime,sherpa-onnx-*}.so)
+    // extracted from that AAR, mirroring how libttsespeak.so is already vendored
+    // rather than pulling in the other 3 unused ABIs.
+    implementation(files("libs/sherpa-onnx-classes.jar"))
+
+    // Piper voice packs are distributed as .tar.bz2 (not .zip like the Vosk
+    // packs), so the download path needs real tar+bzip2 support - the JDK's
+    // java.util.zip only understands zip/gzip. Apache Commons Compress
+    // (Apache-2.0, Maven Central) is the standard, well-known library for this.
+    implementation("org.apache.commons:commons-compress:1.26.1")
 }

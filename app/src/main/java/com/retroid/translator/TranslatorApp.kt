@@ -3,6 +3,8 @@ package com.retroid.translator
 import android.app.Application
 import com.retroid.translator.audio.MicPipeline
 import com.retroid.translator.engine.EspeakEngine
+import com.retroid.translator.engine.PiperTtsEngine
+import com.retroid.translator.engine.TtsRouter
 import com.retroid.translator.engine.VoskEngine
 
 /**
@@ -13,8 +15,12 @@ import com.retroid.translator.engine.VoskEngine
  */
 class TranslatorApp : Application() {
     val espeak: EspeakEngine by lazy { EspeakEngine(this) }
+    val piper: PiperTtsEngine by lazy { PiperTtsEngine(this) }
     val vosk: VoskEngine by lazy { VoskEngine(this) }
     val mic: MicPipeline by lazy { MicPipeline() }
+
+    /** Every screen speaks through this - it picks Piper (natural) when downloaded, else eSpeak. */
+    val tts: TtsRouter by lazy { TtsRouter(espeak, piper) }
 
     override fun onCreate() {
         super.onCreate()
