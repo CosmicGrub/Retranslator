@@ -79,13 +79,17 @@ class TranslateLayoutSettingsFragment : Fragment() {
         group.removeAllViews()
         val radiosById = mutableMapOf<Int, String>()
         for (option in options) {
-            val row = ViewTranslateVariantOptionBinding.inflate(layoutInflater, group, false)
+            // attachToParent=true is required here: the row's root layout is <merge>,
+            // so it has no view of its own to add separately - inflate() attaches its
+            // RadioButton/TextView children directly to `group` as it inflates. This is
+            // also what makes RadioGroup's mutual-exclusion logic work at all (it only
+            // instruments direct children) - see view_translate_variant_option.xml.
+            val row = ViewTranslateVariantOptionBinding.inflate(layoutInflater, group)
             val radioId = View.generateViewId()
             row.radioOption.id = radioId
             row.radioOption.text = option.title
             row.textOptionSubtitle.text = option.subtitle
             radiosById[radioId] = option.id
-            group.addView(row.root)
             if (option.id == currentId) {
                 row.radioOption.isChecked = true
             }

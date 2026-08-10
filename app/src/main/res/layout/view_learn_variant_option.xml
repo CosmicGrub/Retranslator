@@ -2,21 +2,23 @@
 <!--
   One row inside LearnLayoutSettingsFragment's cover/Flex RadioGroups - a
   RadioButton (title) plus a subtitle line underneath. Same structure as
-  view_translate_variant_option.xml (read for the pattern, not modified) -
-  RadioGroup finds RadioButton descendants anywhere in its tree, so nesting
-  one level inside this wrapper still works correctly.
+  view_translate_variant_option.xml (read for the pattern, not modified).
+
+  CORRECTED 2026-08-10: RadioGroup's mutual-exclusion/OnCheckedChangeListener
+  wiring only instruments DIRECT children - it does NOT walk the view tree
+  for RadioButton descendants. The original wrapper LinearLayout here nested
+  the RadioButton one level deep, which silently broke selection entirely.
+  Fixed by using <merge> so the RadioButton and its subtitle TextView attach
+  directly to the RadioGroup as true siblings - requires inflating with
+  attachToParent=true (see LearnLayoutSettingsFragment.populateGroup).
 -->
-<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
-    android:layout_width="match_parent"
-    android:layout_height="wrap_content"
-    android:orientation="vertical"
-    android:paddingTop="10dp"
-    android:paddingBottom="10dp">
+<merge xmlns:android="http://schemas.android.com/apk/res/android">
 
     <RadioButton
         android:id="@+id/radioOption"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
+        android:paddingTop="10dp"
         android:textSize="16sp"
         android:textStyle="bold" />
 
@@ -25,7 +27,8 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_marginStart="32dp"
+        android:paddingBottom="10dp"
         android:textSize="13sp"
         android:alpha="0.75" />
 
-</LinearLayout>
+</merge>
