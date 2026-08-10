@@ -66,6 +66,16 @@ dependencies {
     implementation("androidx.recyclerview:recyclerview:1.3.2")
     implementation("androidx.swiperefreshlayout:swiperefreshlayout:1.1.0")
 
+    // Fold-state / hinge-geometry detection for the Z Fold 5 adaptation
+    // (docs/specs/fold5-adaptation.md §2/§3) - WindowInfoTracker/FoldingFeature.
+    // 1.5.1 is the latest stable release (1.6.0 is alpha-only as of writing;
+    // checked against Google's Maven metadata rather than assumed).
+    implementation("androidx.window:window:1.5.1")
+    // Flow collection (WindowInfoTracker.windowLayoutInfo is Flow-based) and
+    // lifecycleScope/repeatOnLifecycle both need a real coroutines dependency
+    // on the classpath rather than relying on it arriving transitively.
+    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.7.3")
+
     // Google ML Kit - on-device, free, no API key, no billing.
     implementation("com.google.mlkit:translate:17.0.2")
     implementation("com.google.mlkit:language-id:17.0.5")

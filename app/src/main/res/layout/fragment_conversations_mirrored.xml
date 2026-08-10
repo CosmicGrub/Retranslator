@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Tabletop-landscape mirrored face-to-face Conversations layout (spec §2:
+  TABLETOP_LANDSCAPE_FLAT / TABLETOP_LANDSCAPE_ANGLED postures). Two panes
+  split at the hinge - paneTop (above the hinge) and paneBottom (below it).
+  Both are sized/positioned at runtime in ConversationsFragment.applyMirroredGeometry
+  from the live FoldingFeature.bounds (never a static 50/50 assumption), and
+  paneTop gets android:rotation=180f applied to its root at runtime so the
+  person on the far side of the hinge reads it right-side up.
+
+  Plain FrameLayout root (not ConstraintLayout) because the split position is
+  inherently dynamic (depends on FoldingFeature.bounds, which varies by
+  device and can shift slightly between FLAT/HALF_OPENED) - it's set via
+  LayoutParams in code, not a fixed XML constraint.
+-->
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/rootMirrored"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="?android:attr/colorBackground">
+
+    <include
+        android:id="@+id/paneBottom"
+        layout="@layout/view_conversation_pane"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent" />
+
+    <include
+        android:id="@+id/paneTop"
+        layout="@layout/view_conversation_pane"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent" />
+
+</FrameLayout>

@@ -24,12 +24,29 @@
         <activity
             android:name=".MainActivity"
             android:exported="true"
+            android:resizeableActivity="true"
             android:configChanges="orientation|screenSize|keyboardHidden">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+
+        <!-- Throwaway debug-only prototype for docs/specs/fold5-adaptation.md §4
+             (dual-recognizer parallel Vosk decoding spike). Not linked from any
+             nav flow (MainActivity/BottomNavigationView never reference it) —
+             trigger directly with:
+             adb shell am start -n com.retroid.translator/.prototype.DualRecognizerProtoActivity
+             exported=true only because Android 16 (confirmed on-device, API 36,
+             security patch 2026-06-05) blocks `adb shell am start` of a
+             non-exported activity even in a debuggable app - a hardening change
+             from what used to be a standard debug workflow. There is no other
+             way to trigger a non-exported activity from adb on this OS version;
+             it stays out of the launcher and out of every shipped nav flow. -->
+        <activity
+            android:name=".prototype.DualRecognizerProtoActivity"
+            android:exported="true"
+            android:label="Dual Recognizer Prototype (debug)" />
     </application>
 
 </manifest>
