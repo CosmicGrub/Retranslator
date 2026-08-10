@@ -1,0 +1,77 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:paddingTop="8dp"
+        android:paddingBottom="8dp">
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:paddingStart="16dp"
+            android:paddingEnd="16dp"
+            android:paddingTop="16dp"
+            android:paddingBottom="8dp"
+            android:text="Per-tab layout, cover screen and Flex Mode (tabletop)"
+            android:textSize="13sp"
+            android:textStyle="italic" />
+
+        <LinearLayout
+            android:id="@+id/rowTranslateLayout"
+            style="@style/SettingsHubRow">
+            <TextView
+                style="@style/SettingsHubRowTitle"
+                android:text="Translate layout" />
+            <TextView
+                style="@style/SettingsHubRowSubtitle"
+                android:text="Cover-screen and Flex Mode layout for the Translate tab" />
+        </LinearLayout>
+
+        <View style="@style/SettingsHubDivider" />
+
+        <LinearLayout
+            android:id="@+id/rowPracticeLayout"
+            style="@style/SettingsHubRow">
+            <TextView
+                style="@style/SettingsHubRowTitle"
+                android:text="Practice layout" />
+            <TextView
+                style="@style/SettingsHubRowSubtitle"
+                android:text="Cover-screen and Flex Mode layout for the Practice tab" />
+        </LinearLayout>
+
+        <View style="@style/SettingsHubDivider" />
+
+        <LinearLayout
+            android:id="@+id/rowLearnLayout"
+            style="@style/SettingsHubRow">
+            <TextView
+                style="@style/SettingsHubRowTitle"
+                android:text="Learn layout" />
+            <TextView
+                style="@style/SettingsHubRowSubtitle"
+                android:text="Cover-screen and Flex Mode layout for the Learn tab" />
+        </LinearLayout>
+
+        <View style="@style/SettingsHubDivider" />
+
+        <LinearLayout
+            android:id="@+id/rowFoldBehavior"
+            style="@style/SettingsHubRow">
+            <TextView
+                style="@style/SettingsHubRowTitle"
+                android:text="Fold behavior" />
+            <TextView
+                style="@style/SettingsHubRowSubtitle"
+                android:text="Auto-switch on fold, and a manual compact-layout toggle" />
+        </LinearLayout>
+
+        <View style="@style/SettingsHubDivider" />
+
+    </LinearLayout>
+</ScrollView>
