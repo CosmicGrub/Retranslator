@@ -2,6 +2,7 @@ package com.retroid.translator.ui
 
 import android.media.MediaPlayer
 import android.os.Bundle
+import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
@@ -22,10 +23,12 @@ import com.retroid.translator.databinding.FragmentConversationsMirroredBinding
 import com.retroid.translator.databinding.ItemRecordingBinding
 import com.retroid.translator.audio.MicPipeline
 import com.retroid.translator.audio.RecordingsStore
+import com.retroid.translator.conversation.ContinuousConversationController
 import com.retroid.translator.engine.LanguageCatalog
 import com.retroid.translator.engine.TranslationEngine
 import com.retroid.translator.engine.VoiceGender
 import com.retroid.translator.engine.VoicePreferences
+import com.retroid.translator.engine.VoskEngine
 import com.retroid.translator.engine.VoskModelCatalog
 import com.retroid.translator.fold.FoldPosture
 import com.retroid.translator.fold.FoldPostureProvider
@@ -73,6 +76,27 @@ class ConversationsFragment : Fragment() {
     private var genderIsMale = false
     private var recordSessionEnabled = false
     private var statusText = ""
+
+    // ---------------------------------------------------------------------
+    // Continuous listening (docs/specs/fold5-adaptation.md §4, wired in for
+    // real here): VAD-triggered, no tap, dual-recognizer auto-detect per
+    // utterance. Fully additive alongside the manual turnIsA-driven tap flow
+    // above, which this does NOT replace - see class doc's "Renders into one
+    // of two..." note for why both need to keep working (regression safety +
+    // the spec's own recommendation to keep a manual path as a fallback).
+    // Uses two DEDICATED VoskEngine instances, never `app.vosk` (the single
+    // shared, single-resident-model engine every other tab/flow uses) -
+    // exactly the same reasoning as DualRecognizerPrototype.loadEngines:
+    // getting two simultaneously-resident models "for free" by owning two
+    // independent engine instances, without touching VoskEngine's own
+    // one-model-at-a-time design or stealing the shared instance out from
+    // under Translate/Practice/Learn/manual-Conversations mid-use.
+    // ---------------------------------------------------------------------
+    private var continuousEnabled = false
+    private var continuousEngineA: VoskEngine? = null
+    private var continuousEngineB: VoskEngine? = null
+    private var continuousController: ContinuousConversationController? = null
+    private var continuousLoading = false
 
     /** Combined transcript for the fallback single-column view - unchanged format from before this pass. */
     private val combinedTranscript = StringBuilder()
@@ -270,6 +294,14 @@ class ConversationsFragment : Fragment() {
         fb.toggleRecordSession.isChecked = recordSessionEnabled
         fb.toggleRecordSession.setOnCheckedChangeListener { _, checked -> recordSessionEnabled = checked }
         fb.btnConversationMic.setOnClickListener { onMicTap() }
+        fb.toggleContinuousListening.isChecked = continuousEnabled
+        // setOnClickListener + read .isChecked afterward (not
+        // setOnCheckedChangeListener) deliberately - turning this ON needs an
+        // async model-load that can fail and revert the toggle's checked
+        // state programmatically; a checked-change listener would re-fire on
+        // that revert too, which a plain click listener avoids.
+        fb.toggleContinuousListening.setOnClickListener { onContinuousToggleRequested(fb.toggleContinuousListening.isChecked) }
+        applyContinuousUiState()
         fb.textTranscript.text = combinedTranscript.toString()
         fb.textConversationStatus.text = statusText
         updateTurnIndicator()
@@ -313,6 +345,11 @@ class ConversationsFragment : Fragment() {
     private fun bindMirroredView(mb: FragmentConversationsMirroredBinding) {
         mb.paneTop.btnPaneMic.setOnClickListener { onMicTap() }
         mb.paneBottom.btnPaneMic.setOnClickListener { onMicTap() }
+        mb.paneTop.togglePaneContinuous.isChecked = continuousEnabled
+        mb.paneBottom.togglePaneContinuous.isChecked = continuousEnabled
+        mb.paneTop.togglePaneContinuous.setOnClickListener { onContinuousToggleRequested(mb.paneTop.togglePaneContinuous.isChecked) }
+        mb.paneBottom.togglePaneContinuous.setOnClickListener { onContinuousToggleRequested(mb.paneBottom.togglePaneContinuous.isChecked) }
+        applyContinuousUiState()
         mb.paneTop.textPaneStatus.text = statusText
         mb.paneBottom.textPaneStatus.text = statusText
         renderPane(paneATranscript, mb.paneTop.textPaneTranscript, mb.paneTop.scrollPaneTranscript)
@@ -472,6 +509,195 @@ class ConversationsFragment : Fragment() {
     }
 
     // ---------------------------------------------------------------------
+    // Continuous listening (see field doc comment above). Fully separate
+    // entry point from onMicTap()/switchTurn() above - manual tap-to-talk
+    // keeps working exactly as before when this is off.
+    // ---------------------------------------------------------------------
+
+    private fun applyContinuousUiState() {
+        val fb = fallbackBinding
+        if (fb != null) {
+            fb.spinnerLangA.isEnabled = !continuousEnabled
+            fb.spinnerLangB.isEnabled = !continuousEnabled
+            fb.btnConversationMic.isEnabled = !continuousEnabled
+            fb.btnConversationMic.alpha = if (continuousEnabled) 0.4f else 1f
+            if (fb.toggleContinuousListening.isChecked != continuousEnabled) fb.toggleContinuousListening.isChecked = continuousEnabled
+        }
+        val mb = mirroredBinding
+        if (mb != null) {
+            mb.paneTop.btnPaneMic.isEnabled = !continuousEnabled
+            mb.paneBottom.btnPaneMic.isEnabled = !continuousEnabled
+            mb.paneTop.btnPaneMic.alpha = if (continuousEnabled) 0.4f else 1f
+            mb.paneBottom.btnPaneMic.alpha = if (continuousEnabled) 0.4f else 1f
+            if (mb.paneTop.togglePaneContinuous.isChecked != continuousEnabled) mb.paneTop.togglePaneContinuous.isChecked = continuousEnabled
+            if (mb.paneBottom.togglePaneContinuous.isChecked != continuousEnabled) mb.paneBottom.togglePaneContinuous.isChecked = continuousEnabled
+        }
+    }
+
+    private fun onContinuousToggleRequested(wantOn: Boolean) {
+        if (wantOn == continuousEnabled || continuousLoading) {
+            applyContinuousUiState() // snap any stray toggle tap back in sync
+            return
+        }
+        if (wantOn) startContinuousMode() else stopContinuousMode()
+    }
+
+    private fun startContinuousMode() {
+        val activity = mainActivity ?: return
+        if (!activity.hasMicPermission()) {
+            activity.requestMicPermissionIfNeeded()
+            Toast.makeText(requireContext(), "Grant microphone permission, then try again", Toast.LENGTH_LONG).show()
+            applyContinuousUiState()
+            return
+        }
+        val a = langACode
+        val b = langBCode
+        if (VoskModelCatalog.forLanguage(a) == null || VoskModelCatalog.forLanguage(b) == null) {
+            Toast.makeText(requireContext(), "No offline voice-input model for one of these languages", Toast.LENGTH_LONG).show()
+            applyContinuousUiState()
+            return
+        }
+        if (mainActivity?.app?.mic?.isRunning() == true) {
+            Toast.makeText(requireContext(), "Stop the current recording first", Toast.LENGTH_SHORT).show()
+            applyContinuousUiState()
+            return
+        }
+
+        continuousLoading = true
+        setStatus("Loading models for continuous listening…")
+        val engineA = continuousEngineA ?: VoskEngine(requireContext()).also { continuousEngineA = it }
+        val engineB = continuousEngineB ?: VoskEngine(requireContext()).also { continuousEngineB = it }
+        engineA.loadModelAsync(a) { okA, errA ->
+            if (contentContainer == null) return@loadModelAsync
+            if (!okA) {
+                continuousLoading = false
+                setStatus("")
+                Toast.makeText(requireContext(), "Couldn't load ${LanguageCatalog.displayNameFor(a)} model: $errA", Toast.LENGTH_LONG).show()
+                applyContinuousUiState()
+                return@loadModelAsync
+            }
+            engineB.loadModelAsync(b) innerLoad@{ okB, errB ->
+                if (contentContainer == null) return@innerLoad
+                continuousLoading = false
+                if (!okB) {
+                    setStatus("")
+                    Toast.makeText(requireContext(), "Couldn't load ${LanguageCatalog.displayNameFor(b)} model: $errB", Toast.LENGTH_LONG).show()
+                    applyContinuousUiState()
+                    return@innerLoad
+                }
+                val controller = ContinuousConversationController(engineA, a, engineB, b, continuousListener)
+                continuousController = controller
+                continuousEnabled = true
+                applyContinuousUiState()
+                mainActivity?.app?.mic?.startContinuousListening(controller.micListener)
+                setStatus("Listening… (auto-detects ${LanguageCatalog.displayNameFor(a)} / ${LanguageCatalog.displayNameFor(b)})")
+            }
+        }
+    }
+
+    private fun stopContinuousMode() {
+        mainActivity?.app?.mic?.stop()
+        continuousController?.reset()
+        continuousEnabled = false
+        setStatus("")
+        applyContinuousUiState()
+    }
+
+    /** Frees the two dedicated continuous-mode models. Called on tab switch/destroy, NOT on a plain toggle-off (so flipping the toggle back and forth doesn't reload ~80MB of model every time). */
+    private fun releaseContinuousEngines() {
+        mainActivity?.app?.mic?.stop()
+        continuousController?.reset()
+        continuousController = null
+        continuousEnabled = false
+        continuousEngineA?.release()
+        continuousEngineB?.release()
+        continuousEngineA = null
+        continuousEngineB = null
+    }
+
+    private val continuousListener = object : ContinuousConversationController.Listener {
+        override fun onListeningStateChanged(listening: Boolean) {
+            if (contentContainer == null) return
+            Log.d(TAG, "continuous: listening=$listening")
+        }
+
+        override fun onSpeechStart() {
+            if (contentContainer == null) return
+            setStatus("Listening…")
+        }
+
+        override fun onEarlyLanguageGuess(guessedLang: String, partialText: String, elapsedSinceSpeechStartMs: Long) {
+            if (contentContainer == null) return
+            setStatus("Hearing ${LanguageCatalog.displayNameFor(guessedLang)}: \"$partialText\"…")
+        }
+
+        override fun onEmptyUtterance() {
+            if (contentContainer == null) return
+            setStatus("Listening… (auto-detects ${LanguageCatalog.displayNameFor(langACode)} / ${LanguageCatalog.displayNameFor(langBCode)})")
+        }
+
+        override fun onError(message: String) {
+            if (contentContainer == null) return
+            Toast.makeText(requireContext(), message, Toast.LENGTH_SHORT).show()
+        }
+
+        override fun onUtteranceFinal(result: ContinuousConversationController.UtteranceResult) {
+            if (contentContainer == null) return
+            setStatus("Translating…")
+            val speakerIsA = result.pickedLang == langACode
+            appendCombinedTranscript(
+                "${if (speakerIsA) "A" else "B"} (${LanguageCatalog.displayNameFor(result.pickedLang)}) [auto, ${result.decisionBasis}]: ${result.text}"
+            )
+            appendPaneEntry(speakerIsA, result.text, own = true)
+
+            val dstCode = result.otherLang
+            TranslationEngine.translate(result.pickedLang, dstCode, result.text,
+                onResult = onResult@{ translated ->
+                    if (contentContainer == null) return@onResult
+                    val translateDoneNanos = System.nanoTime()
+                    setStatus("Listening… (auto-detects ${LanguageCatalog.displayNameFor(langACode)} / ${LanguageCatalog.displayNameFor(langBCode)})")
+                    appendCombinedTranscript("   → (${LanguageCatalog.displayNameFor(dstCode)}) [auto]: $translated")
+                    appendPaneEntry(!speakerIsA, translated, own = false)
+                    val router = mainActivity?.app?.tts ?: return@onResult
+                    router.speak(
+                        translated, dstCode, selectedGender(),
+                        onDone = {},
+                        onError = { err ->
+                            if (contentContainer != null) Toast.makeText(requireContext(), "Speech failed: $err", Toast.LENGTH_SHORT).show()
+                        },
+                        onAudioStart = {
+                            // Real, measured end-to-end latency (task item 3):
+                            // speech-end (VAD boundary, result.speechEndNanos)
+                            // -> the first genuine TTS PCM byte reaching the
+                            // speaker (see TtsRouter.speak's onAudioStart doc).
+                            // Logged, not just asserted - see this project's
+                            // task report for the actual numbers this produced
+                            // on-device.
+                            val audioStartNanos = System.nanoTime()
+                            val speechEndToAudioStartMs = (audioStartNanos - result.speechEndNanos) / 1_000_000
+                            val speechEndToTranslateDoneMs = (translateDoneNanos - result.speechEndNanos) / 1_000_000
+                            Log.i(
+                                TAG,
+                                "CONTINUOUS_LATENCY speechEndToTtsAudioStartMs=$speechEndToAudioStartMs " +
+                                    "speechEndToTranslateDoneMs=$speechEndToTranslateDoneMs " +
+                                    "sttDecodeWallTimeMs=${result.decodeWallTimeMs} " +
+                                    "pickedLang=${result.pickedLang} basis=\"${result.decisionBasis}\" " +
+                                    "earlyGuess=${result.earlyGuessLang} earlyGuessElapsedMs=${result.earlyGuessElapsedMs} " +
+                                    "earlyGuessMatchedFinal=${result.earlyGuessLang == result.pickedLang}"
+                            )
+                        }
+                    )
+                },
+                onError = onError@{ err ->
+                    if (contentContainer == null) return@onError
+                    setStatus("Listening… (auto-detects ${LanguageCatalog.displayNameFor(langACode)} / ${LanguageCatalog.displayNameFor(langBCode)})")
+                    appendCombinedTranscript("   (translation failed: $err)")
+                }
+            )
+        }
+    }
+
+    // ---------------------------------------------------------------------
     // Saved recordings list - fallback layout only (session file management,
     // not part of the in-the-moment mirrored conversing view).
     // ---------------------------------------------------------------------
@@ -516,12 +742,18 @@ class ConversationsFragment : Fragment() {
     override fun onPause() {
         super.onPause()
         mainActivity?.app?.mic?.stop()
+        // Full stop (not just reset()) so continuousEnabled/the toggle UI
+        // don't go stale while paused - leaving continuousEnabled=true here
+        // with the mic actually stopped would show "on" for a session that
+        // isn't really listening once the tab is backgrounded.
+        if (continuousEnabled) stopContinuousMode()
         player?.release()
         player = null
     }
 
     override fun onDestroyView() {
         super.onDestroyView()
+        releaseContinuousEngines()
         player?.release()
         player = null
         contentContainer = null

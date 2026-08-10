@@ -65,4 +65,14 @@
         android:layout_marginTop="4dp"
         android:text="Tap to speak" />
 
+    <ToggleButton
+        android:id="@+id/togglePaneContinuous"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="4dp"
+        android:textSize="10sp"
+        android:textOn="Continuous on (tap to stop)"
+        android:textOff="Continuous listening"
+        android:checked="false" />
+
 </LinearLayout>

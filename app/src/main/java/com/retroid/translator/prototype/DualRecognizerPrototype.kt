@@ -6,7 +6,7 @@ import android.media.AudioRecord
 import android.os.Debug
 import android.util.Log
 import com.retroid.translator.engine.VoskEngine
-import org.json.JSONObject
+import com.retroid.translator.engine.VoskResultParsing
 import org.vosk.Recognizer
 import java.io.File
 import java.util.concurrent.CountDownLatch
@@ -178,29 +178,12 @@ object DualRecognizerPrototype {
 
     private inline fun safe(block: () -> String?): String? = try { block() } catch (e: Exception) { null }
 
-    private fun extractText(json: String): String = try {
-        JSONObject(json).optString("text", "")
-    } catch (e: Exception) { "" }
+    // JSON parsing delegates to VoskResultParsing (shared with
+    // ContinuousConversationController) - see that object's doc comment.
+    private fun extractText(json: String): String = VoskResultParsing.extractText(json)
 
     /** Returns (averageWordConfidence, wordCount). avgConf is null if the JSON has no per-word "conf" field. */
-    private fun extractWordConfStats(json: String): Pair<Double?, Int> {
-        return try {
-            val obj = JSONObject(json)
-            val resultArr = obj.optJSONArray("result") ?: return null to 0
-            var sum = 0.0
-            var confCount = 0
-            for (i in 0 until resultArr.length()) {
-                val w = resultArr.optJSONObject(i) ?: continue
-                if (w.has("conf")) {
-                    sum += w.optDouble("conf", 0.0)
-                    confCount++
-                }
-            }
-            if (confCount == 0) null to resultArr.length() else (sum / confCount) to resultArr.length()
-        } catch (e: Exception) {
-            null to 0
-        }
-    }
+    private fun extractWordConfStats(json: String): Pair<Double?, Int> = VoskResultParsing.extractWordConfStats(json)
 
     // ---------------------------------------------------------------------
     // The actual experiment: solo baseline, then both recognizers concurrently
@@ -277,12 +260,8 @@ object DualRecognizerPrototype {
      * recognizer decoding foreign phonemes tends to produce a shorter/emptier
      * guess against its own dictionary/grammar than the correct one.
      */
-    private fun pickLanguage(a: RunResult, b: RunResult): Pair<String, String> {
-        if (a.avgWordConf != null && b.avgWordConf != null) {
-            val basis = "avgWordConf: ${a.langCode}=%.3f vs ${b.langCode}=%.3f".format(a.avgWordConf, b.avgWordConf)
-            return (if (a.avgWordConf >= b.avgWordConf) a.langCode else b.langCode) to basis
-        }
-        val basis = "wordCount fallback (no conf field present): ${a.langCode}=${a.wordCount} vs ${b.langCode}=${b.wordCount}"
-        return (if (a.wordCount >= b.wordCount) a.langCode else b.langCode) to basis
-    }
+    private fun pickLanguage(a: RunResult, b: RunResult): Pair<String, String> = VoskResultParsing.pickLanguage(
+        VoskResultParsing.Candidate(a.langCode, a.avgWordConf, a.wordCount),
+        VoskResultParsing.Candidate(b.langCode, b.avgWordConf, b.wordCount)
+    )
 }

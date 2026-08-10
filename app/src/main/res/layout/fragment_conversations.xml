@@ -92,6 +92,15 @@
             android:layout_marginTop="8dp"
             android:text="Tap to speak" />
 
+        <ToggleButton
+            android:id="@+id/toggleContinuousListening"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="6dp"
+            android:textOn="Continuous listening on (auto-detects language, no tap needed - tap to stop)"
+            android:textOff="Continuous listening (no tap needed, auto-detects language)"
+            android:checked="false" />
+
         <TextView
             android:id="@+id/textConversationStatus"
             android:layout_width="match_parent"

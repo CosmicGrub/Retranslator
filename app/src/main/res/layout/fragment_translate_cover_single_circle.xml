@@ -54,11 +54,30 @@
         android:id="@+id/textCircleHint"
         android:layout_width="0dp"
         android:layout_height="wrap_content"
-        android:layout_marginBottom="12dp"
         android:gravity="center"
         android:textSize="11sp"
         android:alpha="0.7"
         android:text="Hold to speak · swipe to flip direction · tap the result to hear it"
+        app:layout_constraintBottom_toTopOf="@id/toggleCircleContinuous"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent" />
+
+    <!--
+      Opt-in continuous listening for this cover widget - see
+      TranslateFragment's bindSingleCircle doc comment for why this is a
+      separate toggle rather than changing the locked hold-to-talk gesture
+      itself. Off by default; the primary hold/release/swipe/tap gesture set
+      above is unchanged either way.
+    -->
+    <ToggleButton
+        android:id="@+id/toggleCircleContinuous"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginBottom="8dp"
+        android:textSize="10sp"
+        android:textOn="Continuous listening on (tap to go back to hold-to-speak)"
+        android:textOff="Switch to continuous listening (no hold needed)"
+        android:checked="false"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintEnd_toEndOf="parent" />

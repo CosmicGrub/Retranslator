@@ -4,6 +4,7 @@ import android.content.Context
 import android.util.Log
 import com.reecedunn.espeak.SpeechSynthesis
 import com.reecedunn.espeak.VoiceVariant
+import com.retroid.translator.audio.AudioResample
 import com.retroid.translator.audio.WavFileWriter
 import com.retroid.translator.engine.EspeakDataInstaller
 import com.retroid.translator.engine.EspeakLanguageMap
@@ -89,7 +90,7 @@ object TestAudioSynth {
                 throw IllegalStateException("espeak-ng produced zero bytes for \"${phrase.text}\"")
             }
 
-            val resampled = resampleS16Mono(rawPcm, nativeRate, TARGET_SAMPLE_RATE)
+            val resampled = AudioResample.resampleS16Mono(rawPcm, nativeRate, TARGET_SAMPLE_RATE)
             val file = File(outDir, "${phrase.label}.wav")
             val writer = WavFileWriter(file, TARGET_SAMPLE_RATE)
             writer.write(resampled, resampled.size)
@@ -106,35 +107,4 @@ object TestAudioSynth {
         return clips
     }
 
-    /** Simple linear-interpolation resampler for mono 16-bit PCM. Adequate for synthetic speech test audio. */
-    private fun resampleS16Mono(src: ByteArray, srcRate: Int, dstRate: Int): ByteArray {
-        if (srcRate == dstRate) return src
-        val srcSamples = src.size / 2
-        if (srcSamples < 2) return ByteArray(0)
-        val dstSamples = ((srcSamples.toLong() * dstRate) / srcRate).toInt()
-        val out = ByteArray(dstSamples * 2)
-        val ratio = srcRate.toDouble() / dstRate.toDouble()
-        for (i in 0 until dstSamples) {
-            val srcPos = i * ratio
-            val idx0 = srcPos.toInt().coerceIn(0, srcSamples - 1)
-            val idx1 = (idx0 + 1).coerceAtMost(srcSamples - 1)
-            val frac = srcPos - idx0
-            val s0 = readS16LE(src, idx0)
-            val s1 = readS16LE(src, idx1)
-            val interpolated = (s0 + (s1 - s0) * frac).toInt().coerceIn(-32768, 32767)
-            writeS16LE(out, i, interpolated)
-        }
-        return out
-    }
-
-    private fun readS16LE(buf: ByteArray, idx: Int): Int {
-        val lo = buf[idx * 2].toInt() and 0xFF
-        val hi = buf[idx * 2 + 1].toInt() // sign-extended
-        return (hi shl 8) or lo
-    }
-
-    private fun writeS16LE(buf: ByteArray, idx: Int, value: Int) {
-        buf[idx * 2] = value.toByte()
-        buf[idx * 2 + 1] = (value shr 8).toByte()
-    }
 }

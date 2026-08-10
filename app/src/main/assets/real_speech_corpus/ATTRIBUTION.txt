@@ -1,0 +1,74 @@
+Real human-speech test clips for docs/specs/fold5-adaptation.md §4 validation
+(see com.retroid.translator.prototype.RealSpeechCorpus).
+
+Both source datasets are Google-published, OpenSLR-hosted, CC BY-SA 4.0
+crowdsourced speech corpora — checked individually against their own
+resource pages / LICENSE files with the same rigor as the Piper voice table
+in README.md, not assumed permissive because the hosting project is.
+
+--------------------------------------------------------------------------
+English (en_r1.wav, en_r2.wav, en_r3.wav)
+--------------------------------------------------------------------------
+Source:      OpenSLR SLR83, "Crowdsourced high-quality UK and Ireland English
+             Dialect speech data set" (Midlands English, female speakers
+             subset: midlands_english_female.zip)
+URL:         https://www.openslr.org/83/
+License:     CC BY-SA 4.0 (Creative Commons Attribution-ShareAlike 4.0
+             International)
+Copyright:   2018, 2019 Google, Inc.
+Citation:    Demirsahin, I., Kjartansson, O., Gutkin, A., Rivera, C. (2020).
+             "Open-source Multi-speaker Corpora of the English Accents in
+             the British Isles." Proceedings of The 12th Language Resources
+             and Evaluation Conference (LREC), pp. 6532-6541.
+             https://www.aclweb.org/anthology/2020.lrec-1.804
+
+Clips used (2 speakers, real crowdsourced recordings, not synthetic):
+  en_r1.wav = mif_02484_00235587550.wav  "Four boys lurk outside his house"
+  en_r2.wav = mif_03397_01003681868.wav  "The score is tied at 1 point"
+  en_r3.wav = mif_02484_01755700661.wav  "I pulled it off the bookshelf for you"
+
+--------------------------------------------------------------------------
+Spanish (es_r1.wav, es_r2.wav, es_r3.wav)
+--------------------------------------------------------------------------
+Source:      OpenSLR SLR72, "Crowdsourced high-quality Colombian Spanish
+             speech data set" (female speakers subset: es_co_female.zip)
+URL:         https://www.openslr.org/72/
+License:     CC BY-SA 4.0 (Creative Commons Attribution-ShareAlike 4.0
+             International)
+Copyright:   2018, 2019 Google, Inc.
+Citation:    Guevara-Rukoz, A., Demirsahin, I., He, F., Chu, S-H.C., Sarin,
+             S., Pipatsrisawat, K., Gutkin, A., Butryna, A., Kjartansson, O.
+             (2020). "Crowdsourcing Latin American Spanish for Low-Resource
+             Text-to-Speech." Proceedings of The 12th Language Resources and
+             Evaluation Conference (LREC), pp. 6504-6513.
+             https://www.aclweb.org/anthology/2020.lrec-1.801
+
+Clips used (3 speakers, real crowdsourced recordings, not synthetic):
+  es_r1.wav = cof_01523_01064275630.wav  "¿Cuánto cuesta una bicicleta para niños?"
+  es_r2.wav = cof_00610_00509877285.wav  "Por las tardes se escucha música en la Plaza."
+  es_r3.wav = cof_09334_01164522354.wav  "Me duele mucho la cabeza cuando hago ejercicio."
+
+--------------------------------------------------------------------------
+How these were obtained
+--------------------------------------------------------------------------
+Both source archives are large (103MB / 802MB) crowdsourced-recording ZIPs.
+Rather than downloading either archive in full, only the 6 needed WAV
+entries were fetched via HTTP range requests against each ZIP's central
+directory (standard ZIP random-access technique: fetch the End-Of-Central-
+Directory record, then the central directory itself, to get each target
+entry's exact byte offset and compressed size, then range-fetch only that
+entry) - ~2.4MB of HTTP transfer total against ~900MB of archives. Each
+extracted file's CRC-32 was verified against the ZIP's own recorded CRC
+before use.
+
+Original files are 48kHz mono 16-bit PCM WAV (studio-quality crowdsourced
+recordings, not phone-mic quality). RealSpeechCorpus.kt resamples these to
+16kHz mono at load time using the same linear resampler
+(com.retroid.translator.audio.AudioResample) that the synthetic eSpeak-TTS
+test clips already used, so the two test-audio sources go through identical
+resampling code before reaching Vosk.
+
+CC BY-SA 4.0 requires attribution + share-alike for redistribution of these
+specific audio files. They are bundled here for offline on-device dual-
+recognizer validation testing (docs/specs/fold5-adaptation.md §4), not
+resold or repackaged as a voice/TTS product.

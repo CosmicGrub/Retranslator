@@ -4,6 +4,8 @@ import android.app.AlertDialog
 import android.content.Context
 import android.content.SharedPreferences
 import android.os.Bundle
+import android.os.Handler
+import android.os.Looper
 import android.util.Log
 import android.view.Gravity
 import android.view.LayoutInflater
@@ -47,6 +49,7 @@ import com.retroid.translator.engine.TranslationEngine
 import com.retroid.translator.engine.VoiceGender
 import com.retroid.translator.engine.VoicePreferences
 import com.retroid.translator.engine.VoskModelCatalog
+import com.retroid.translator.engine.VoskResultParsing
 import com.retroid.translator.fold.FoldPosture
 import com.retroid.translator.fold.FoldPostureProvider
 import com.retroid.translator.fold.FoldState
@@ -55,6 +58,7 @@ import com.retroid.translator.settings.LayoutPreferences
 import com.retroid.translator.settings.ScreenMode
 import com.retroid.translator.settings.SettingsTab
 import kotlinx.coroutines.launch
+import org.vosk.Recognizer
 
 /** One entry in the "live_transcript" cover variant's session-only, in-memory transcript. Stored newest-first (index 0). */
 private data class TranscriptEntry(val sourceCode: String, val targetCode: String, val sourceText: String, val translatedText: String)
@@ -134,6 +138,28 @@ class TranslateFragment : Fragment(), FoldAwareLayoutHost {
     private var sttStatusText = "Checking voice-input pack status..."
     private var naturalVoiceStatusText = ""
     private var circleState = CircleState.PROMPT
+
+    /**
+     * Opt-in continuous listening for "single_circle" (task item 4: "expose
+     * the same underlying [MicPipeline] mechanism to the cover-screen
+     * quick-translate widget's already-locked single mic button design").
+     * Decision: keep the locked hold/release/swipe/tap gesture set on
+     * [FragmentTranslateCoverSingleCircleBinding.cardCircle] completely
+     * unchanged, and add continuous listening as a separate, clearly-opt-in
+     * toggle beneath it instead of changing what a press/hold on the circle
+     * itself means - this is a genuinely different interaction model (no
+     * press needed at all vs. hold-to-talk), and silently swapping one for
+     * the other under an already-shipped gesture would be a worse UX
+     * surprise than a second small control. Unlike Conversations (which
+     * needs two simultaneous recognizers to auto-detect which of two people
+     * is speaking), this widget already knows [sourceCode] from the current
+     * language pair, so it drives [MicPipeline.startContinuousListening]
+     * with exactly one [Recognizer] - no dual-recognizer language-pick logic
+     * needed here, just the same VAD/continuous-capture mechanism.
+     */
+    private var singleCircleContinuousEnabled = false
+    private var singleCircleContinuousLoading = false
+    private val singleCircleMainHandler = Handler(Looper.getMainLooper())
 
     /** "live_transcript" session history, newest first. */
     private val transcript = mutableListOf<TranscriptEntry>()
@@ -305,6 +331,13 @@ class TranslateFragment : Fragment(), FoldAwareLayoutHost {
         val container = contentContainer ?: return
         // Stop any in-flight mic session before swapping views out from under it.
         mainActivity?.app?.mic?.stop()
+        // single_circle's continuous toggle is per-inflation UI state, not
+        // session state worth carrying across a layout swap (its binding is
+        // about to be torn down below anyway) - reset it alongside the mic
+        // stop above so a later re-entry into single_circle starts clean
+        // rather than showing a stale "on" toggle for a session that already
+        // stopped.
+        singleCircleContinuousEnabled = false
         container.removeAllViews()
         defaultBinding = null
         coverSingleCircleBinding = null
@@ -908,7 +941,12 @@ class TranslateFragment : Fragment(), FoldAwareLayoutHost {
                     downX = event.rawX
                     downTime = System.currentTimeMillis()
                     swipeHandled = false
-                    v.postDelayed(holdRunnable, HOLD_THRESHOLD_MS)
+                    // Continuous mode listens on its own (VAD-triggered, see
+                    // toggleCircleContinuous) - the hold gesture is suspended
+                    // while it's on, so the two capture mechanisms never both
+                    // try to open the mic. Swipe-to-flip and tap-to-hear below
+                    // still work either way.
+                    if (!singleCircleContinuousEnabled) v.postDelayed(holdRunnable, HOLD_THRESHOLD_MS)
                     true
                 }
                 MotionEvent.ACTION_MOVE -> {
@@ -922,7 +960,7 @@ class TranslateFragment : Fragment(), FoldAwareLayoutHost {
                 }
                 MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
                     v.removeCallbacks(holdRunnable)
-                    if (circleState == CircleState.RECORDING) {
+                    if (!singleCircleContinuousEnabled && circleState == CircleState.RECORDING) {
                         mainActivity?.app?.mic?.stop()
                     } else if (!swipeHandled) {
                         v.performClick()
@@ -936,15 +974,157 @@ class TranslateFragment : Fragment(), FoldAwareLayoutHost {
                 else -> false
             }
         }
+        b.toggleCircleContinuous.isChecked = singleCircleContinuousEnabled
+        b.toggleCircleContinuous.setOnClickListener {
+            val wantOn = b.toggleCircleContinuous.isChecked
+            if (wantOn == singleCircleContinuousEnabled || singleCircleContinuousLoading) {
+                b.toggleCircleContinuous.isChecked = singleCircleContinuousEnabled
+                return@setOnClickListener
+            }
+            if (wantOn) startSingleCircleContinuous(b) else stopSingleCircleContinuous()
+        }
         refreshSingleCircleContent(b)
+    }
+
+    private fun startSingleCircleContinuous(b: FragmentTranslateCoverSingleCircleBinding) {
+        val activity = mainActivity ?: return
+        if (!activity.hasMicPermission()) {
+            activity.requestMicPermissionIfNeeded()
+            toast("Grant microphone permission, then try again", long = true)
+            b.toggleCircleContinuous.isChecked = false
+            return
+        }
+        val app = activity.app
+        val info = VoskModelCatalog.forLanguage(sourceCode)
+        if (info == null) {
+            toast("No offline voice-input model for ${LanguageCatalog.displayNameFor(sourceCode)}", long = true)
+            b.toggleCircleContinuous.isChecked = false
+            return
+        }
+        if (!app.vosk.isModelDownloaded(sourceCode)) {
+            toast("Download the voice-input pack for ${LanguageCatalog.displayNameFor(sourceCode)} on the main Translate screen first", long = true)
+            b.toggleCircleContinuous.isChecked = false
+            return
+        }
+        if (app.mic.isRunning()) {
+            toast("Stop the current mic session first")
+            b.toggleCircleContinuous.isChecked = false
+            return
+        }
+        singleCircleContinuousLoading = true
+        b.textCircleContent.text = "Loading model…"
+        app.vosk.loadModelAsync(sourceCode) { success, error ->
+            if (contentContainer == null) return@loadModelAsync
+            singleCircleContinuousLoading = false
+            val current = coverSingleCircleBinding
+            if (!success) {
+                toast("Couldn't load voice-input model: $error", long = true)
+                singleCircleContinuousEnabled = false
+                current?.toggleCircleContinuous?.isChecked = false
+                current?.let { refreshSingleCircleContent(it) }
+                return@loadModelAsync
+            }
+            singleCircleContinuousEnabled = true
+            circleState = CircleState.PROMPT
+            app.mic.startContinuousListening(singleCircleContinuousListener)
+            current?.let { refreshSingleCircleContent(it) }
+        }
+    }
+
+    private fun stopSingleCircleContinuous() {
+        mainActivity?.app?.mic?.stop()
+        singleCircleContinuousEnabled = false
+        circleState = CircleState.PROMPT
+        coverSingleCircleBinding?.let { refreshSingleCircleContent(it) }
+    }
+
+    /**
+     * [MicPipeline.ContinuousListener] for "single_circle"'s opt-in
+     * continuous mode - single recognizer (this widget already knows
+     * [sourceCode], unlike Conversations which needs two to auto-detect
+     * which of two people is speaking). Callbacks run on MicPipeline's
+     * capture thread (see that interface's doc comment), hence
+     * [singleCircleMainHandler] before touching any UI/Fragment state.
+     */
+    private val singleCircleContinuousListener = object : MicPipeline.ContinuousListener {
+        @Volatile private var recognizer: Recognizer? = null
+
+        override fun onSpeechStart() {
+            val app = mainActivity?.app ?: return
+            val rec = app.vosk.newRecognizer() ?: return
+            runCatching { rec.setWords(true) }
+            recognizer = rec
+            singleCircleMainHandler.post {
+                if (contentContainer == null || !singleCircleContinuousEnabled) return@post
+                circleState = CircleState.RECORDING
+                refreshAllContent()
+            }
+        }
+
+        override fun onAudioChunk(buffer: ByteArray, length: Int) {
+            val rec = recognizer ?: return
+            try {
+                rec.acceptWaveForm(buffer, length)
+            } catch (e: Exception) {
+                Log.e(TAG, "single_circle continuous acceptWaveForm failed", e)
+            }
+        }
+
+        override fun onSpeechEnd() {
+            val rec = recognizer ?: return
+            recognizer = null
+            val json = try { rec.finalResult } catch (e: Exception) { null } ?: ""
+            try { rec.close() } catch (e: Exception) { /* ignore */ }
+            val text = VoskResultParsing.extractText(json)
+            singleCircleMainHandler.post {
+                if (contentContainer == null || !singleCircleContinuousEnabled) return@post
+                if (text.isBlank()) {
+                    circleState = CircleState.PROMPT
+                    refreshAllContent()
+                    return@post
+                }
+                circleState = CircleState.TRANSLATING
+                refreshAllContent()
+                translateAndSpeakContinuous(text)
+            }
+        }
+
+        override fun onError(message: String) {
+            singleCircleMainHandler.post { if (contentContainer != null) toast(message) }
+        }
+    }
+
+    /** Same translate flow as [translateWith], plus auto-speaking the result - continuous mode has no tap-to-hear step, so it speaks each turn on its own to actually be hands-free. */
+    private fun translateAndSpeakContinuous(text: String) {
+        TranslationEngine.translate(sourceCode, targetCode, text,
+            onResult = onResult@{ translated ->
+                if (contentContainer == null) return@onResult
+                lastResultText = translated
+                circleState = CircleState.RESULT
+                refreshAllContent()
+                refreshModelStatus()
+                mainActivity?.app?.tts?.speak(translated, targetCode, selectedGender(), onDone = {}, onError = {})
+            },
+            onError = onError@{ err ->
+                if (contentContainer == null) return@onError
+                lastResultText = ""
+                circleState = CircleState.PROMPT
+                toast("Translation failed: $err", long = true)
+                refreshAllContent()
+            }
+        )
     }
 
     private fun refreshSingleCircleContent(b: FragmentTranslateCoverSingleCircleBinding) {
         b.textCircleLangPair.text = "${LanguageCatalog.displayNameFor(sourceCode)} → ${LanguageCatalog.displayNameFor(targetCode)}"
+        if (b.toggleCircleContinuous.isChecked != singleCircleContinuousEnabled) {
+            b.toggleCircleContinuous.isChecked = singleCircleContinuousEnabled
+        }
+        val idlePrompt = if (singleCircleContinuousEnabled) "Listening (continuous)…" else "Hold to speak"
         val ctx = requireContext()
         when (circleState) {
             CircleState.PROMPT -> {
-                b.textCircleContent.text = "Hold to speak"
+                b.textCircleContent.text = idlePrompt
                 b.cardCircle.setCardBackgroundColor(ContextCompat.getColor(ctx, R.color.colorPrimary))
             }
             CircleState.RECORDING -> {
@@ -956,7 +1136,7 @@ class TranslateFragment : Fragment(), FoldAwareLayoutHost {
                 b.cardCircle.setCardBackgroundColor(ContextCompat.getColor(ctx, R.color.colorAccent))
             }
             CircleState.RESULT -> {
-                b.textCircleContent.text = lastResultText.ifBlank { "Hold to speak" }
+                b.textCircleContent.text = lastResultText.ifBlank { idlePrompt }
                 b.cardCircle.setCardBackgroundColor(ContextCompat.getColor(ctx, R.color.colorPrimaryDark))
             }
         }
@@ -1335,11 +1515,13 @@ class TranslateFragment : Fragment(), FoldAwareLayoutHost {
     override fun onPause() {
         super.onPause()
         mainActivity?.app?.mic?.stop()
+        singleCircleContinuousEnabled = false
     }
 
     override fun onDestroyView() {
         super.onDestroyView()
         mainActivity?.app?.mic?.stop()
+        singleCircleContinuousEnabled = false
         unregisterLayoutPrefsListener()
         contentContainer = null
         defaultBinding = null

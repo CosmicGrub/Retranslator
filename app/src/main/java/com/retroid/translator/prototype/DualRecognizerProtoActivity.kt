@@ -63,11 +63,6 @@ class DualRecognizerProtoActivity : Activity() {
             appendLog("Native heap at start: ${memStart.nativeHeapAllocBytes / 1024}KB")
             logProcMeminfo("app_start")
 
-            val outDir = File(cacheDir, "dual_reco_proto_audio")
-            appendLog("Synthesizing test clips via eSpeak NG (no Piper download needed)…")
-            val clips = TestAudioSynth.synthesizeAll(applicationContext, outDir)
-            appendLog("Synthesized ${clips.size} clips: ${clips.joinToString { it.label }}")
-
             appendLog("Loading Vosk models for '$LANG_A' and '$LANG_B' into two independent VoskEngine instances…")
             val latch = CountDownLatch(1)
             var engineA: VoskEngine? = null
@@ -94,36 +89,66 @@ class DualRecognizerProtoActivity : Activity() {
             Log.i(TAG, "MEMORY_CHECKPOINT: both models loaded, holding 8s")
             Thread.sleep(8000)
 
-            val results = mutableListOf<DualRecognizerPrototype.DualDecision>()
-            var hits = 0
-            for (clip in clips) {
-                appendLog("Evaluating ${clip.label} [${clip.langCode}]: \"${clip.text}\"")
-                val decision = DualRecognizerPrototype.evaluateClip(clip, engineA!!, LANG_A, engineB!!, LANG_B)
-                results.add(decision)
-                if (decision.correct) hits++
-                appendLog(
-                    "  -> chosen=${decision.chosenLang} (actual=${decision.actualLang}) correct=${decision.correct}\n" +
-                        "     solo=${decision.baselineSolo.wallTimeMs}ms dual=${decision.dualWallTimeMs}ms " +
-                        "audioDur=${decision.audioDurationMs}ms basis=${decision.decisionBasis}"
-                )
-            }
+            // -----------------------------------------------------------
+            // Run 1: synthetic eSpeak-TTS clips (original §4 spike, kept
+            // exactly as before so the numbers stay comparable).
+            // -----------------------------------------------------------
+            appendLog("Synthesizing test clips via eSpeak NG (no Piper download needed)…")
+            val synthDir = File(cacheDir, "dual_reco_proto_audio")
+            val synthClips = TestAudioSynth.synthesizeAll(applicationContext, synthDir)
+            appendLog("Synthesized ${synthClips.size} clips: ${synthClips.joinToString { it.label }}")
+            runBatch("SYNTHETIC (eSpeak TTS)", synthClips, engineA!!, engineB!!)
+
+            // -----------------------------------------------------------
+            // Run 2: real recorded human speech (docs/specs/fold5-adaptation.md
+            // §4's stated prerequisite before wiring auto-detect into
+            // ConversationsFragment - see RealSpeechCorpus's doc comment for
+            // exactly what this is and is not).
+            // -----------------------------------------------------------
+            appendLog("Loading REAL human-speech corpus clips (see assets/real_speech_corpus/ATTRIBUTION.txt)…")
+            val realDir = File(cacheDir, "real_speech_proto_audio")
+            val realClips = RealSpeechCorpus.loadAll(applicationContext, realDir)
+            appendLog("Loaded ${realClips.size} real-speech clips: ${realClips.joinToString { it.label }}")
+            runBatch("REAL HUMAN SPEECH (OpenSLR SLR72/SLR83, CC BY-SA 4.0)", realClips, engineA!!, engineB!!)
 
             val memEnd = DualRecognizerPrototype.memorySnapshot("after_all_clips")
             appendLog("Native heap after all clips: ${memEnd.nativeHeapAllocBytes / 1024}KB")
             logProcMeminfo("after_all_clips")
-
-            val avgSolo = results.map { it.baselineSolo.wallTimeMs }.average()
-            val avgDual = results.map { it.dualWallTimeMs }.average()
-            val ratio = if (avgSolo > 0) avgDual / avgSolo else -1.0
-            val summary = "SUMMARY: %d/%d correct. avgSoloWallMs=%.1f avgDualWallMs=%.1f dual/solo ratio=%.2fx"
-                .format(hits, results.size, avgSolo, avgDual, ratio)
-            Log.i(TAG, summary)
-            appendLog(summary)
             appendLog("DONE.")
         } catch (e: Throwable) {
             Log.e(TAG, "Prototype run failed", e)
             appendLog("FATAL ERROR: ${e.javaClass.simpleName}: ${e.message}")
         }
+    }
+
+    /** Runs [DualRecognizerPrototype.evaluateClip] over [clips] and logs a SUMMARY line, identically for both the synthetic and real-speech runs so the two are directly comparable in logcat. */
+    private fun runBatch(
+        label: String,
+        clips: List<TestAudioSynth.Clip>,
+        engineA: VoskEngine,
+        engineB: VoskEngine
+    ) {
+        appendLog("===== BATCH: $label =====")
+        val results = mutableListOf<DualRecognizerPrototype.DualDecision>()
+        var hits = 0
+        for (clip in clips) {
+            appendLog("Evaluating ${clip.label} [${clip.langCode}]: \"${clip.text}\"")
+            val decision = DualRecognizerPrototype.evaluateClip(clip, engineA, LANG_A, engineB, LANG_B)
+            results.add(decision)
+            if (decision.correct) hits++
+            appendLog(
+                "  -> chosen=${decision.chosenLang} (actual=${decision.actualLang}) correct=${decision.correct}\n" +
+                    "     solo=${decision.baselineSolo.wallTimeMs}ms dual=${decision.dualWallTimeMs}ms " +
+                    "audioDur=${decision.audioDurationMs}ms basis=${decision.decisionBasis}"
+            )
+        }
+        val avgSolo = results.map { it.baselineSolo.wallTimeMs }.average()
+        val avgDual = results.map { it.dualWallTimeMs }.average()
+        val ratio = if (avgSolo > 0) avgDual / avgSolo else -1.0
+        val summary = "SUMMARY[$label]: %d/%d correct. avgSoloWallMs=%.1f avgDualWallMs=%.1f dual/solo ratio=%.2fx"
+            .format(hits, results.size, avgSolo, avgDual, ratio)
+        Log.i(TAG, summary)
+        appendLog(summary)
     }
 
     /** Best-effort in-process corroboration of /proc/meminfo; the authoritative reading is external `adb shell`. */
