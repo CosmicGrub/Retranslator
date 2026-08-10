@@ -1,0 +1,69 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Learn cover variant "listen_choose": built for the listening exercise type.
+  Audio auto-plays on open (LearnFragment.bindListenChoose), repeatable via
+  the big speaker button; exactly two oversized answer buttons; right/wrong
+  communicated by color + haptics (LearnFragment.hapticFeedback), not text -
+  textListenFeedback is only ever a colored dot/blank, never a sentence.
+-->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:gravity="center_horizontal"
+    android:paddingHorizontal="20dp"
+    android:paddingVertical="20dp"
+    android:background="?android:attr/colorBackground">
+
+    <Space
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1" />
+
+    <ImageButton
+        android:id="@+id/btnListenSpeaker"
+        android:layout_width="96dp"
+        android:layout_height="96dp"
+        android:background="@drawable/bg_chip_filled"
+        android:contentDescription="Play phrase"
+        android:src="@android:drawable/ic_lock_silent_mode_off"
+        android:scaleType="centerInside"
+        app:tint="@android:color/white" />
+
+    <TextView
+        android:id="@+id/textListenStatus"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="10dp"
+        android:textSize="13sp"
+        android:alpha="0.7" />
+
+    <View
+        android:id="@+id/dotListenFeedback"
+        android:layout_width="14dp"
+        android:layout_height="14dp"
+        android:layout_marginTop="10dp"
+        android:visibility="invisible" />
+
+    <Space
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1" />
+
+    <Button
+        android:id="@+id/btnListenOptionA"
+        android:layout_width="match_parent"
+        android:layout_height="72dp"
+        android:layout_marginBottom="12dp"
+        android:textSize="17sp"
+        android:textAllCaps="false" />
+
+    <Button
+        android:id="@+id/btnListenOptionB"
+        android:layout_width="match_parent"
+        android:layout_height="72dp"
+        android:textSize="17sp"
+        android:textAllCaps="false" />
+
+</LinearLayout>

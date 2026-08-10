@@ -1,0 +1,78 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  One "side" of the tabletop-landscape mirrored Conversations layout (spec
+  §2). fragment_conversations_mirrored.xml includes this twice - once as-is
+  (the pane below the hinge) and once with android:rotation="180" applied to
+  its root at runtime (the pane above the hinge), so each person reads their
+  own half right-side up. Both instances are driven by the exact same
+  turn/transcript state as the fallback fragment_conversations.xml - this is
+  a new presentation of existing data, not new state.
+-->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:paddingHorizontal="14dp"
+    android:paddingVertical="8dp">
+
+    <TextView
+        android:id="@+id/textPaneTurnIndicator"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:gravity="center"
+        android:textSize="14sp"
+        android:textStyle="bold"
+        android:text="Person A's turn" />
+
+    <!--
+      Newest transcript line is inserted at the TOP of textPaneTranscript and
+      this ScrollView stays scrolled to its top (see
+      ConversationsFragment.renderPane) - the edge nearest the physical hinge
+      for both panes (this pane's own top edge sits at the hinge; the other
+      pane's local "top" ends up at the hinge too once it's rotated 180°
+      about its own center, per spec §2's "largest/most recent nearest the
+      hinge").
+    -->
+    <ScrollView
+        android:id="@+id/scrollPaneTranscript"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:layout_marginTop="4dp">
+
+        <TextView
+            android:id="@+id/textPaneTranscript"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:background="#11000000"
+            android:padding="8dp"
+            android:textSize="13sp"
+            android:text="" />
+    </ScrollView>
+
+    <TextView
+        android:id="@+id/textPaneStatus"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:gravity="center"
+        android:textSize="11sp"
+        android:textStyle="italic" />
+
+    <Button
+        android:id="@+id/btnPaneMic"
+        android:layout_width="match_parent"
+        android:layout_height="48dp"
+        android:layout_marginTop="4dp"
+        android:text="Tap to speak" />
+
+    <ToggleButton
+        android:id="@+id/togglePaneContinuous"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="4dp"
+        android:textSize="10sp"
+        android:textOn="Continuous on (tap to stop)"
+        android:textOff="Continuous listening"
+        android:checked="false" />
+
+</LinearLayout>

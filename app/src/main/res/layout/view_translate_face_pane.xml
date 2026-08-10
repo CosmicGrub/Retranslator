@@ -1,0 +1,56 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  One half of the cover-screen "face_to_face" variant. Included twice by
+  fragment_translate_cover_face_to_face.xml - the top instance gets
+  android:rotation="180" set statically in that file (a pure top/bottom
+  midpoint split of the single cover display, no hinge involved, so unlike
+  the Flex-mode panes this needs no runtime FoldingFeature geometry - a
+  static 50/50 weighted split is correct here).
+
+  Each half shows the OTHER half's most recent translated utterance
+  (textPaneResult) - see TranslateFragment's bindFaceToFace doc comment for
+  why routing is cross-wired that way - plus its own mic to speak into.
+-->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:gravity="center_horizontal"
+    android:paddingHorizontal="14dp"
+    android:paddingVertical="10dp">
+
+    <TextView
+        android:id="@+id/textPaneLang"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:gravity="center"
+        android:textSize="13sp"
+        android:textStyle="bold"
+        android:text="English" />
+
+    <TextView
+        android:id="@+id/textPaneResult"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:layout_marginTop="4dp"
+        android:gravity="center"
+        android:textSize="16sp"
+        android:text="" />
+
+    <TextView
+        android:id="@+id/textPaneStatus"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:gravity="center"
+        android:textSize="11sp"
+        android:textStyle="italic" />
+
+    <Button
+        android:id="@+id/btnPaneMic"
+        android:layout_width="match_parent"
+        android:layout_height="42dp"
+        android:layout_marginTop="4dp"
+        android:text="Tap to speak" />
+
+</LinearLayout>

@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Flex-Mode (tabletop) variant "across_table" (Translate tab, ScreenMode.FLEX).
+  Here the hinge is a boundary between two people, not viewing/control - both
+  panes are structurally identical (view_translate_across_pane.xml, included
+  twice), sized/positioned/rotated at runtime from FoldingFeature.bounds by
+  TranslateFragment.positionFlexPanes, same FrameLayout-root reasoning as
+  fragment_conversations_mirrored.xml.
+-->
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/rootAcrossTable"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="?android:attr/colorBackground">
+
+    <include
+        android:id="@+id/paneAcrossBottom"
+        layout="@layout/view_translate_across_pane"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent" />
+
+    <include
+        android:id="@+id/paneAcrossTop"
+        layout="@layout/view_translate_across_pane"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent" />
+
+</FrameLayout>

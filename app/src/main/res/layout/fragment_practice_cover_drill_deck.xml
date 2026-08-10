@@ -1,0 +1,101 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Cover-screen variant "drill_deck" (Practice tab, ScreenMode.COVER).
+  Top: horizontal-scrolling real-waveform recent-attempts strip (tap any to
+  replay). Middle: scrollable queue of phrases (5-8 visible), each with
+  inline hear/record + an attempted-this-session marker
+  (item_practice_phrase_row.xml). Bottom: compact "add phrase" row so this
+  screen is self-sufficient even with an empty queue.
+-->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:background="?android:attr/colorBackground">
+
+    <TextView
+        android:id="@+id/textDrillRecentHeader"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:paddingHorizontal="10dp"
+        android:paddingTop="8dp"
+        android:text="Recent attempts"
+        android:textSize="11sp"
+        android:textStyle="bold"
+        android:alpha="0.7" />
+
+    <HorizontalScrollView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:scrollbars="none"
+        android:paddingTop="4dp"
+        android:paddingBottom="6dp">
+
+        <LinearLayout
+            android:id="@+id/rowDrillRecentThumbs"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:paddingStart="10dp"
+            android:paddingEnd="10dp" />
+    </HorizontalScrollView>
+
+    <View
+        android:layout_width="match_parent"
+        android:layout_height="1dp"
+        android:background="?android:attr/listDivider" />
+
+    <ScrollView
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1">
+
+        <LinearLayout
+            android:id="@+id/listDrillPhrases"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:padding="8dp" />
+    </ScrollView>
+
+    <View
+        android:layout_width="match_parent"
+        android:layout_height="1dp"
+        android:background="?android:attr/listDivider" />
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="center_vertical"
+        android:padding="8dp">
+
+        <com.google.android.material.textfield.TextInputEditText
+            android:id="@+id/editDrillAddPhrase"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:hint="Add a phrase to the queue…"
+            android:inputType="textCapSentences"
+            android:maxLines="2" />
+
+        <ImageButton
+            android:id="@+id/btnDrillAddPhrase"
+            android:layout_width="40dp"
+            android:layout_height="40dp"
+            android:layout_marginStart="4dp"
+            android:background="?attr/selectableItemBackgroundBorderless"
+            android:contentDescription="Add phrase"
+            android:src="@android:drawable/ic_input_add" />
+    </LinearLayout>
+
+    <TextView
+        android:id="@+id/textDrillStatus"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:gravity="center"
+        android:textSize="11sp"
+        android:textStyle="italic"
+        android:paddingBottom="4dp" />
+
+</LinearLayout>

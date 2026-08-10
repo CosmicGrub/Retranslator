@@ -1,0 +1,90 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Flex-Mode variant "flip_sort" (Learn tab). Top pane: bare prompt only -
+  no progress counter, no chrome - tap anywhere to flip and reveal the
+  answer like a physical flashcard (LearnFragment.flipCard does a scaleX
+  1->0->1 swap, the classic cheap "card flip" trick). Bottom pane: two
+  silent (icon/color only, no label text) full-width tap zones that log the
+  Leitner-box recall grade via LearnFragment.onExerciseAnswered - X = "I
+  didn't know it" (box resets to 0), check = "I knew it" (box advances).
+  ALL 4 exercise types funnel through this one gesture, per spec - see
+  LearnFragment.renderFlipCard for how each type's prompt/answer text is
+  derived.
+-->
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:id="@+id/rootFlipSort"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="?android:attr/colorBackground">
+
+    <FrameLayout
+        android:id="@+id/paneFlipTop"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent">
+
+        <TextView
+            android:id="@+id/textFlipCard"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:gravity="center"
+            android:padding="24dp"
+            android:textSize="24sp"
+            android:textStyle="bold" />
+
+        <TextView
+            android:id="@+id/textFlipHint"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="bottom|center_horizontal"
+            android:layout_marginBottom="10dp"
+            android:alpha="0.5"
+            android:text="Tap to flip"
+            android:textSize="12sp" />
+    </FrameLayout>
+
+    <LinearLayout
+        android:id="@+id/paneFlipBottom"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:orientation="horizontal">
+
+        <FrameLayout
+            android:id="@+id/zoneFlipWrong"
+            android:layout_width="0dp"
+            android:layout_height="match_parent"
+            android:layout_weight="1"
+            android:background="?attr/selectableItemBackground"
+            android:contentDescription="Didn't know it">
+
+            <ImageView
+                android:layout_width="40dp"
+                android:layout_height="40dp"
+                android:layout_gravity="center"
+                android:src="@android:drawable/ic_delete"
+                app:tint="#C62828" />
+        </FrameLayout>
+
+        <View
+            android:layout_width="1dp"
+            android:layout_height="match_parent"
+            android:background="?android:attr/listDivider" />
+
+        <FrameLayout
+            android:id="@+id/zoneFlipRight"
+            android:layout_width="0dp"
+            android:layout_height="match_parent"
+            android:layout_weight="1"
+            android:background="?attr/selectableItemBackground"
+            android:contentDescription="Knew it">
+
+            <ImageView
+                android:layout_width="40dp"
+                android:layout_height="40dp"
+                android:layout_gravity="center"
+                android:src="@android:drawable/checkbox_on_background"
+                app:tint="#2E7D32" />
+        </FrameLayout>
+    </LinearLayout>
+
+</FrameLayout>

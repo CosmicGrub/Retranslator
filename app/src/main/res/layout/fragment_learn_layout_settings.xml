@@ -1,0 +1,83 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Learn tab's layout-picker screen, reached from SettingsHubFragment's
+  "Learn layout" row. Same structure as
+  fragment_translate_layout_settings.xml (read for the pattern, not
+  modified) - two RadioGroups (cover / Flex Mode), populated in code from
+  LearnCoverVariant.OPTIONS / LearnFlexVariant.OPTIONS.
+-->
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:paddingHorizontal="16dp"
+        android:paddingTop="16dp"
+        android:paddingBottom="32dp">
+
+        <TextView
+            android:id="@+id/textLearnCoverSectionHeader"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Cover screen"
+            android:textSize="18sp"
+            android:textStyle="bold" />
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="2dp"
+            android:layout_marginBottom="8dp"
+            android:text="Used when the phone is folded closed (or when “force compact” is on in Fold behavior)."
+            android:textSize="12sp"
+            android:textStyle="italic" />
+
+        <RadioGroup
+            android:id="@+id/radioGroupLearnCover"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical" />
+
+        <View
+            android:layout_width="match_parent"
+            android:layout_height="1dp"
+            android:layout_marginVertical="18dp"
+            android:background="?android:attr/listDivider" />
+
+        <TextView
+            android:id="@+id/textLearnFlexSectionHeader"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Flex Mode (tabletop)"
+            android:textSize="18sp"
+            android:textStyle="bold" />
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="2dp"
+            android:layout_marginBottom="8dp"
+            android:text="Used when the phone is unfolded and laid flat or propped tabletop-landscape (a horizontal hinge)."
+            android:textSize="12sp"
+            android:textStyle="italic" />
+
+        <RadioGroup
+            android:id="@+id/radioGroupLearnFlex"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical" />
+
+        <TextView
+            android:id="@+id/textLearnLiveApplyNote"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="18dp"
+            android:text="Changes apply immediately - switch back to the Learn tab (or just fold/unfold) to see it, no restart needed."
+            android:textSize="12sp"
+            android:alpha="0.7" />
+
+    </LinearLayout>
+</ScrollView>

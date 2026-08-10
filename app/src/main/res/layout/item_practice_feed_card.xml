@@ -1,0 +1,73 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  One card in the "phrase_feed" Flex variant's continuous vertical feed
+  (PracticeFragment.refreshPhraseFeedContent). Cards are stacked in one
+  vertical LinearLayout that spans the FULL Flex container height, crossing
+  the hinge uninterrupted, per that variant's brief - unlike every other
+  Flex variant here, this one deliberately does NOT split into a
+  viewing/control top/bottom pair. viewFeedActiveAccent (a plain colored
+  stripe, not a CardView background swap - avoids fragile light/dark-theme
+  default-color restoration) is shown only on whichever card is currently
+  "active" (nearest the hinge after scroll-snap) - the pinned record button
+  lives in the fragment root, not in this per-card file, so it can stay
+  fixed near the hinge while the feed scrolls underneath it.
+-->
+<androidx.cardview.widget.CardView xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:layout_marginHorizontal="14dp"
+    android:layout_marginVertical="10dp"
+    app:cardCornerRadius="10dp"
+    app:cardElevation="1dp">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal">
+
+        <View
+            android:id="@+id/viewFeedActiveAccent"
+            android:layout_width="4dp"
+            android:layout_height="match_parent"
+            android:background="@color/colorAccent"
+            android:visibility="invisible" />
+
+        <LinearLayout
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:orientation="vertical"
+            android:padding="16dp"
+            android:gravity="center_horizontal">
+
+            <TextView
+                android:id="@+id/textFeedCardPhrase"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:gravity="center"
+                android:textSize="16sp"
+                android:text="Phrase text" />
+
+            <TextView
+                android:id="@+id/textFeedCardAttempts"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="4dp"
+                android:gravity="center"
+                android:textSize="11sp"
+                android:alpha="0.7"
+                android:text="Not attempted yet" />
+
+            <ImageButton
+                android:id="@+id/btnFeedCardHear"
+                android:layout_width="40dp"
+                android:layout_height="40dp"
+                android:layout_marginTop="6dp"
+                android:background="?attr/selectableItemBackgroundBorderless"
+                android:contentDescription="Hear reference"
+                android:src="@android:drawable/ic_lock_silent_mode_off" />
+
+        </LinearLayout>
+    </LinearLayout>
+</androidx.cardview.widget.CardView>

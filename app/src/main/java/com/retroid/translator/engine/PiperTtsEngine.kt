@@ -221,7 +221,7 @@ class PiperTtsEngine(context: Context) {
     /** True only once exactly this voice is loaded and ready to speak. */
     fun isReadyFor(info: PiperVoiceInfo): Boolean = tts != null && loadedVoiceId == info.voiceId
 
-    fun speak(text: String, info: PiperVoiceInfo, onDone: () -> Unit, onError: (String) -> Unit) {
+    fun speak(text: String, info: PiperVoiceInfo, onDone: () -> Unit, onError: (String) -> Unit, onAudioStart: (() -> Unit)? = null) {
         val t = tts
         if (t == null || loadedVoiceId != info.voiceId) {
             onError("Natural voice not loaded")
@@ -247,6 +247,12 @@ class PiperTtsEngine(context: Context) {
                 )
                 val track = ensureAudioTrack(audio.sampleRate)
                 track.play()
+                // Unlike EspeakEngine's streaming callback, Piper synthesizes the
+                // whole utterance into memory first (t.generate above) - so
+                // "audio start" is simply "right before the one write() call",
+                // fired synchronously for the same reason EspeakEngine's is (see
+                // that class's onSynthDataReady doc comment).
+                onAudioStart?.invoke()
                 track.write(audio.samples, 0, audio.samples.size, AudioTrack.WRITE_BLOCKING)
                 track.stop()
                 speaking.set(false)

@@ -1,0 +1,158 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Cover-screen variant "echo_duet" (Practice tab, ScreenMode.COVER). Two
+  round "voice orb" tap targets - Reference (blue, cardOrbReference) and You
+  (orange, cardOrbMine) - each wrapped in a slightly-larger ring CardView
+  (ringOrbReference/ringOrbMine) whose scale/alpha PracticeFragment animates
+  with a looping ValueAnimator while that side's audio is active (an
+  animated pulse, not a literal live-amplitude trace - see
+  PracticeFragment.bindEchoDuet's doc comment for why: neither
+  EspeakEngine/PiperTtsEngine's playback nor MicPipeline expose a live
+  amplitude stream to draw a real one from).
+
+  No score anywhere on this screen, deliberately, per this app's stated
+  design principle (README.md: "No automated pronunciation scoring... a
+  listen-and-compare tool, not a grader") - rowEchoRepDots and
+  chipEchoStreak are a plain rep COUNT (how many times you've recorded this
+  phrase this session), never a quality judgement.
+-->
+<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="?android:attr/colorBackground"
+    android:padding="14dp">
+
+    <com.google.android.material.textfield.TextInputEditText
+        android:id="@+id/editEchoPhrase"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:gravity="center"
+        android:hint="Phrase to practice"
+        android:textSize="13sp"
+        android:inputType="textCapSentences"
+        android:maxLines="1"
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent" />
+
+    <LinearLayout
+        android:id="@+id/rowEchoOrbs"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="center"
+        app:layout_constraintTop_toBottomOf="@id/editEchoPhrase"
+        app:layout_constraintBottom_toTopOf="@id/rowEchoRepDots"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintVertical_bias="0.5">
+
+        <FrameLayout
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content">
+
+            <androidx.cardview.widget.CardView
+                android:id="@+id/ringOrbReference"
+                android:layout_width="112dp"
+                android:layout_height="112dp"
+                android:layout_gravity="center"
+                app:cardCornerRadius="56dp"
+                app:cardElevation="0dp"
+                app:cardBackgroundColor="#331565C0" />
+
+            <androidx.cardview.widget.CardView
+                android:id="@+id/cardOrbReference"
+                android:layout_width="92dp"
+                android:layout_height="92dp"
+                android:layout_gravity="center"
+                app:cardCornerRadius="46dp"
+                app:cardElevation="4dp"
+                app:cardBackgroundColor="@color/colorPrimary">
+
+                <TextView
+                    android:id="@+id/textOrbReferenceLabel"
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent"
+                    android:gravity="center"
+                    android:textColor="#FFFFFF"
+                    android:textSize="12sp"
+                    android:padding="8dp"
+                    android:text="Reference\nTap to hear" />
+            </androidx.cardview.widget.CardView>
+        </FrameLayout>
+
+        <FrameLayout
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="18dp">
+
+            <androidx.cardview.widget.CardView
+                android:id="@+id/ringOrbMine"
+                android:layout_width="112dp"
+                android:layout_height="112dp"
+                android:layout_gravity="center"
+                app:cardCornerRadius="56dp"
+                app:cardElevation="0dp"
+                app:cardBackgroundColor="#33FF6F00" />
+
+            <androidx.cardview.widget.CardView
+                android:id="@+id/cardOrbMine"
+                android:layout_width="92dp"
+                android:layout_height="92dp"
+                android:layout_gravity="center"
+                app:cardCornerRadius="46dp"
+                app:cardElevation="4dp"
+                app:cardBackgroundColor="@color/colorAccent">
+
+                <TextView
+                    android:id="@+id/textOrbMineLabel"
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent"
+                    android:gravity="center"
+                    android:textColor="#FFFFFF"
+                    android:textSize="12sp"
+                    android:padding="8dp"
+                    android:text="You\nTap to record" />
+            </androidx.cardview.widget.CardView>
+        </FrameLayout>
+    </LinearLayout>
+
+    <LinearLayout
+        android:id="@+id/rowEchoRepDots"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="center"
+        app:layout_constraintBottom_toTopOf="@id/chipEchoStreak"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        android:layout_marginBottom="8dp" />
+
+    <TextView
+        android:id="@+id/chipEchoStreak"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:background="@drawable/bg_chip_filled"
+        android:textColor="#FFFFFF"
+        android:textSize="12sp"
+        android:text="🔥 3"
+        android:visibility="invisible"
+        app:layout_constraintBottom_toTopOf="@id/textEchoHint"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        android:layout_marginBottom="6dp" />
+
+    <TextView
+        android:id="@+id/textEchoHint"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:gravity="center"
+        android:textSize="10sp"
+        android:alpha="0.7"
+        android:text="No score, ever - just listen and compare"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent" />
+
+</androidx.constraintlayout.widget.ConstraintLayout>

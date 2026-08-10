@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  "Viewing" pane content - the half of a Flex-Mode (tabletop) layout that
+  sits ABOVE the hinge, per this project's established Flex Mode pattern
+  (results/output above, controls below). Progress + prompt + post-answer
+  feedback - the "what you're looking at" half of an exercise. Used by
+  "flex_default" and "elastic_split" (elastic_split additionally
+  animates textPromptFlex's size/padding per exercise type - see
+  LearnFragment.applyElasticEmphasis).
+-->
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:fillViewport="true">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:orientation="vertical"
+        android:gravity="center"
+        android:padding="18dp">
+
+        <TextView
+            android:id="@+id/textProgressFlex"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:textSize="12sp"
+            android:textStyle="italic"
+            android:alpha="0.7" />
+
+        <TextView
+            android:id="@+id/textPromptFlex"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="6dp"
+            android:gravity="center"
+            android:textSize="19sp"
+            android:textStyle="bold" />
+
+        <TextView
+            android:id="@+id/textFeedbackFlex"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="10dp"
+            android:gravity="center"
+            android:textStyle="bold" />
+
+    </LinearLayout>
+</ScrollView>

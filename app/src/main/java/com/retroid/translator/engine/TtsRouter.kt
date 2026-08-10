@@ -24,34 +24,57 @@ import android.util.Log
  */
 class TtsRouter(private val espeak: EspeakEngine, private val piper: PiperTtsEngine) {
 
-    fun speak(text: String, langCode: String, gender: VoiceGender, onDone: () -> Unit, onError: (String) -> Unit) {
+    /**
+     * @param onAudioStart optional, fires exactly once, synchronously (not
+     *   posted to main - see [EspeakEngine.speak]'s matching parameter doc),
+     *   right as the first real PCM audio for this utterance reaches the
+     *   speaker - whichever engine (Piper or eSpeak, including the fallback
+     *   path) actually ends up speaking. Used by
+     *   [com.retroid.translator.conversation.ContinuousConversationController]
+     *   to measure real speech-end-to-TTS-audio-start latency instead of a
+     *   "call issued" proxy.
+     */
+    fun speak(
+        text: String,
+        langCode: String,
+        gender: VoiceGender,
+        onDone: () -> Unit,
+        onError: (String) -> Unit,
+        onAudioStart: (() -> Unit)? = null
+    ) {
         val info = PiperVoiceCatalog.forLanguageAndGender(langCode, gender)
         if (info != null && piper.isVoiceDownloaded(info)) {
             if (piper.isReadyFor(info)) {
-                speakPiper(info, text, langCode, gender, onDone, onError)
+                speakPiper(info, text, langCode, gender, onDone, onError, onAudioStart)
             } else {
                 piper.loadVoiceAsync(info) { ok, err ->
                     if (ok) {
-                        speakPiper(info, text, langCode, gender, onDone, onError)
+                        speakPiper(info, text, langCode, gender, onDone, onError, onAudioStart)
                     } else {
                         Log.w(TAG, "Natural voice load failed for ${info.voiceId} ($err), falling back to eSpeak")
-                        speakEspeak(text, langCode, gender, onDone, onError)
+                        speakEspeak(text, langCode, gender, onDone, onError, onAudioStart)
                     }
                 }
             }
         } else {
-            speakEspeak(text, langCode, gender, onDone, onError)
+            speakEspeak(text, langCode, gender, onDone, onError, onAudioStart)
         }
     }
 
-    private fun speakPiper(info: PiperVoiceInfo, text: String, langCode: String, gender: VoiceGender, onDone: () -> Unit, onError: (String) -> Unit) {
+    private fun speakPiper(
+        info: PiperVoiceInfo, text: String, langCode: String, gender: VoiceGender,
+        onDone: () -> Unit, onError: (String) -> Unit, onAudioStart: (() -> Unit)?
+    ) {
         piper.speak(text, info, onDone = onDone, onError = { err ->
             Log.w(TAG, "Natural voice synthesis failed for ${info.voiceId} ($err), falling back to eSpeak")
-            speakEspeak(text, langCode, gender, onDone, onError)
-        })
+            speakEspeak(text, langCode, gender, onDone, onError, onAudioStart)
+        }, onAudioStart = onAudioStart)
     }
 
-    private fun speakEspeak(text: String, langCode: String, gender: VoiceGender, onDone: () -> Unit, onError: (String) -> Unit) {
+    private fun speakEspeak(
+        text: String, langCode: String, gender: VoiceGender,
+        onDone: () -> Unit, onError: (String) -> Unit, onAudioStart: (() -> Unit)?
+    ) {
         if (!espeak.ready) {
             onError("Offline speech engine still starting up, try again in a moment")
             return
@@ -60,7 +83,7 @@ class TtsRouter(private val espeak: EspeakEngine, private val piper: PiperTtsEng
             onError("No offline voice for this language yet")
             return
         }
-        espeak.speak(text, langCode, gender, onDone, onError)
+        espeak.speak(text, langCode, gender, onDone, onError, onAudioStart)
     }
 
     fun stop() {

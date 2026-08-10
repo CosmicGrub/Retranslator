@@ -1,0 +1,130 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Flex-Mode (tabletop) variant "mirror_panes" (Translate tab, ScreenMode.FLEX).
+  Two equal peer cards - source-language card above the hinge, target-
+  language card below - identical styling, sized/positioned at runtime from
+  FoldingFeature.bounds by TranslateFragment.positionFlexPanes (same as the
+  other Flex variants). A floating swap "FAB" (cardFabSwap, a small circular
+  CardView - same circle-via-CardView technique as the "single_circle" cover
+  variant, no new drawable needed) straddles the hinge seam visually.
+
+  See TranslateFragment.positionMirrorPanesFab's doc comment for how the FAB
+  is kept OFF the physically-occluded hinge band even while still reading as
+  "straddling the seam" - a deliberate reconciliation between this variant's
+  own "straddles the hinge seam" brief and task item 5's harder platform
+  requirement ("keep touchable elements off the hinge crease").
+-->
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:id="@+id/rootMirrorPanes"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="?android:attr/colorBackground">
+
+    <androidx.cardview.widget.CardView
+        android:id="@+id/cardMirrorSource"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:layout_margin="10dp"
+        app:cardCornerRadius="12dp"
+        app:cardElevation="2dp">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:orientation="vertical"
+            android:gravity="center"
+            android:padding="16dp">
+
+            <TextView
+                android:id="@+id/textMirrorSourceLang"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:gravity="center"
+                android:textSize="13sp"
+                android:textStyle="bold"
+                android:text="English (source)" />
+
+            <com.google.android.material.textfield.TextInputEditText
+                android:id="@+id/editMirrorSource"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="6dp"
+                android:gravity="top|start"
+                android:hint="Type or tap the mic…"
+                android:minLines="2"
+                android:inputType="textMultiLine|textCapSentences" />
+
+            <ImageButton
+                android:id="@+id/btnMirrorMic"
+                android:layout_width="40dp"
+                android:layout_height="40dp"
+                android:layout_marginTop="4dp"
+                android:background="?attr/selectableItemBackgroundBorderless"
+                android:contentDescription="Voice input"
+                android:src="@android:drawable/ic_btn_speak_now" />
+        </LinearLayout>
+    </androidx.cardview.widget.CardView>
+
+    <androidx.cardview.widget.CardView
+        android:id="@+id/cardMirrorTarget"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:layout_margin="10dp"
+        app:cardCornerRadius="12dp"
+        app:cardElevation="2dp">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:orientation="vertical"
+            android:gravity="center"
+            android:padding="16dp">
+
+            <TextView
+                android:id="@+id/textMirrorTargetLang"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:gravity="center"
+                android:textSize="13sp"
+                android:textStyle="bold"
+                android:text="Spanish (target)" />
+
+            <TextView
+                android:id="@+id/textMirrorTargetResult"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="6dp"
+                android:gravity="center"
+                android:textSize="17sp"
+                android:text="" />
+
+            <ImageButton
+                android:id="@+id/btnMirrorSpeak"
+                android:layout_width="40dp"
+                android:layout_height="40dp"
+                android:layout_marginTop="4dp"
+                android:background="?attr/selectableItemBackgroundBorderless"
+                android:contentDescription="Speak translation"
+                android:src="@android:drawable/ic_lock_silent_mode_off" />
+        </LinearLayout>
+    </androidx.cardview.widget.CardView>
+
+    <androidx.cardview.widget.CardView
+        android:id="@+id/cardFabSwap"
+        android:layout_width="52dp"
+        android:layout_height="52dp"
+        app:cardCornerRadius="26dp"
+        app:cardElevation="8dp"
+        app:cardBackgroundColor="?attr/colorAccent"
+        android:layout_gravity="top|start">
+
+        <ImageView
+            android:layout_width="26dp"
+            android:layout_height="26dp"
+            android:layout_gravity="center"
+            android:src="@android:drawable/ic_menu_rotate"
+            android:tint="#FFFFFF" />
+    </androidx.cardview.widget.CardView>
+
+</FrameLayout>

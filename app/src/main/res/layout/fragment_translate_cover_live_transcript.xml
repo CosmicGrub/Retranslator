@@ -1,0 +1,102 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Cover-screen variant "live_transcript" (Translate tab, ScreenMode.COVER).
+  Top: recent language-pair chips (horizontal scroll) for instant switching.
+  Middle: scrollable chat-style transcript of this sitting (session-only,
+  in-memory - TranslateFragment.transcript). Bottom: pinned input row. A
+  plain vertical LinearLayout with the middle region weighted 1 pins the
+  input row to the bottom without needing CoordinatorLayout/ConstraintLayout
+  keyboard-avoidance tricks this app doesn't use elsewhere.
+-->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:background="?android:attr/colorBackground">
+
+    <HorizontalScrollView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:scrollbars="none"
+        android:paddingTop="8dp"
+        android:paddingBottom="4dp">
+
+        <LinearLayout
+            android:id="@+id/chipRowRecentPairs"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:paddingStart="10dp"
+            android:paddingEnd="10dp" />
+    </HorizontalScrollView>
+
+    <View
+        android:layout_width="match_parent"
+        android:layout_height="1dp"
+        android:background="?android:attr/listDivider" />
+
+    <ScrollView
+        android:id="@+id/scrollLiveTranscript"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1">
+
+        <LinearLayout
+            android:id="@+id/transcriptList"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:paddingHorizontal="10dp"
+            android:paddingVertical="8dp" />
+    </ScrollView>
+
+    <TextView
+        android:id="@+id/textLiveStatus"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:gravity="center"
+        android:textSize="11sp"
+        android:textStyle="italic"
+        android:paddingBottom="2dp" />
+
+    <View
+        android:layout_width="match_parent"
+        android:layout_height="1dp"
+        android:background="?android:attr/listDivider" />
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="center_vertical"
+        android:padding="8dp">
+
+        <com.google.android.material.textfield.TextInputEditText
+            android:id="@+id/editLiveInput"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:hint="Type or tap the mic…"
+            android:inputType="textCapSentences"
+            android:maxLines="3" />
+
+        <ImageButton
+            android:id="@+id/btnLiveMic"
+            android:layout_width="40dp"
+            android:layout_height="40dp"
+            android:layout_marginStart="4dp"
+            android:background="?attr/selectableItemBackgroundBorderless"
+            android:contentDescription="Voice input"
+            android:src="@android:drawable/ic_btn_speak_now" />
+
+        <ImageButton
+            android:id="@+id/btnLiveSend"
+            android:layout_width="40dp"
+            android:layout_height="40dp"
+            android:layout_marginStart="2dp"
+            android:background="?attr/selectableItemBackgroundBorderless"
+            android:contentDescription="Send"
+            android:src="@android:drawable/ic_menu_send" />
+    </LinearLayout>
+
+</LinearLayout>

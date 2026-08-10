@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Selected/filled pill background - same chip family as bg_chip_outline.xml. -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android" android:shape="rectangle">
+    <corners android:radius="16dp" />
+    <solid android:color="?attr/colorPrimary" />
+    <padding android:left="10dp" android:top="6dp" android:right="10dp" android:bottom="6dp" />
+</shape>

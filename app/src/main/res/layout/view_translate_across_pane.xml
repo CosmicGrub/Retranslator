@@ -1,0 +1,61 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  One side of the Flex-Mode "across_table" variant. Included twice by
+  fragment_translate_flex_across_table.xml; TranslateFragment.positionFlexPanes
+  sizes/positions both instances from the live FoldingFeature.bounds and sets
+  android:rotation=180f on the top instance at runtime (same pattern as
+  ConversationsFragment.applyMirroredGeometry / view_conversation_pane.xml -
+  deliberately not set statically in XML, see that file's own comment on why
+  runtime is correct here).
+
+  Per the variant's brief ("each half has its own mic + translated-text zone
+  near the hinge, no shared chrome"): textAcrossResult sits at the TOP of
+  this local layout, same reasoning as view_conversation_pane.xml's
+  newest-nearest-hinge placement - after the top pane is rotated 180° about
+  its own center, its local "top" ends up visually nearest the physical
+  hinge too, so both panes' result text lands close to the hinge either way.
+-->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:paddingHorizontal="16dp"
+    android:paddingVertical="10dp">
+
+    <TextView
+        android:id="@+id/textAcrossResult"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:background="#11000000"
+        android:padding="10dp"
+        android:gravity="center"
+        android:textSize="17sp"
+        android:text="" />
+
+    <TextView
+        android:id="@+id/textAcrossLang"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="6dp"
+        android:gravity="center"
+        android:textSize="12sp"
+        android:textStyle="bold"
+        android:text="English" />
+
+    <TextView
+        android:id="@+id/textAcrossStatus"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:gravity="center"
+        android:textSize="11sp"
+        android:textStyle="italic" />
+
+    <Button
+        android:id="@+id/btnAcrossMic"
+        android:layout_width="match_parent"
+        android:layout_height="44dp"
+        android:layout_marginTop="4dp"
+        android:text="Tap to speak" />
+
+</LinearLayout>

@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Flex-Mode (tabletop) variant "flex_default" (Learn tab, ScreenMode.FLEX).
+  This tab had no existing Flex layout before this pass (task item 2's
+  "check first" instruction confirmed this - only fragment_learn.xml
+  existed), so this is the new baseline, matching this project's
+  established "Viewing on top, Control on the bottom" pattern (same as
+  Translate/Practice's own flex_default).
+
+  Plain FrameLayout root, same reasoning as every other Flex layout in this
+  project: the split position depends on the live FoldingFeature.bounds, so
+  it's sized/positioned via LayoutParams in LearnFragment.positionFlexPanes,
+  not a fixed XML constraint.
+-->
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/rootFlexDefault"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="?android:attr/colorBackground">
+
+    <include
+        android:id="@+id/paneControl"
+        layout="@layout/view_learn_flex_control"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent" />
+
+    <include
+        android:id="@+id/paneViewing"
+        layout="@layout/view_learn_flex_viewing"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent" />
+
+</FrameLayout>

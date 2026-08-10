@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Flex-Mode (tabletop) variant "flex_default" (Practice tab, ScreenMode.FLEX).
+  The tab had no existing Flex layout before this pass (checked: only
+  fragment_practice.xml existed) - this is the new baseline, "Viewing on
+  top, Control on the bottom", this project's established Flex Mode split
+  (same structure as fragment_translate_flex_default.xml).
+
+  Plain FrameLayout root: the split position depends on the live
+  FoldingFeature.bounds (device- and posture-dependent), so it's sized/
+  positioned via LayoutParams in PracticeFragment.positionFlexPanes, not a
+  fixed XML constraint.
+-->
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/rootPracticeFlexDefault"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="?android:attr/colorBackground">
+
+    <include
+        android:id="@+id/paneControl"
+        layout="@layout/view_practice_flex_control"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent" />
+
+    <include
+        android:id="@+id/paneViewing"
+        layout="@layout/view_practice_flex_viewing"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent" />
+
+</FrameLayout>

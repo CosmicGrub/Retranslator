@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  One row inside TranslateLayoutSettingsFragment's cover/Flex RadioGroups -
+  a RadioButton (title) plus a subtitle line underneath.
+
+  CORRECTED 2026-08-10: RadioGroup's mutual-exclusion/OnCheckedChangeListener
+  wiring (RadioGroup.PassThroughHierarchyChangeListener) only instruments its
+  DIRECT children - it does NOT walk the view tree for RadioButton
+  descendants. The original wrapper LinearLayout here nested the RadioButton
+  one level deep, which silently broke selection entirely (never checked/
+  unchecked, never fired the listener, never persisted). Fixed by using
+  <merge> so the RadioButton and its subtitle TextView attach directly to
+  the RadioGroup as true siblings - requires inflating with
+  attachToParent=true (see TranslateLayoutSettingsFragment.populateGroup).
+-->
+<merge xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <RadioButton
+        android:id="@+id/radioOption"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:paddingTop="10dp"
+        android:textSize="16sp"
+        android:textStyle="bold" />
+
+    <TextView
+        android:id="@+id/textOptionSubtitle"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="32dp"
+        android:paddingBottom="10dp"
+        android:textSize="13sp"
+        android:alpha="0.75" />
+
+</merge>

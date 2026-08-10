@@ -39,6 +39,7 @@ class EspeakEngine(context: Context) {
     private val speaking = AtomicBoolean(false)
     @Volatile private var currentOnDone: (() -> Unit)? = null
     @Volatile private var currentOnError: ((String) -> Unit)? = null
+    @Volatile private var currentOnAudioStart: (() -> Unit)? = null
     @Volatile private var currentLangCode: String? = null
     @Volatile private var currentGender: VoiceGender? = null
     private var framesWrittenThisUtterance = 0L
@@ -47,6 +48,18 @@ class EspeakEngine(context: Context) {
         override fun onSynthDataReady(audioData: ByteArray?) {
             if (audioData == null || audioData.isEmpty()) return
             try {
+                if (framesWrittenThisUtterance == 0L) {
+                    // First real PCM bytes for this utterance about to reach the
+                    // AudioTrack - the genuine "TTS audio start" instant, not a
+                    // proxy for it. Fired synchronously (not posted to main) so a
+                    // latency-measuring caller (ContinuousConversationController)
+                    // gets an accurate System.nanoTime() rather than one skewed
+                    // by main-thread message-queue delay; this runs on
+                    // EspeakEngine's own worker thread, same as onSynthDataReady
+                    // always has - callers that touch UI from this callback must
+                    // hop threads themselves.
+                    currentOnAudioStart?.invoke()
+                }
                 audioTrack?.write(audioData, 0, audioData.size)
                 // 16-bit mono PCM -> 2 bytes/frame. Logged per-utterance below as
                 // the same kind of hard "real audio was produced" evidence used
@@ -62,6 +75,7 @@ class EspeakEngine(context: Context) {
             val done = currentOnDone
             currentOnDone = null
             currentOnError = null
+            currentOnAudioStart = null
             Log.i(
                 TAG,
                 "eSpeak synth: lang=$currentLangCode gender=$currentGender framesWritten=$framesWrittenThisUtterance"
@@ -112,7 +126,14 @@ class EspeakEngine(context: Context) {
 
     fun availableLanguageCodes(): Set<String> = voicesByLang.keys
 
-    fun speak(text: String, langCode: String, gender: VoiceGender = VoiceGender.FEMALE, onDone: () -> Unit, onError: (String) -> Unit) {
+    fun speak(
+        text: String,
+        langCode: String,
+        gender: VoiceGender = VoiceGender.FEMALE,
+        onDone: () -> Unit,
+        onError: (String) -> Unit,
+        onAudioStart: (() -> Unit)? = null
+    ) {
         if (!ready) {
             onError("Offline speech engine is not ready yet")
             return
@@ -133,6 +154,7 @@ class EspeakEngine(context: Context) {
         }
         currentOnDone = onDone
         currentOnError = onError
+        currentOnAudioStart = onAudioStart
         currentLangCode = langCode
         currentGender = gender
         speaking.set(true)
@@ -154,6 +176,7 @@ class EspeakEngine(context: Context) {
                     val done = currentOnDone
                     currentOnDone = null
                     currentOnError = null
+                    currentOnAudioStart = null
                     mainHandler.post { done?.invoke() }
                 }
             } catch (e: Exception) {
@@ -161,6 +184,7 @@ class EspeakEngine(context: Context) {
                 val err = currentOnError
                 currentOnDone = null
                 currentOnError = null
+                currentOnAudioStart = null
                 mainHandler.post { err?.invoke(e.message ?: "Speech synthesis failed") }
             }
         }

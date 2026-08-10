@@ -1,0 +1,83 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Learn cover variant "progress_ring": ONE large circular ring
+  (com.retroid.translator.ui.widget.ProgressRingView, draw-only - see its
+  own doc comment for why a custom View instead of ProgressBar/layer-list)
+  fills clockwise as due reviews are answered. Deliberately no streak digit
+  or due-card text anywhere in this idle state, per spec.
+
+  Tapping the ring reveals cardExerciseOverlay - the single due exercise,
+  rendered "inline within the ring" by constraining the card to the same
+  centered square the ring occupies (see LearnFragment.RING_CARD_INSET_DP)
+  rather than a separate full-screen sheet. It fades/scales in on open and
+  back out once answered (LearnFragment.showRingCard/hideRingCard), leaving
+  the ring alone again, now more filled.
+-->
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:id="@+id/rootProgressRing"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="?android:attr/colorBackground">
+
+    <com.retroid.translator.ui.widget.ProgressRingView
+        android:id="@+id/ringView"
+        android:layout_width="0dp"
+        android:layout_height="0dp"
+        android:layout_gravity="center" />
+
+    <!-- No idle-state text at all, per spec ("no streak digit or due-card
+         text anywhere") - kept as an unused, GONE view rather than deleted
+         so a future pass has an obvious place to opt back into a hint,
+         without this pass silently violating the literal requirement. -->
+    <TextView
+        android:id="@+id/textRingHint"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="bottom|center_horizontal"
+        android:layout_marginBottom="28dp"
+        android:alpha="0.55"
+        android:text="Tap the ring"
+        android:textSize="13sp"
+        android:visibility="gone" />
+
+    <androidx.cardview.widget.CardView
+        android:id="@+id/cardExerciseOverlay"
+        android:layout_width="0dp"
+        android:layout_height="0dp"
+        android:layout_gravity="center"
+        app:cardCornerRadius="500dp"
+        app:cardElevation="6dp"
+        android:visibility="gone">
+
+        <ScrollView
+            android:layout_width="match_parent"
+            android:layout_height="match_parent">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:gravity="center"
+                android:padding="20dp">
+
+                <TextView
+                    android:id="@+id/textRingPrompt"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:gravity="center"
+                    android:textSize="16sp"
+                    android:textStyle="bold" />
+
+                <LinearLayout
+                    android:id="@+id/containerRingDynamic"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="12dp"
+                    android:orientation="vertical" />
+
+            </LinearLayout>
+        </ScrollView>
+    </androidx.cardview.widget.CardView>
+
+</FrameLayout>
