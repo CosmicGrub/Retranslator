@@ -145,6 +145,56 @@ class LearnProgressStore(context: Context) : SQLiteOpenHelper(context.applicatio
     }
 
     // ---------------------------------------------------------------------
+    // Due-for-review queries - added for the Learn tab's fold-aware layout
+    // variants (progress_ring / course_dashboard cover screens): both need
+    // to know which already-seen exercises are due today without the caller
+    // re-deriving Leitner-box math from raw rows itself. Read-only queries
+    // over the same `srs_state` table [recordAnswer] already writes - no
+    // schema change, no new table.
+    // ---------------------------------------------------------------------
+
+    data class SrsRecord(val box: Int, val nextReviewEpochDay: Long, val correctCount: Int, val incorrectCount: Int)
+
+    fun srsRecordFor(exerciseKey: String): SrsRecord? {
+        readableDatabase.rawQuery(
+            "SELECT box, next_review_epoch_day, correct_count, incorrect_count FROM srs_state WHERE exercise_key = ?",
+            arrayOf(exerciseKey)
+        ).use { c ->
+            if (!c.moveToFirst()) return null
+            return SrsRecord(c.getInt(0), c.getLong(1), c.getInt(2), c.getInt(3))
+        }
+    }
+
+    /**
+     * Every `exercise_key` whose `next_review_epoch_day` has arrived (i.e.
+     * previously answered at least once, per [recordAnswer], and due today
+     * or earlier) - exercises never yet answered are "new", not "due for
+     * review", and deliberately excluded. Maps key -> its current box, so
+     * callers (e.g. [com.retroid.translator.learn.LearnReviewQueue]) can
+     * group/sort without a second query.
+     */
+    fun dueExerciseKeys(today: LocalDate = LocalDate.now(ZoneId.systemDefault())): Map<String, Int> {
+        val todayEpochDay = today.toEpochDay()
+        val out = LinkedHashMap<String, Int>()
+        readableDatabase.rawQuery(
+            "SELECT exercise_key, box FROM srs_state WHERE next_review_epoch_day <= ? ORDER BY next_review_epoch_day ASC",
+            arrayOf(todayEpochDay.toString())
+        ).use { c ->
+            while (c.moveToNext()) out[c.getString(0)] = c.getInt(1)
+        }
+        return out
+    }
+
+    /** Due-today count per Leitner box (0..4), for the course_dashboard review-queue panel. Boxes with zero due items are still present, with count 0. */
+    fun dueCountsByBox(today: LocalDate = LocalDate.now(ZoneId.systemDefault())): Map<Int, Int> {
+        val counts = (0 until boxIntervalDays.size).associateWith { 0 }.toMutableMap()
+        for (box in dueExerciseKeys(today).values) {
+            counts[box] = (counts[box] ?: 0) + 1
+        }
+        return counts
+    }
+
+    // ---------------------------------------------------------------------
     // Internal key/value helpers
     // ---------------------------------------------------------------------
 

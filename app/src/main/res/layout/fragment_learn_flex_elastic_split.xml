@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Flex-Mode variant "elastic_split" (Learn tab). Structurally identical at
+  rest to "flex_default" (same viewing/control pane chrome, reused directly)
+  - what makes it "elastic" is entirely behavioral: LearnFragment.applyElasticEmphasis
+  animates textPromptFlex's text size/padding and containerDynamicFlex's
+  item spacing on every exercise-type transition (tall prompt for
+  multiple-choice/listening, roomy tile spacing for word-bank, balanced for
+  speaking), while the pane BOUNDARY itself always stays pinned to the live
+  FoldingFeature hinge bounds exactly like every other Flex variant here -
+  see LearnFragment's class doc for why the split line itself never moves
+  off the physical hinge (task item 5's crease-safety requirement).
+-->
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/rootElasticSplit"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="?android:attr/colorBackground">
+
+    <include
+        android:id="@+id/paneElasticControl"
+        layout="@layout/view_learn_flex_control"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent" />
+
+    <include
+        android:id="@+id/paneElasticViewing"
+        layout="@layout/view_learn_flex_viewing"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent" />
+
+</FrameLayout>

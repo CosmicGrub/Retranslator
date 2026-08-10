@@ -39,7 +39,39 @@ data class LearnUnit(
 data class LearnCourse(
     val language: String,
     val units: List<LearnUnit>,
-)
+) {
+    /** Finds the (unit, lesson) pair for a lesson id, searching every unit. */
+    fun findLessonById(lessonId: String): Pair<LearnUnit, LearnLesson>? =
+        units.firstNotNullOfOrNull { u -> u.lessons.find { it.id == lessonId }?.let { u to it } }
+
+    /**
+     * Resolves an SRS `exercise_key` (`"<lessonId>#<index>"`, see
+     * [LearnExercise.key]) back into the live course objects it refers to -
+     * needed by the cover/Flex layout variants that jump straight into a
+     * specific due review item (progress-ring tap, dashboard Leitner-box
+     * row) without walking the unit/lesson list first. `substringAfterLast`/
+     * `substringBeforeLast` (not `split("#")`) so this stays correct even if
+     * a future lesson id itself contained a literal "#".
+     */
+    fun resolveExerciseKey(key: String): ResolvedExercise? {
+        val index = key.substringAfterLast('#', "").toIntOrNull() ?: return null
+        val lessonId = key.substringBeforeLast('#', "")
+        if (lessonId.isEmpty()) return null
+        val (unit, lesson) = findLessonById(lessonId) ?: return null
+        val exercise = lesson.exercises.getOrNull(index) ?: return null
+        return ResolvedExercise(unit, lesson, index, exercise)
+    }
+}
+
+/** A due-for-review (or otherwise looked-up) exercise, together with the unit/lesson it lives in and its index within that lesson - everything [LearnProgressStore.recordAnswer]'s key format needs plus everything a renderer needs to display it. */
+data class ResolvedExercise(
+    val unit: LearnUnit,
+    val lesson: LearnLesson,
+    val exerciseIndex: Int,
+    val exercise: LearnExercise,
+) {
+    val exerciseKey: String get() = exercise.key(lesson.id, exerciseIndex)
+}
 
 object LearnCourseLoader {
     private val cache = HashMap<String, LearnCourse?>()
