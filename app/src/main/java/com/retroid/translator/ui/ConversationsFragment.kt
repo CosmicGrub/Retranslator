@@ -38,11 +38,20 @@ import kotlinx.coroutines.launch
 import java.io.File
 
 /**
- * Conversations tab. Two-way turn-taking interpreter (§4 of
- * docs/specs/fold5-adaptation.md is NOT wired in here - turn-taking is still
- * app-tracked manual alternation, [turnIsA], exactly as before; only the
- * *presentation* changes with fold posture, per §2/§3's implementation
- * order, step 3).
+ * Conversations tab. Two-way turn-taking interpreter.
+ *
+ * §4 of docs/specs/fold5-adaptation.md (dual-recognizer auto-detect) IS now
+ * wired in, as of the real-human-speech validation pass documented in that
+ * spec's "§4 status update" - but as an opt-in "Continuous listening"
+ * toggle ([continuousEnabled]) layered ALONGSIDE the original app-tracked
+ * manual alternation ([turnIsA]) below, not a replacement of it. Manual
+ * tap-to-talk remains the default and is untouched by the toggle being off;
+ * both flows share the same transcript/state helpers
+ * (setStatus/appendCombinedTranscript/appendPaneEntry) so either can drive
+ * either of the two layouts below identically. See the "Continuous
+ * listening" section further down this file for the toggle's own state and
+ * [com.retroid.translator.conversation.ContinuousConversationController] for
+ * the dual-recognizer streaming engine it drives.
  *
  * Renders into one of two mutually-exclusive layouts, swapped live as
  * [FoldPostureProvider] reports posture changes, without ever recreating
