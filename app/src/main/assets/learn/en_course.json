@@ -1,0 +1,46 @@
+{
+  "language": "en",
+  "sourceNote": "Sentences are real, community-contributed example sentences from the Tatoeba Project (https://tatoeba.org), licensed CC-BY 2.0 FR. Each entry's tatoebaId is that sentence's permanent Tatoeba sentence ID. Gloss text (the short English definitions used for multiple-choice prompts) was written for this app, not sourced from Tatoeba.",
+  "units": [
+    {
+      "id": "greetings",
+      "title": "Greetings",
+      "lessons": [
+        {
+          "id": "greetings_1",
+          "title": "Basic Greetings",
+          "exercises": [
+            { "type": "multiple_choice", "tatoebaId": 2258234, "text": "Good morning.", "gloss": "What you say to greet someone early in the day" },
+            { "type": "word_bank", "tatoebaId": 1858850, "text": "Hello." },
+            { "type": "listening", "tatoebaId": 2591566, "text": "Goodbye." },
+            { "type": "speaking", "tatoebaId": 373320, "text": "How are you?" },
+            { "type": "multiple_choice", "tatoebaId": 499617, "text": "Nice to meet you.", "gloss": "A polite thing to say when you meet someone for the first time" },
+            { "type": "word_bank", "tatoebaId": 1876041, "text": "Thank you." },
+            { "type": "listening", "tatoebaId": 393357, "text": "Please." },
+            { "type": "speaking", "tatoebaId": 2425828, "text": "Excuse me!" }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "numbers",
+      "title": "Numbers",
+      "lessons": [
+        {
+          "id": "numbers_1",
+          "title": "Counting",
+          "exercises": [
+            { "type": "multiple_choice", "tatoebaId": 5757977, "text": "Tom ate one apple.", "gloss": "A sentence about eating a single piece of fruit" },
+            { "type": "word_bank", "tatoebaId": 3293865, "text": "She has a cat and two dogs." },
+            { "type": "listening", "tatoebaId": 10796427, "text": "We have three cats." },
+            { "type": "speaking", "tatoebaId": 39631, "text": "There were four chairs by the table." },
+            { "type": "multiple_choice", "tatoebaId": 10812217, "text": "He's got at least five books in English.", "gloss": "A sentence about someone owning several English-language books" },
+            { "type": "word_bank", "tatoebaId": 27727, "text": "There are seven days in a week." },
+            { "type": "listening", "tatoebaId": 1037732, "text": "My very educated mother just showed us nine planets." },
+            { "type": "speaking", "tatoebaId": 12436157, "text": "I am ten years old." }
+          ]
+        }
+      ]
+    }
+  ]
+}

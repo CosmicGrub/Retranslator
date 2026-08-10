@@ -6,6 +6,7 @@ import com.retroid.translator.engine.EspeakEngine
 import com.retroid.translator.engine.PiperTtsEngine
 import com.retroid.translator.engine.TtsRouter
 import com.retroid.translator.engine.VoskEngine
+import com.retroid.translator.learn.LearnProgressStore
 
 /**
  * Holds the app-wide singletons for the offline engines. These wrap native
@@ -21,6 +22,9 @@ class TranslatorApp : Application() {
 
     /** Every screen speaks through this - it picks Piper (natural) when downloaded, else eSpeak. */
     val tts: TtsRouter by lazy { TtsRouter(espeak, piper) }
+
+    /** Local-only XP/streak/lesson-completion/SRS state for the Learn tab. */
+    val learnProgress: LearnProgressStore by lazy { LearnProgressStore(this) }
 
     override fun onCreate() {
         super.onCreate()

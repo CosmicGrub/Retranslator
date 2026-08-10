@@ -12,4 +12,8 @@
         android:id="@+id/nav_practice"
         android:icon="@android:drawable/ic_btn_speak_now"
         android:title="Practice" />
+    <item
+        android:id="@+id/nav_learn"
+        android:icon="@android:drawable/ic_menu_myplaces"
+        android:title="Learn" />
 </menu>

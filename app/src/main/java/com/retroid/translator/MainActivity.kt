@@ -10,6 +10,7 @@ import androidx.core.content.ContextCompat
 import androidx.fragment.app.Fragment
 import com.google.android.material.bottomnavigation.BottomNavigationView
 import com.retroid.translator.ui.ConversationsFragment
+import com.retroid.translator.ui.LearnFragment
 import com.retroid.translator.ui.PracticeFragment
 import com.retroid.translator.ui.TranslateFragment
 
@@ -41,6 +42,7 @@ class MainActivity : AppCompatActivity() {
                 R.id.nav_translate -> TranslateFragment()
                 R.id.nav_conversations -> ConversationsFragment()
                 R.id.nav_practice -> PracticeFragment()
+                R.id.nav_learn -> LearnFragment()
                 else -> return@setOnItemSelectedListener false
             }
             showFragment(fragment)
