@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  One row inside PracticeLayoutSettingsFragment's cover/Flex RadioGroups - a
+  RadioButton (title) plus a subtitle line underneath. Own copy, deliberately
+  not a reuse of Translate's view_translate_variant_option.xml (identical
+  shape, but keeping Practice's settings screen independent of a file owned
+  by another tab's pass avoids exactly the kind of parallel-work coupling
+  LayoutPreferences' own doc comment calls out). RadioGroup finds RadioButton
+  descendants anywhere in its view tree, so nesting one level deep here still
+  works correctly.
+-->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    android:paddingTop="10dp"
+    android:paddingBottom="10dp">
+
+    <RadioButton
+        android:id="@+id/radioOption"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:textSize="16sp"
+        android:textStyle="bold" />
+
+    <TextView
+        android:id="@+id/textOptionSubtitle"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="32dp"
+        android:textSize="13sp"
+        android:alpha="0.75" />
+
+</LinearLayout>

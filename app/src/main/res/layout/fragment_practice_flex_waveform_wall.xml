@@ -1,0 +1,225 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Flex-Mode (tabletop) variant "waveform_wall" (Practice tab, ScreenMode.FLEX).
+  Above the hinge (paneWaveformViewing), split ~70/30 per the variant's
+  brief: left 70% stacks a reference row above several REAL past-attempt
+  mini-waveforms (item_practice_waveform_thumb.xml, tap to replay - see
+  WaveformReader's doc comment for why the reference row itself is a plain
+  decorative pattern rather than real audio data: no capture-to-file path
+  exists for TTS output in this codebase). Right 30% is the remaining
+  phrase-set rail (item_practice_rail_phrase.xml) with attempt-count badges.
+  Below the hinge (paneWaveformControl): record / play / gender-toggle /
+  prev-next, icon row. Same runtime-geometry FrameLayout-root pattern as
+  every other Flex variant in this codebase.
+-->
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/rootWaveformWall"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="?android:attr/colorBackground">
+
+    <!-- Control pane (below hinge) -->
+    <LinearLayout
+        android:id="@+id/paneWaveformControl"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:orientation="vertical"
+        android:gravity="center"
+        android:padding="10dp">
+
+        <TextView
+            android:id="@+id/textWaveformActivePhrase"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:gravity="center"
+            android:textSize="13sp"
+            android:textStyle="bold"
+            android:maxLines="2"
+            android:ellipsize="end"
+            android:text="No phrase selected" />
+
+        <LinearLayout
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center_vertical"
+            android:layout_marginTop="6dp">
+
+            <ImageButton
+                android:id="@+id/btnWaveformPrev"
+                android:layout_width="40dp"
+                android:layout_height="40dp"
+                android:background="?attr/selectableItemBackgroundBorderless"
+                android:contentDescription="Previous phrase"
+                android:src="@android:drawable/ic_media_previous" />
+
+            <ImageButton
+                android:id="@+id/btnWaveformRecord"
+                android:layout_width="46dp"
+                android:layout_height="46dp"
+                android:layout_marginHorizontal="6dp"
+                android:background="?attr/selectableItemBackgroundBorderless"
+                android:contentDescription="Record my attempt"
+                android:src="@android:drawable/ic_btn_speak_now" />
+
+            <ImageButton
+                android:id="@+id/btnWaveformPlayMine"
+                android:layout_width="40dp"
+                android:layout_height="40dp"
+                android:background="?attr/selectableItemBackgroundBorderless"
+                android:contentDescription="Play my last attempt"
+                android:src="@android:drawable/ic_media_play" />
+
+            <ImageButton
+                android:id="@+id/btnWaveformGenderToggle"
+                android:layout_width="40dp"
+                android:layout_height="40dp"
+                android:layout_marginStart="6dp"
+                android:background="?attr/selectableItemBackgroundBorderless"
+                android:contentDescription="Toggle voice gender"
+                android:src="@android:drawable/ic_menu_myplaces" />
+
+            <ImageButton
+                android:id="@+id/btnWaveformNext"
+                android:layout_width="40dp"
+                android:layout_height="40dp"
+                android:layout_marginStart="6dp"
+                android:background="?attr/selectableItemBackgroundBorderless"
+                android:contentDescription="Next phrase"
+                android:src="@android:drawable/ic_media_next" />
+        </LinearLayout>
+
+        <TextView
+            android:id="@+id/textWaveformStatus"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="4dp"
+            android:gravity="center"
+            android:textSize="11sp"
+            android:textStyle="italic" />
+    </LinearLayout>
+
+    <!-- Viewing pane (above hinge) -->
+    <LinearLayout
+        android:id="@+id/paneWaveformViewing"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:orientation="horizontal"
+        android:background="?android:attr/colorBackground"
+        android:weightSum="10">
+
+        <LinearLayout
+            android:layout_width="0dp"
+            android:layout_height="match_parent"
+            android:layout_weight="7"
+            android:orientation="vertical"
+            android:padding="10dp">
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="Reference"
+                android:textSize="11sp"
+                android:textStyle="bold"
+                android:alpha="0.75" />
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:gravity="center_vertical"
+                android:layout_marginTop="4dp">
+
+                <LinearLayout
+                    android:id="@+id/barsWaveformReference"
+                    android:layout_width="0dp"
+                    android:layout_height="44dp"
+                    android:layout_weight="1"
+                    android:orientation="horizontal"
+                    android:gravity="bottom"
+                    android:weightSum="20" />
+
+                <ImageButton
+                    android:id="@+id/btnWaveformHearReference"
+                    android:layout_width="36dp"
+                    android:layout_height="36dp"
+                    android:layout_marginStart="6dp"
+                    android:background="?attr/selectableItemBackgroundBorderless"
+                    android:contentDescription="Hear reference"
+                    android:src="@android:drawable/ic_lock_silent_mode_off" />
+            </LinearLayout>
+
+            <View
+                android:layout_width="match_parent"
+                android:layout_height="1dp"
+                android:layout_marginVertical="8dp"
+                android:background="?android:attr/listDivider" />
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="Past attempts (tap to replay)"
+                android:textSize="11sp"
+                android:textStyle="bold"
+                android:alpha="0.75" />
+
+            <HorizontalScrollView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:scrollbars="none"
+                android:layout_marginTop="4dp">
+
+                <LinearLayout
+                    android:id="@+id/rowWaveformPastAttempts"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal" />
+            </HorizontalScrollView>
+        </LinearLayout>
+
+        <View
+            android:layout_width="1dp"
+            android:layout_height="match_parent"
+            android:background="?android:attr/listDivider" />
+
+        <ScrollView
+            android:layout_width="0dp"
+            android:layout_height="match_parent"
+            android:layout_weight="3">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:padding="8dp">
+
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="Phrase set"
+                    android:textSize="11sp"
+                    android:textStyle="bold"
+                    android:alpha="0.75"
+                    android:layout_marginBottom="4dp" />
+
+                <LinearLayout
+                    android:id="@+id/listWaveformRail"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical" />
+
+                <com.google.android.material.textfield.TextInputEditText
+                    android:id="@+id/editWaveformAddPhrase"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="6dp"
+                    android:textSize="11sp"
+                    android:hint="Add phrase, then ⏎"
+                    android:inputType="textCapSentences"
+                    android:imeOptions="actionDone"
+                    android:maxLines="1" />
+            </LinearLayout>
+        </ScrollView>
+    </LinearLayout>
+
+</FrameLayout>

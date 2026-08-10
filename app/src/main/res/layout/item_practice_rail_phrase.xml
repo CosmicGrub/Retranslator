@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  One row in the "waveform_wall" Flex variant's right-hand phrase-set rail.
+  Tapping a row makes it the active phrase (drives the reference row + past-
+  attempt mini-waveforms above it). textRailAttemptBadge shows the same real
+  sessionAttemptCounts figure drill_deck's marker and echo_duet's rep-counter
+  are built from - one shared counter, three presentations.
+-->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="horizontal"
+    android:gravity="center_vertical"
+    android:paddingVertical="6dp"
+    android:paddingHorizontal="6dp"
+    android:clickable="true"
+    android:focusable="true"
+    android:background="?attr/selectableItemBackground">
+
+    <TextView
+        android:id="@+id/textRailPhraseText"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_weight="1"
+        android:textSize="11sp"
+        android:maxLines="2"
+        android:ellipsize="end"
+        android:text="Phrase text" />
+
+    <TextView
+        android:id="@+id/textRailAttemptBadge"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="4dp"
+        android:background="@drawable/bg_chip_filled"
+        android:textColor="#FFFFFF"
+        android:textSize="9sp"
+        android:text="0"
+        android:visibility="invisible" />
+
+</LinearLayout>

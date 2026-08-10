@@ -1,0 +1,50 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  One thumbnail in the "drill_deck" cover variant's recent-attempts strip
+  and the "waveform_wall" Flex variant's past-attempt mini-waveform list.
+  barsWaveformThumb is filled programmatically
+  (PracticeFragment.buildWaveformBars) with thin View bars whose heights come
+  from WaveformReader.readPeaks - a REAL amplitude envelope read from the
+  actual recorded .wav file, not a placeholder shape. Tap anywhere on the
+  card to replay that exact recording via the tab's one shared MediaPlayer
+  playback path.
+-->
+<androidx.cardview.widget.CardView xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="wrap_content"
+    android:layout_height="wrap_content"
+    android:layout_marginEnd="8dp"
+    app:cardCornerRadius="8dp"
+    app:cardElevation="1dp"
+    android:clickable="true"
+    android:focusable="true"
+    android:foreground="?attr/selectableItemBackground">
+
+    <LinearLayout
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:padding="8dp"
+        android:gravity="center_horizontal">
+
+        <LinearLayout
+            android:id="@+id/barsWaveformThumb"
+            android:layout_width="72dp"
+            android:layout_height="32dp"
+            android:orientation="horizontal"
+            android:gravity="bottom"
+            android:weightSum="20" />
+
+        <TextView
+            android:id="@+id/textWaveformThumbLabel"
+            android:layout_width="72dp"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="2dp"
+            android:gravity="center"
+            android:textSize="9sp"
+            android:maxLines="1"
+            android:ellipsize="end"
+            android:alpha="0.7"
+            android:text="12:03" />
+    </LinearLayout>
+</androidx.cardview.widget.CardView>

@@ -1,0 +1,81 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  "Control" pane content - the half of "flex_default" (Practice tab,
+  ScreenMode.FLEX) that sits BELOW the hinge: language picker, gender
+  toggle, phrase field and the record action. Natural-voice pack download
+  management is deliberately left off this compact control pane, same
+  reasoning as view_translate_flex_control.xml - it stays on the full/
+  default (book-portrait) layout; Flex controls here are the moment-to-
+  moment actions.
+-->
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:padding="14dp">
+
+        <Spinner
+            android:id="@+id/spinnerFlexPracticeLang"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content" />
+
+        <RadioGroup
+            android:id="@+id/radioGroupFlexPracticeGender"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:layout_marginTop="6dp">
+
+            <RadioButton
+                android:id="@+id/radioFlexPracticeFemale"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="♀ Female" />
+
+            <RadioButton
+                android:id="@+id/radioFlexPracticeMale"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="16dp"
+                android:text="♂ Male" />
+        </RadioGroup>
+
+        <com.google.android.material.textfield.TextInputEditText
+            android:id="@+id/editFlexPracticePhrase"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:hint="Word or phrase to practice"
+            android:inputType="textCapSentences" />
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:layout_marginTop="8dp"
+            android:gravity="center_vertical">
+
+            <ImageButton
+                android:id="@+id/btnFlexPracticeRecord"
+                android:layout_width="44dp"
+                android:layout_height="44dp"
+                android:background="?attr/selectableItemBackgroundBorderless"
+                android:contentDescription="Record my attempt"
+                android:src="@android:drawable/ic_btn_speak_now" />
+
+            <TextView
+                android:id="@+id/textFlexPracticeMicStatus"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:layout_marginStart="6dp"
+                android:textSize="11sp"
+                android:textStyle="italic" />
+        </LinearLayout>
+
+    </LinearLayout>
+</ScrollView>

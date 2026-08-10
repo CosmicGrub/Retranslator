@@ -1,0 +1,75 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Flex-Mode (tabletop) variant "phrase_feed" (Practice tab, ScreenMode.FLEX).
+  Deliberately NOT a top/bottom hinge split like every other Flex variant in
+  this codebase - per this variant's brief, one continuous vertical feed of
+  phrase cards flows UNINTERRUPTED across the hinge. scrollPhraseFeed spans
+  the full container; PracticeFragment listens to its scroll position,
+  determines whichever card's center is nearest the hinge midpoint
+  (FoldingFeature.bounds, same geometry source every Flex variant here
+  uses), and smooth-snaps that card to the hinge on scroll settle.
+
+  cardFeedRecordPinned is a separate CardView layered ABOVE the scroll feed
+  (highest z-order, added last) and kept fixed near the hinge regardless of
+  scroll position - always acting on whichever card is currently "active".
+  Per task item 5 (keep touchable elements off the occluded hinge crease),
+  PracticeFragment.positionPhraseFeedPinnedButton offsets it just below the
+  occlusion band rather than centering it exactly on the hinge line, the
+  same reconciliation TranslateFragment.positionMirrorPanesFab already
+  established for a hinge-straddling control.
+-->
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:id="@+id/rootPhraseFeed"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="?android:attr/colorBackground">
+
+    <ScrollView
+        android:id="@+id/scrollPhraseFeed"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:scrollbars="none">
+
+        <LinearLayout
+            android:id="@+id/listPhraseFeedCards"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:paddingVertical="120dp" />
+    </ScrollView>
+
+    <androidx.cardview.widget.CardView
+        android:id="@+id/cardFeedRecordPinned"
+        android:layout_width="60dp"
+        android:layout_height="60dp"
+        android:layout_gravity="top|end"
+        android:layout_marginEnd="16dp"
+        app:cardCornerRadius="30dp"
+        app:cardElevation="8dp"
+        app:cardBackgroundColor="@color/colorAccent">
+
+        <ImageButton
+            android:id="@+id/btnFeedRecordPinned"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:background="@android:color/transparent"
+            android:contentDescription="Record my attempt for the active card"
+            android:src="@android:drawable/ic_btn_speak_now"
+            android:tint="#FFFFFF" />
+    </androidx.cardview.widget.CardView>
+
+    <TextView
+        android:id="@+id/textFeedPinnedStatus"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="top|end"
+        android:layout_marginEnd="16dp"
+        android:layout_marginTop="64dp"
+        android:background="@drawable/bg_chip_filled"
+        android:textColor="#FFFFFF"
+        android:textSize="10sp"
+        android:visibility="invisible"
+        android:text="Recording…" />
+
+</FrameLayout>
