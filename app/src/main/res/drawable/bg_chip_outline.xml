@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Unselected/outline pill background for the Translate tab's cover/Flex
+  layouts (recent language-pair chips on "live_transcript", roster chips on
+  "multi_broadcast"). New, dedicated to this tab's variants - no shared
+  drawable is edited for this work.
+-->
+<shape xmlns:android="http://schemas.android.com/apk/res/android" android:shape="rectangle">
+    <corners android:radius="16dp" />
+    <stroke android:width="1dp" android:color="?attr/colorPrimary" />
+    <solid android:color="@android:color/transparent" />
+    <padding android:left="10dp" android:top="6dp" android:right="10dp" android:bottom="6dp" />
+</shape>

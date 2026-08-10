@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Flex-Mode (tabletop) variant "flex_default" (Translate tab,
+  ScreenMode.FLEX). The tab had no existing Flex layout before this pass, so
+  this is the new baseline - "Viewing on top, Control on the bottom", this
+  project's established Flex Mode split (results/output above the hinge,
+  interactive controls below it).
+
+  Plain FrameLayout root, same reasoning as fragment_conversations_mirrored.xml:
+  the split position depends on the live FoldingFeature.bounds (device- and
+  posture-dependent), so it's sized/positioned via LayoutParams in
+  TranslateFragment.positionFlexPanes, not a fixed XML constraint. Neither
+  pane is rotated here (flex_default is a single-user layout, not a
+  two-person split - contrast with "across_table" below).
+-->
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/rootFlexDefault"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="?android:attr/colorBackground">
+
+    <include
+        android:id="@+id/paneControl"
+        layout="@layout/view_translate_flex_control"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent" />
+
+    <include
+        android:id="@+id/paneViewing"
+        layout="@layout/view_translate_flex_viewing"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent" />
+
+</FrameLayout>

@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  One entry in the "live_transcript" cover variant's chat-style transcript -
+  inflated programmatically per TranslateFragment.TranscriptEntry by
+  refreshLiveTranscript (same small-list-rebuild precedent as
+  ConversationsFragment.refreshRecordingsList - a session transcript stays
+  small, no RecyclerView needed).
+-->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    android:background="#11000000"
+    android:padding="10dp"
+    android:layout_marginBottom="8dp">
+
+    <TextView
+        android:id="@+id/textBubblePairLabel"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:textSize="10sp"
+        android:textStyle="bold"
+        android:alpha="0.7"
+        android:text="EN → ES" />
+
+    <TextView
+        android:id="@+id/textBubbleSource"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="2dp"
+        android:textSize="13sp"
+        android:text="" />
+
+    <TextView
+        android:id="@+id/textBubbleTranslated"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="2dp"
+        android:textSize="15sp"
+        android:textStyle="bold"
+        android:text="" />
+
+</LinearLayout>

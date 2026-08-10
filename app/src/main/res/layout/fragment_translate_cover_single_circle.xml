@@ -1,0 +1,66 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Cover-screen variant "single_circle" (Translate tab, ScreenMode.COVER).
+  One focal circle does everything - see TranslateFragment's bindSingleCircle
+  for the hold/release/tap/swipe touch-state machine driving textCircleContent
+  and cardCircle's background color. No separate field/mic/swap/result chrome
+  per the variant's design brief.
+-->
+<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="?android:attr/colorBackground"
+    android:padding="16dp">
+
+    <TextView
+        android:id="@+id/textCircleLangPair"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="8dp"
+        android:gravity="center"
+        android:textSize="13sp"
+        android:textStyle="bold"
+        android:text="English → Spanish"
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent" />
+
+    <androidx.cardview.widget.CardView
+        android:id="@+id/cardCircle"
+        android:layout_width="220dp"
+        android:layout_height="220dp"
+        app:cardCornerRadius="110dp"
+        app:cardElevation="6dp"
+        app:cardBackgroundColor="?attr/colorPrimary"
+        app:layout_constraintTop_toBottomOf="@id/textCircleLangPair"
+        app:layout_constraintBottom_toTopOf="@id/textCircleHint"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintVertical_bias="0.5">
+
+        <TextView
+            android:id="@+id/textCircleContent"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:gravity="center"
+            android:padding="24dp"
+            android:textColor="#FFFFFF"
+            android:textSize="17sp"
+            android:text="Hold to speak" />
+    </androidx.cardview.widget.CardView>
+
+    <TextView
+        android:id="@+id/textCircleHint"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_marginBottom="12dp"
+        android:gravity="center"
+        android:textSize="11sp"
+        android:alpha="0.7"
+        android:text="Hold to speak · swipe to flip direction · tap the result to hear it"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent" />
+
+</androidx.constraintlayout.widget.ConstraintLayout>

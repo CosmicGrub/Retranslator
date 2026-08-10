@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Cover-screen variant "face_to_face" (Translate tab, ScreenMode.COVER).
+  Splits the flat cover screen top/bottom at the midpoint for two people
+  sharing one phone - NOT a hinge split (the device is folded closed; this
+  screen is the single narrow cover display). A static 50/50 weighted split
+  is correct and sufficient here, unlike the Flex-mode dual-pane layouts
+  below which size themselves from a live FoldingFeature.bounds.
+-->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:background="?android:attr/colorBackground">
+
+    <include
+        android:id="@+id/paneFaceTop"
+        layout="@layout/view_translate_face_pane"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:rotation="180" />
+
+    <View
+        android:layout_width="match_parent"
+        android:layout_height="1dp"
+        android:background="?android:attr/listDivider" />
+
+    <include
+        android:id="@+id/paneFaceBottom"
+        layout="@layout/view_translate_face_pane"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1" />
+
+</LinearLayout>
