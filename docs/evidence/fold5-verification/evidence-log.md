@@ -93,6 +93,42 @@ An early attempt to reach this state via `settings put user_rotation` while the 
 
 Cleanup: `cmd device_state state reset` + `settings put system accelerometer_rotation 1` + `user_rotation 0` restored before moving on.
 
+## Step 5 — all 24 layout variants, real Settings UI taps (item 5)
+
+**All 24 variants confirmed persisting correctly via real taps on the real RadioGroup UI** (not synthetic `shared_prefs` writes) — the exact repro steps that originally found/then confirmed the fix for §6's RadioGroup bug, run in full on the actual Fold 5 target device for the first time. Method: `adb shell uiautomator dump` after each screen to get exact `RadioButton` bounds (avoids coordinate-guessing), real `input tap` at those bounds, `run-as ... cat shared_prefs/layout_prefs.xml` after every single tap to confirm both (a) the new key/value appears and (b) earlier keys from other tabs/groups are untouched (cross-tab isolation).
+
+| Tab | Group | Variants tapped, in order | Result |
+|---|---|---|---|
+| Translate | Cover | single_circle, live_transcript, face_to_face | all 3 persisted correctly, Default was the clean starting state |
+| Translate | Flex | across_table, multi_broadcast, mirror_panes | all 3 persisted |
+| Practice | Cover | drill_deck, echo_duet, drill_carousel | all 3 persisted |
+| Practice | Flex | waveform_wall, loop_compare, phrase_feed | all 3 persisted |
+| Learn | Cover | progress_ring, course_dashboard, listen_choose | all 3 persisted |
+| Learn | Flex | flip_sort, elastic_split, speaking_arc | all 3 persisted |
+
+(Default variants weren't separately re-tapped since every group's clean starting state already *was* Default, confirmed in each screen's first dump before tapping.) Final `layout_prefs.xml` after the full pass, one write per tab confirming no cross-tab clobbering:
+
+```
+variant_translate_cover=face_to_face   variant_translate_flex=mirror_panes
+variant_practice_cover=drill_carousel  variant_practice_flex=phrase_feed
+variant_learn_cover=listen_choose      variant_learn_flex=speaking_arc
+```
+
+**Rendering (not just persistence) confirmed for all 3 tabs' Cover variants**, via the "Force compact layout" toggle (also real-tapped, not prefs-written) + switching tabs, matching logcat (`force-compact is on: applying cover layout variant=X to tab=Y`) to an actual screenshot each time:
+- Translate `face_to_face`: real split-screen, English/Spanish each with their own Tap-to-speak button — `screenshots/28_translate_face_to_face_forced.png`.
+- Practice `drill_carousel`: real "Add a phrase…" input + big center hear/record button, matching its documented design — `screenshots/29_practice_drill_carousel_forced.png`.
+- Learn `listen_choose`: **real, live course content** (not a mockup) — actual gloss prompt ("What you say to greet someone early in the day"), real answer choices ("Good morning." / "Please."), big speaker button — `screenshots/30_learn_listen_choose_forced.png`.
+
+**Flex-Mode (tabletop) variant rendering — partial progress, one clean success, one inconclusive attempt**: Translate/Practice/Learn each have their own independent `FoldPostureProvider` subscription (`TranslateFragment.kt` confirmed by code read: `currentPosture.isMirroredTabletop -> flexActiveLayout(...)`), separate from `MainActivity`'s cover-variant auto-switch — meaning Flex variants should render automatically on a real `TABLETOP_LANDSCAPE_*` posture without needing Force Compact. Attempted this for Translate's `mirror_panes` using the same device_state+forced-rotation trick that successfully rendered Conversations' mirrored layout (Step 4) — but this time, launching `MainActivity` fresh into that forced state repeatedly resulted in an unrelated third-party app (`com.oblivion.djayclone`, present on this personal device) grabbing foreground focus instead, with no tap involved (happened right after a plain `am start`). Not diagnosed further given time already spent on this exact class of forced-state fragility earlier in the session — **flagging as still-open** rather than either claiming success or spending more time fighting an environmental quirk unrelated to the app under test. This narrows, but doesn't close, the spec's pre-existing "Flex-Mode variant rendering... genuinely unverified" gap: the Cover half of that gap (all 12 cover variants: 4 default-screen-relevant here would be all cover variants, spot check was 3 tabs) is now closed with real evidence; the Flex/tabletop half (8 of 24 variants) remains open, same as before this pass, despite a real attempt.
+
+Screenshots this step: `28_translate_face_to_face_forced.png`, `29_practice_drill_carousel_forced.png`, `30_learn_listen_choose_forced.png`, `31_translate_flex_mirror_panes_attempt.png` (the inconclusive DJayClone-focus attempt, kept for the record).
+
+### Side notes on test-environment friction (not app findings)
+
+- The screen repeatedly auto-locked during long idle stretches, requiring `svc power stayon true` (device is on USB power) to keep it testable without constant re-wake/dismiss-keyguard cycles.
+- A stray tap once landed on a heads-up notification banner (Signal) instead of the intended UI element, briefly opening a personal conversation — backed out immediately without reading further, then enabled Do Not Disturb (`cmd notification set_dnd on`) to prevent recurrence for the rest of the session.
+- A `swipe` gesture starting too close to the bottom edge was once interpreted as a system gesture-nav action rather than an in-app scroll, backgrounding the app — subsequent swipes kept well clear of the bottom ~200px.
+
 ## Pre-built test plan (device-independent prep, so testing is fast once RFCW80CK2RW reconnects)
 
 Code review done while waiting (all device-independent):
