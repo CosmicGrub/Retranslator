@@ -775,9 +775,29 @@ class LearnFragment : Fragment(), FoldAwareLayoutHost {
         if (lessonCursor != null) renderDefaultExercise(b) else renderDefaultUnits(b)
     }
 
+    /**
+     * docs/specs/galaxy-tab-s9fe-adaptation.md: on a large screen
+     * (`R.bool.learn_master_detail` true only in `values-sw720dp/bools.xml`,
+     * matched with `layout-sw720dp/fragment_learn.xml`'s two-pane
+     * arrangement of these exact same four views), the unit/lesson browsing
+     * pane (screenUnits/screenLessons) stays visible as context alongside
+     * the active exercise or summary (screenExercise/screenSummary) instead
+     * of the phone's one-screen-at-a-time navigation - genuine master-detail
+     * rather than full-screen navigation. Units and Lessons remain mutually
+     * exclusive with each other in both modes (drilling into a unit still
+     * replaces the unit list with that unit's lesson list); only whether the
+     * chosen one of those two also stays visible while EXERCISE/SUMMARY is
+     * active differs. On phone (bool false, single-FrameLayout layout) this
+     * is byte-for-byte the original mutually-exclusive-among-all-four logic.
+     */
     private fun setDefaultScreen(b: FragmentLearnBinding, screen: LearnDefaultScreen) {
-        b.screenUnits.visibility = if (screen == LearnDefaultScreen.UNITS) View.VISIBLE else View.GONE
-        b.screenLessons.visibility = if (screen == LearnDefaultScreen.LESSONS) View.VISIBLE else View.GONE
+        if (resources.getBoolean(R.bool.learn_master_detail)) {
+            b.screenUnits.visibility = if (screen == LearnDefaultScreen.UNITS) View.VISIBLE else View.GONE
+            b.screenLessons.visibility = if (screen == LearnDefaultScreen.UNITS) View.GONE else View.VISIBLE
+        } else {
+            b.screenUnits.visibility = if (screen == LearnDefaultScreen.UNITS) View.VISIBLE else View.GONE
+            b.screenLessons.visibility = if (screen == LearnDefaultScreen.LESSONS) View.VISIBLE else View.GONE
+        }
         b.screenExercise.visibility = if (screen == LearnDefaultScreen.EXERCISE) View.VISIBLE else View.GONE
         b.screenSummary.visibility = if (screen == LearnDefaultScreen.SUMMARY) View.VISIBLE else View.GONE
     }

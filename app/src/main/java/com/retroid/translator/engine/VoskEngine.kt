@@ -92,6 +92,33 @@ class VoskEngine(context: Context) {
         worker.shutdown()
     }
 
+    /**
+     * Additive - used by the "Manage language packs" screen
+     * (docs/specs/galaxy-tab-s9fe-adaptation.md) to let a downloaded model be
+     * deleted to reclaim space and re-downloaded later. Mirrors
+     * [com.retroid.translator.engine.PiperTtsEngine.deleteVoice]'s exact
+     * "unload synchronously first, then delete the directory" pattern - the
+     * same proven fix for the same class of bug that pattern's own doc
+     * comment describes (deleting a model's files while a native object
+     * still has them open).
+     */
+    fun deleteModel(langCode: String) {
+        if (loadedLangCode == langCode) unloadBlocking()
+        val dir = modelRootDir(langCode)
+        if (dir.exists()) dir.deleteRecursively()
+    }
+
+    private fun unloadBlocking() {
+        val latch = java.util.concurrent.CountDownLatch(1)
+        worker.execute {
+            loadedModel?.close()
+            loadedModel = null
+            loadedLangCode = null
+            latch.countDown()
+        }
+        try { latch.await(5, java.util.concurrent.TimeUnit.SECONDS) } catch (e: InterruptedException) { /* ignore */ }
+    }
+
     companion object {
         private const val TAG = "VoskEngine"
     }

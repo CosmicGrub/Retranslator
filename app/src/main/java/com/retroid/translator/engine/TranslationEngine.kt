@@ -28,6 +28,19 @@ object TranslationEngine {
             .addOnFailureListener { e -> onDone(false, e.message) }
     }
 
+    /**
+     * Additive - used by the "Manage language packs" screen
+     * (docs/specs/galaxy-tab-s9fe-adaptation.md) to let a downloaded pack be
+     * deleted to reclaim space and re-downloaded later. Doesn't change any
+     * existing download/translate call path.
+     */
+    fun deleteModel(code: String, onDone: (Boolean, String?) -> Unit) {
+        val model = TranslateRemoteModel.Builder(code).build()
+        RemoteModelManager.getInstance().deleteDownloadedModel(model)
+            .addOnSuccessListener { onDone(true, null) }
+            .addOnFailureListener { e -> onDone(false, e.message) }
+    }
+
     fun translate(
         sourceCode: String,
         targetCode: String,

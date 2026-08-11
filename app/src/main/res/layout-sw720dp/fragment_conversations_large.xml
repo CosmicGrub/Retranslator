@@ -1,0 +1,174 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Large-screen (tablet, sw720dp+) Conversations layout -
+  docs/specs/galaxy-tab-s9fe-adaptation.md. This is a NEW, additive third
+  presentation mode, selected by ConversationsFragment purely from
+  R.bool.conversations_side_by_side (true only in values-sw720dp/bools.xml) -
+  NOT by fold posture. It sits alongside, and never overrides, the two
+  existing fold-posture-selected layouts: fragment_conversations.xml
+  (book-portrait/non-fold fallback) and fragment_conversations_mirrored.xml
+  (spec §2's fold-mirrored face-to-face layout) - see
+  ConversationsFragment.applyPosture, where a genuine fold-mirrored posture
+  still always wins over this large-screen mode.
+
+  Reuses view_conversation_pane.xml UNMODIFIED - the exact same per-person
+  pane the mirrored layout uses (mic button, continuous-listening toggle,
+  status, turn indicator, transcript) - but WITHOUT the 180° rotation or
+  runtime FoldingFeature-driven sizing that pane needs when it's split at a
+  physical hinge. Here it's just two static, upright, side-by-side columns:
+  a large flat screen has no hinge to physically separate two people, so
+  there's nothing to rotate around and nothing dynamic to size - genuinely
+  considered for this hardware rather than either the phone layout blown up
+  or the fold's rotation trick repurposed without a hinge to justify it.
+-->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:paddingHorizontal="24dp"
+        android:paddingTop="20dp"
+        android:paddingBottom="12dp">
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Conversations"
+            android:textSize="24sp"
+            android:textStyle="bold" />
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:textSize="13sp"
+            android:layout_marginTop="2dp"
+            android:layout_marginBottom="10dp"
+            android:text="Two panes, one per person — each side speaks and reads its own language. Download packs on the Translate tab first." />
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center_vertical">
+
+            <Spinner
+                android:id="@+id/spinnerLangA"
+                android:layout_width="0dp"
+                android:layout_height="48dp"
+                android:layout_weight="1" />
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="  ⇄  "
+                android:textSize="16sp" />
+
+            <Spinner
+                android:id="@+id/spinnerLangB"
+                android:layout_width="0dp"
+                android:layout_height="48dp"
+                android:layout_weight="1" />
+
+            <RadioGroup
+                android:id="@+id/radioGroupGenderConv"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:layout_marginStart="20dp">
+
+                <RadioButton
+                    android:id="@+id/radioFemaleConv"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="♀"
+                    android:checked="true" />
+
+                <RadioButton
+                    android:id="@+id/radioMaleConv"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="12dp"
+                    android:text="♂" />
+            </RadioGroup>
+
+            <ToggleButton
+                android:id="@+id/toggleRecordSession"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="16dp"
+                android:textSize="10sp"
+                android:textOn="Recording (tap to stop)"
+                android:textOff="Record session"
+                android:checked="false" />
+        </LinearLayout>
+    </LinearLayout>
+
+    <View style="@style/SettingsHubDivider" />
+
+    <!-- The two person-panes, side by side. Reused unmodified from the fold
+         mirrored layout's own include - only the fold code path applies
+         rotation/dynamic hinge sizing to it; both copies here stay upright
+         at a static 50/50 split. -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:orientation="horizontal">
+
+        <include
+            android:id="@+id/paneLeft"
+            layout="@layout/view_conversation_pane"
+            android:layout_width="0dp"
+            android:layout_height="match_parent"
+            android:layout_weight="1" />
+
+        <View
+            android:layout_width="1dp"
+            android:layout_height="match_parent"
+            android:background="?android:attr/listDivider" />
+
+        <include
+            android:id="@+id/paneRight"
+            layout="@layout/view_conversation_pane"
+            android:layout_width="0dp"
+            android:layout_height="match_parent"
+            android:layout_weight="1" />
+
+    </LinearLayout>
+
+    <View style="@style/SettingsHubDivider" />
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="150dp"
+        android:orientation="vertical"
+        android:paddingHorizontal="24dp"
+        android:paddingTop="8dp">
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Saved recordings"
+            android:textStyle="bold" />
+
+        <ScrollView
+            android:layout_width="match_parent"
+            android:layout_height="0dp"
+            android:layout_weight="1">
+
+            <LinearLayout
+                android:id="@+id/recordingsList"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:layout_marginTop="4dp"
+                android:paddingBottom="12dp" />
+        </ScrollView>
+    </LinearLayout>
+
+</LinearLayout>

@@ -40,6 +40,7 @@ class SettingsHubFragment : Fragment() {
         binding.rowPracticeLayout.setOnClickListener { openDestination(PracticeLayoutSettingsFragment(), "practice_layout") }
         binding.rowLearnLayout.setOnClickListener { openDestination(LearnLayoutSettingsFragment(), "learn_layout") }
         binding.rowFoldBehavior.setOnClickListener { openDestination(FoldBehaviorFragment(), "fold_behavior") }
+        binding.rowLanguagePacks.setOnClickListener { openDestination(ManagePacksFragment(), "language_packs") }
     }
 
     override fun onResume() {

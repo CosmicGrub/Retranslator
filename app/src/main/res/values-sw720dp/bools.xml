@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Large-screen overrides (docs/specs/galaxy-tab-s9fe-adaptation.md). sw720dp
+  is the standard Android "large tablet" breakpoint (Google's own guidance:
+  sw600dp for ~7" tablets, sw720dp for ~10" tablets) - chosen deliberately
+  over sw600dp so this doesn't also activate on smaller 7" tablets these
+  layouts were never designed or verified against. The Galaxy Tab S9 FE's
+  real smallest width is ~823dp (1440px physical / (280dpi/160) at
+  1440x2304/280dpi, confirmed via `adb shell wm size` + `wm density` on the
+  real device, serial R52X101MB6W), comfortably inside this qualifier.
+-->
+<resources>
+    <bool name="learn_master_detail">true</bool>
+    <bool name="conversations_side_by_side">true</bool>
+</resources>

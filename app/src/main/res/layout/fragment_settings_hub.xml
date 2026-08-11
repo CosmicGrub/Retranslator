@@ -73,5 +73,29 @@
 
         <View style="@style/SettingsHubDivider" />
 
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:paddingStart="16dp"
+            android:paddingEnd="16dp"
+            android:paddingTop="16dp"
+            android:paddingBottom="8dp"
+            android:text="Storage"
+            android:textSize="13sp"
+            android:textStyle="italic" />
+
+        <LinearLayout
+            android:id="@+id/rowLanguagePacks"
+            style="@style/SettingsHubRow">
+            <TextView
+                style="@style/SettingsHubRowTitle"
+                android:text="Language packs" />
+            <TextView
+                style="@style/SettingsHubRowSubtitle"
+                android:text="Download, delete, and check for updates on translation, voice-input, and natural-voice packs" />
+        </LinearLayout>
+
+        <View style="@style/SettingsHubDivider" />
+
     </LinearLayout>
 </ScrollView>

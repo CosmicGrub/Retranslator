@@ -1,0 +1,287 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Large-screen (tablet, sw720dp+) redesign of the Translate tab's DEFAULT
+  layout - docs/specs/galaxy-tab-s9fe-adaptation.md. This is a resource-
+  qualifier alternative of fragment_translate.xml, picked automatically by
+  the OS for any device whose smallest width is >= 720dp; TranslateFragment's
+  Kotlin is completely unchanged - it only ever references
+  FragmentTranslateBinding's generated view properties, and every view ID
+  below is identical to the phone version, just rearranged into two side-by-
+  side panes instead of one stacked column. This is the THIRD presentation
+  mode (default phone / fold-aware variant / large-screen) - it does not
+  touch, replace, or get selected instead of the settings-driven 8-cover-
+  and-Flex-variant system (TranslateLayoutVariants.kt) which remains a
+  completely separate, dynamically-inflated layer on top of whichever of
+  DEFAULT's XML files (this one, on this device) is active.
+
+  Left pane: language selection + both pack-download rows + spoken-output
+  gender. Right pane: the actual translate workflow (input, mic, result) -
+  language pickers and result side-by-side instead of stacked, per the task's
+  own example of what this hardware's screen should be used for.
+-->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="horizontal">
+
+    <!-- Left pane: languages + packs + voice -->
+    <ScrollView
+        android:layout_width="0dp"
+        android:layout_height="match_parent"
+        android:layout_weight="42"
+        android:fillViewport="true">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:paddingHorizontal="24dp"
+            android:paddingTop="24dp"
+            android:paddingBottom="24dp">
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Translate"
+                android:textSize="26sp"
+                android:textStyle="bold"
+                android:layout_marginBottom="16dp" />
+
+            <Spinner
+                android:id="@+id/spinnerSource"
+                android:layout_width="match_parent"
+                android:layout_height="48dp" />
+
+            <ImageButton
+                android:id="@+id/btnSwapLanguages"
+                android:layout_width="48dp"
+                android:layout_height="48dp"
+                android:layout_gravity="center_horizontal"
+                android:layout_marginVertical="4dp"
+                android:background="?attr/selectableItemBackgroundBorderless"
+                android:contentDescription="Swap languages"
+                android:src="@android:drawable/ic_menu_rotate" />
+
+            <Spinner
+                android:id="@+id/spinnerTarget"
+                android:layout_width="match_parent"
+                android:layout_height="48dp" />
+
+            <CheckBox
+                android:id="@+id/checkboxAutoDetect"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Auto-detect source language"
+                android:layout_marginTop="8dp" />
+
+            <View
+                android:layout_width="match_parent"
+                android:layout_height="1dp"
+                android:layout_marginVertical="16dp"
+                android:background="#22000000" />
+
+            <TextView
+                android:id="@+id/textModelStatus"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:textSize="13sp"
+                android:text="Checking translation pack status..." />
+
+            <Button
+                android:id="@+id/btnDownloadModels"
+                style="@style/Widget.MaterialComponents.Button.OutlinedButton"
+                android:layout_width="wrap_content"
+                android:layout_height="52dp"
+                android:layout_marginTop="8dp"
+                android:text="Download translation pack (Wi-Fi)" />
+
+            <TextView
+                android:id="@+id/textSttStatus"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:textSize="13sp"
+                android:layout_marginTop="16dp"
+                android:text="Checking voice-input pack status..." />
+
+            <Button
+                android:id="@+id/btnDownloadStt"
+                style="@style/Widget.MaterialComponents.Button.OutlinedButton"
+                android:layout_width="wrap_content"
+                android:layout_height="52dp"
+                android:layout_marginTop="8dp"
+                android:text="Download voice-input pack (Wi-Fi)" />
+
+            <View
+                android:layout_width="match_parent"
+                android:layout_height="1dp"
+                android:layout_marginVertical="16dp"
+                android:background="#22000000" />
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Spoken output for the translation (target language)"
+                android:textSize="13sp"
+                android:textStyle="bold" />
+
+            <RadioGroup
+                android:id="@+id/radioGroupGender"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:layout_marginTop="8dp">
+
+                <RadioButton
+                    android:id="@+id/radioFemale"
+                    android:layout_width="wrap_content"
+                    android:layout_height="48dp"
+                    android:text="♀ Female voice"
+                    android:checked="true" />
+
+                <RadioButton
+                    android:id="@+id/radioMale"
+                    android:layout_width="wrap_content"
+                    android:layout_height="48dp"
+                    android:layout_marginStart="20dp"
+                    android:text="♂ Male voice" />
+            </RadioGroup>
+
+            <TextView
+                android:id="@+id/textNaturalVoiceStatus"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:textSize="13sp"
+                android:layout_marginTop="8dp"
+                android:text="eSpeak (built-in, robotic, always available) is used unless a natural voice is downloaded." />
+
+            <Button
+                android:id="@+id/btnDownloadNaturalVoice"
+                style="@style/Widget.MaterialComponents.Button.OutlinedButton"
+                android:layout_width="wrap_content"
+                android:layout_height="52dp"
+                android:layout_marginTop="8dp"
+                android:text="Download natural voice (Wi-Fi)" />
+
+        </LinearLayout>
+    </ScrollView>
+
+    <View
+        android:layout_width="1dp"
+        android:layout_height="match_parent"
+        android:background="?android:attr/listDivider" />
+
+    <!-- Right pane: the actual translate workflow -->
+    <ScrollView
+        android:layout_width="0dp"
+        android:layout_height="match_parent"
+        android:layout_weight="58"
+        android:fillViewport="true">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:paddingHorizontal="24dp"
+            android:paddingTop="24dp"
+            android:paddingBottom="24dp">
+
+            <com.google.android.material.textfield.TextInputLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:hint="Text to translate">
+
+                <com.google.android.material.textfield.TextInputEditText
+                    android:id="@+id/editInput"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:minLines="4"
+                    android:gravity="top|start"
+                    android:inputType="textMultiLine|textCapSentences" />
+            </com.google.android.material.textfield.TextInputLayout>
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:layout_marginTop="12dp"
+                android:gravity="center_vertical">
+
+                <ImageButton
+                    android:id="@+id/btnMic"
+                    android:layout_width="56dp"
+                    android:layout_height="56dp"
+                    android:background="?attr/selectableItemBackgroundBorderless"
+                    android:contentDescription="Voice input"
+                    android:src="@android:drawable/ic_btn_speak_now" />
+
+                <Button
+                    android:id="@+id/btnTranslate"
+                    android:layout_width="0dp"
+                    android:layout_height="56dp"
+                    android:layout_weight="1"
+                    android:layout_marginStart="12dp"
+                    android:textSize="16sp"
+                    android:text="Translate" />
+            </LinearLayout>
+
+            <TextView
+                android:id="@+id/textMicStatus"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="6dp"
+                android:textSize="13sp"
+                android:textStyle="italic" />
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="28dp"
+                android:text="Translation"
+                android:textSize="16sp"
+                android:textStyle="bold" />
+
+            <androidx.cardview.widget.CardView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp"
+                app:cardElevation="3dp"
+                app:cardCornerRadius="10dp">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:padding="18dp">
+
+                    <TextView
+                        android:id="@+id/textResult"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:minHeight="140dp"
+                        android:textSize="20sp"
+                        android:text="" />
+
+                    <ImageButton
+                        android:id="@+id/btnSpeak"
+                        android:layout_width="44dp"
+                        android:layout_height="44dp"
+                        android:layout_gravity="end"
+                        android:background="?attr/selectableItemBackgroundBorderless"
+                        android:contentDescription="Speak translation"
+                        android:src="@android:drawable/ic_lock_silent_mode_off" />
+                </LinearLayout>
+            </androidx.cardview.widget.CardView>
+
+            <TextView
+                android:id="@+id/textDetected"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="10dp"
+                android:textSize="13sp"
+                android:textStyle="italic" />
+
+        </LinearLayout>
+    </ScrollView>
+
+</LinearLayout>

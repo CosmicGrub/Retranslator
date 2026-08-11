@@ -1,0 +1,236 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Large-screen (tablet, sw720dp+) redesign of the Learn tab's DEFAULT layout -
+  docs/specs/galaxy-tab-s9fe-adaptation.md. Resource-qualifier alternative of
+  fragment_learn.xml; every view ID below is identical to the phone version
+  (screenUnits/screenLessons/screenExercise/screenSummary + their contents),
+  just regrouped into two side-by-side panes instead of one full-bleed
+  FrameLayout where only one "screen" is ever visible at a time.
+
+  Master-detail: the left pane (unit list, then that unit's lesson list once
+  you drill in) stays visible as context while the right pane shows the
+  active exercise or lesson-complete summary - genuine master-detail instead
+  of full-screen navigation, per the task's own example of what this
+  hardware's screen should be used for. This requires a small paired change
+  in LearnFragment.setDefaultScreen (gated on R.bool.learn_master_detail, see
+  values-sw720dp/bools.xml) so the left pane isn't hidden just because the
+  right pane switched to EXERCISE/SUMMARY - see that function's doc comment
+  for the exact visibility rule. Units and Lessons remain mutually exclusive
+  with each other (drilling into a unit still replaces the unit list with
+  that unit's lesson list) exactly as on phone.
+-->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="horizontal">
+
+    <!-- Left pane (master): unit list, or the current unit's lesson list -->
+    <FrameLayout
+        android:layout_width="0dp"
+        android:layout_height="match_parent"
+        android:layout_weight="38">
+
+        <!-- Screen 1: unit list -->
+        <ScrollView
+            android:id="@+id/screenUnits"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:fillViewport="true">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:paddingHorizontal="20dp"
+                android:paddingTop="20dp"
+                android:paddingBottom="24dp">
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Learn"
+                    android:textSize="24sp"
+                    android:textStyle="bold"
+                    android:layout_marginBottom="4dp" />
+
+                <TextView
+                    android:id="@+id/textLearnStats"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:textSize="14sp"
+                    android:layout_marginBottom="14dp"
+                    android:text="🔥 0 day streak   ⭐ 0 XP" />
+
+                <TextView
+                    android:id="@+id/textLearnNoCourse"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:textSize="13sp"
+                    android:visibility="gone"
+                    android:text="No course available for this language yet." />
+
+                <LinearLayout
+                    android:id="@+id/unitsListContainer"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical" />
+
+            </LinearLayout>
+        </ScrollView>
+
+        <!-- Screen 2: lesson list within a unit -->
+        <ScrollView
+            android:id="@+id/screenLessons"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:fillViewport="true"
+            android:visibility="gone">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:paddingHorizontal="20dp"
+                android:paddingTop="20dp"
+                android:paddingBottom="24dp">
+
+                <Button
+                    android:id="@+id/btnBackToUnits"
+                    style="@style/Widget.MaterialComponents.Button.TextButton"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="← Units" />
+
+                <TextView
+                    android:id="@+id/textLessonsUnitTitle"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:textSize="19sp"
+                    android:textStyle="bold"
+                    android:layout_marginTop="4dp"
+                    android:layout_marginBottom="12dp" />
+
+                <LinearLayout
+                    android:id="@+id/lessonsListContainer"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical" />
+
+            </LinearLayout>
+        </ScrollView>
+
+    </FrameLayout>
+
+    <View
+        android:layout_width="1dp"
+        android:layout_height="match_parent"
+        android:background="?android:attr/listDivider" />
+
+    <!-- Right pane (detail): the active exercise, or the lesson-complete summary -->
+    <FrameLayout
+        android:layout_width="0dp"
+        android:layout_height="match_parent"
+        android:layout_weight="62">
+
+        <!-- Screen 3: one exercise at a time -->
+        <ScrollView
+            android:id="@+id/screenExercise"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:fillViewport="true"
+            android:visibility="gone">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:paddingHorizontal="28dp"
+                android:paddingTop="24dp"
+                android:paddingBottom="32dp">
+
+                <TextView
+                    android:id="@+id/textExerciseProgress"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:textSize="13sp"
+                    android:textStyle="italic"
+                    android:layout_marginBottom="8dp" />
+
+                <TextView
+                    android:id="@+id/textExercisePrompt"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:textSize="21sp"
+                    android:textStyle="bold"
+                    android:layout_marginBottom="18dp" />
+
+                <LinearLayout
+                    android:id="@+id/exerciseDynamicContainer"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical" />
+
+                <TextView
+                    android:id="@+id/textExerciseFeedback"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:textSize="16sp"
+                    android:textStyle="bold"
+                    android:gravity="center"
+                    android:layout_marginTop="18dp" />
+
+                <Button
+                    android:id="@+id/btnExerciseContinue"
+                    android:layout_width="match_parent"
+                    android:layout_height="56dp"
+                    android:layout_marginTop="14dp"
+                    android:text="Continue"
+                    android:visibility="gone" />
+
+            </LinearLayout>
+        </ScrollView>
+
+        <!-- Screen 4: lesson-complete summary -->
+        <LinearLayout
+            android:id="@+id/screenSummary"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:orientation="vertical"
+            android:gravity="center"
+            android:paddingHorizontal="24dp"
+            android:visibility="gone">
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="🎉 Lesson complete!"
+                android:textSize="24sp"
+                android:textStyle="bold"
+                android:layout_marginBottom="16dp" />
+
+            <TextView
+                android:id="@+id/textSummaryXp"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:textSize="17sp"
+                android:layout_marginBottom="4dp" />
+
+            <TextView
+                android:id="@+id/textSummaryStreak"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:textSize="17sp"
+                android:layout_marginBottom="24dp" />
+
+            <Button
+                android:id="@+id/btnSummaryContinue"
+                android:layout_width="wrap_content"
+                android:layout_height="56dp"
+                android:text="Continue" />
+
+        </LinearLayout>
+
+    </FrameLayout>
+
+</LinearLayout>

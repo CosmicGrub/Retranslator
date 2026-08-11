@@ -9,16 +9,22 @@ import android.view.ViewGroup
 import android.widget.AdapterView
 import android.widget.ArrayAdapter
 import android.widget.FrameLayout
+import android.widget.RadioButton
+import android.widget.RadioGroup
 import android.widget.ScrollView
+import android.widget.Spinner
 import android.widget.TextView
 import android.widget.Toast
+import android.widget.ToggleButton
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
 import androidx.window.layout.FoldingFeature
 import com.retroid.translator.MainActivity
+import com.retroid.translator.R
 import com.retroid.translator.databinding.FragmentConversationsBinding
+import com.retroid.translator.databinding.FragmentConversationsLargeBinding
 import com.retroid.translator.databinding.FragmentConversationsMirroredBinding
 import com.retroid.translator.databinding.ItemRecordingBinding
 import com.retroid.translator.audio.MicPipeline
@@ -121,12 +127,26 @@ class ConversationsFragment : Fragment() {
 
     // ---------------------------------------------------------------------
     // View plumbing - exactly one of these is non-null at a time.
+    //
+    // docs/specs/galaxy-tab-s9fe-adaptation.md added a THIRD layout kind,
+    // LARGE (fragment_conversations_large.xml - two static side-by-side
+    // panes, no fold hardware involved) alongside the two fold-posture-
+    // selected kinds below (FALLBACK/MIRRORED, both unchanged from before
+    // that pass). [largeScreenSideBySide] is read once from
+    // R.bool.conversations_side_by_side (true only on sw720dp+ devices) and
+    // consulted only as a tie-breaker when the device is NOT in a genuine
+    // fold-mirrored posture - see [applyPosture]. A real fold-mirrored
+    // posture always wins over LARGE.
     // ---------------------------------------------------------------------
+
+    private enum class LayoutKind { FALLBACK, MIRRORED, LARGE }
 
     private var contentContainer: FrameLayout? = null
     private var fallbackBinding: FragmentConversationsBinding? = null
     private var mirroredBinding: FragmentConversationsMirroredBinding? = null
-    private var mirrored = false
+    private var largeBinding: FragmentConversationsLargeBinding? = null
+    private var activeKind: LayoutKind = LayoutKind.FALLBACK
+    private var largeScreenSideBySide = false
     private var layoutInitialized = false
 
     override fun onCreateView(inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?): View {
@@ -151,6 +171,7 @@ class ConversationsFragment : Fragment() {
             if (idx >= 0) languageCodes[idx] else languageCodes[1.coerceAtMost(languageCodes.size - 1)]
         }
         genderIsMale = VoicePreferences.getGender(requireContext()) == VoiceGender.MALE
+        largeScreenSideBySide = resources.getBoolean(R.bool.conversations_side_by_side)
         observeFoldPosture()
     }
 
@@ -189,42 +210,59 @@ class ConversationsFragment : Fragment() {
                 "feature.bounds=${state.feature?.bounds}"
         )
         val wantMirrored = state.posture.isMirroredTabletop
-        if (layoutInitialized && wantMirrored == mirrored) {
+        // A genuine fold-mirrored posture always wins over the large-screen
+        // side-by-side mode - see the "View plumbing" field doc comment.
+        val desiredKind = when {
+            wantMirrored -> LayoutKind.MIRRORED
+            largeScreenSideBySide -> LayoutKind.LARGE
+            else -> LayoutKind.FALLBACK
+        }
+        if (layoutInitialized && desiredKind == activeKind) {
             // Same layout family - if we're mirrored, the split geometry can
             // still have moved (FLAT <-> HALF_OPENED reports slightly
             // different FoldingFeature.bounds on some devices), so re-apply it.
-            if (wantMirrored) state.feature?.let { applyMirroredGeometry(it) }
+            if (desiredKind == LayoutKind.MIRRORED) state.feature?.let { applyMirroredGeometry(it) }
             return
         }
-        switchLayout(wantMirrored)
-        if (wantMirrored) state.feature?.let { applyMirroredGeometry(it) }
+        switchLayout(desiredKind)
+        if (desiredKind == LayoutKind.MIRRORED) state.feature?.let { applyMirroredGeometry(it) }
     }
 
-    private fun switchLayout(toMirrored: Boolean) {
+    private fun switchLayout(kind: LayoutKind) {
         val container = contentContainer ?: return
         container.removeAllViews()
         fallbackBinding = null
         mirroredBinding = null
+        largeBinding = null
 
-        if (toMirrored) {
-            val mb = FragmentConversationsMirroredBinding.inflate(layoutInflater, container, false)
-            mirroredBinding = mb
-            container.addView(mb.root)
-            bindMirroredView(mb)
-        } else {
-            val fb = FragmentConversationsBinding.inflate(layoutInflater, container, false)
-            fallbackBinding = fb
-            container.addView(fb.root)
-            bindFallbackView(fb)
+        when (kind) {
+            LayoutKind.MIRRORED -> {
+                val mb = FragmentConversationsMirroredBinding.inflate(layoutInflater, container, false)
+                mirroredBinding = mb
+                container.addView(mb.root)
+                bindMirroredView(mb)
+            }
+            LayoutKind.LARGE -> {
+                val lb = FragmentConversationsLargeBinding.inflate(layoutInflater, container, false)
+                largeBinding = lb
+                container.addView(lb.root)
+                bindLargeView(lb)
+            }
+            LayoutKind.FALLBACK -> {
+                val fb = FragmentConversationsBinding.inflate(layoutInflater, container, false)
+                fallbackBinding = fb
+                container.addView(fb.root)
+                bindFallbackView(fb)
+            }
         }
 
         // Real Choreographer-driven crossfade (ViewPropertyAnimator, not a
         // fixed-rate postDelayed loop - spec §5's 120Hz-display note) instead
-        // of an abrupt cut when switching between fallback and mirrored.
+        // of an abrupt cut when switching between layout kinds.
         container.alpha = 0f
         container.animate().alpha(1f).setDuration(200L).start()
 
-        mirrored = toMirrored
+        activeKind = kind
         layoutInitialized = true
     }
 
@@ -317,34 +355,47 @@ class ConversationsFragment : Fragment() {
         refreshRecordingsList()
     }
 
-    private fun setupGenderToggle(fb: FragmentConversationsBinding) {
-        fb.radioMaleConv.isChecked = genderIsMale
-        fb.radioFemaleConv.isChecked = !genderIsMale
-        fb.radioGroupGenderConv.setOnCheckedChangeListener { _, _ ->
-            genderIsMale = fb.radioMaleConv.isChecked
+    private fun setupGenderToggle(fb: FragmentConversationsBinding) =
+        setupGenderToggleGeneric(fb.radioGroupGenderConv, fb.radioFemaleConv, fb.radioMaleConv)
+
+    private fun setupGenderToggleGeneric(group: RadioGroup, radioFemale: RadioButton, radioMale: RadioButton) {
+        radioMale.isChecked = genderIsMale
+        radioFemale.isChecked = !genderIsMale
+        group.setOnCheckedChangeListener { _, _ ->
+            genderIsMale = radioMale.isChecked
             VoicePreferences.setGender(requireContext(), selectedGender())
         }
     }
 
-    private fun setupSpinners(fb: FragmentConversationsBinding) {
+    private fun setupSpinners(fb: FragmentConversationsBinding) =
+        setupSpinnersGeneric(fb.spinnerLangA, fb.spinnerLangB)
+
+    /**
+     * Shared by [bindFallbackView] and [bindLargeView] (docs/specs/galaxy-tab-s9fe-adaptation.md's
+     * large-screen side-by-side layout reuses the same langA/langB spinner
+     * pair, just laid out differently) - extracted rather than duplicated so
+     * there's exactly one place that owns "how picking a language updates
+     * langACode/langBCode".
+     */
+    private fun setupSpinnersGeneric(spinnerA: Spinner, spinnerB: Spinner) {
         val names = languageCodes.map { LanguageCatalog.displayNameFor(it) }
         val adapter = ArrayAdapter(requireContext(), android.R.layout.simple_spinner_item, names)
         adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item)
-        fb.spinnerLangA.adapter = adapter
-        fb.spinnerLangB.adapter = adapter
-        fb.spinnerLangA.setSelection(languageCodes.indexOf(langACode).coerceAtLeast(0))
-        fb.spinnerLangB.setSelection(languageCodes.indexOf(langBCode).coerceAtLeast(0))
+        spinnerA.adapter = adapter
+        spinnerB.adapter = adapter
+        spinnerA.setSelection(languageCodes.indexOf(langACode).coerceAtLeast(0))
+        spinnerB.setSelection(languageCodes.indexOf(langBCode).coerceAtLeast(0))
 
         val listener = object : AdapterView.OnItemSelectedListener {
             override fun onItemSelected(p: AdapterView<*>?, v: View?, pos: Int, id: Long) {
-                langACode = languageCodes[fb.spinnerLangA.selectedItemPosition]
-                langBCode = languageCodes[fb.spinnerLangB.selectedItemPosition]
+                langACode = languageCodes[spinnerA.selectedItemPosition]
+                langBCode = languageCodes[spinnerB.selectedItemPosition]
                 updateTurnIndicator()
             }
             override fun onNothingSelected(p: AdapterView<*>?) {}
         }
-        fb.spinnerLangA.onItemSelectedListener = listener
-        fb.spinnerLangB.onItemSelectedListener = listener
+        spinnerA.onItemSelectedListener = listener
+        spinnerB.onItemSelectedListener = listener
     }
 
     // ---------------------------------------------------------------------
@@ -367,6 +418,35 @@ class ConversationsFragment : Fragment() {
     }
 
     // ---------------------------------------------------------------------
+    // Large-screen side-by-side view binding (docs/specs/galaxy-tab-s9fe-adaptation.md).
+    // paneLeft == "A"'s pane, paneRight == "B"'s pane - reuses the exact same
+    // view_conversation_pane.xml include and paneATranscript/paneBTranscript
+    // state as bindMirroredView above, just with no rotation and no runtime
+    // hinge-driven geometry (a static 50/50 XML weight is enough - there's
+    // no hinge to size around).
+    // ---------------------------------------------------------------------
+
+    private fun bindLargeView(lb: FragmentConversationsLargeBinding) {
+        setupSpinnersGeneric(lb.spinnerLangA, lb.spinnerLangB)
+        setupGenderToggleGeneric(lb.radioGroupGenderConv, lb.radioFemaleConv, lb.radioMaleConv)
+        lb.toggleRecordSession.isChecked = recordSessionEnabled
+        lb.toggleRecordSession.setOnCheckedChangeListener { _, checked -> recordSessionEnabled = checked }
+        lb.paneLeft.btnPaneMic.setOnClickListener { onMicTap() }
+        lb.paneRight.btnPaneMic.setOnClickListener { onMicTap() }
+        lb.paneLeft.togglePaneContinuous.isChecked = continuousEnabled
+        lb.paneRight.togglePaneContinuous.isChecked = continuousEnabled
+        lb.paneLeft.togglePaneContinuous.setOnClickListener { onContinuousToggleRequested(lb.paneLeft.togglePaneContinuous.isChecked) }
+        lb.paneRight.togglePaneContinuous.setOnClickListener { onContinuousToggleRequested(lb.paneRight.togglePaneContinuous.isChecked) }
+        applyContinuousUiState()
+        lb.paneLeft.textPaneStatus.text = statusText
+        lb.paneRight.textPaneStatus.text = statusText
+        renderPane(paneATranscript, lb.paneLeft.textPaneTranscript, lb.paneLeft.scrollPaneTranscript)
+        renderPane(paneBTranscript, lb.paneRight.textPaneTranscript, lb.paneRight.scrollPaneTranscript)
+        updateTurnIndicator()
+        refreshRecordingsList()
+    }
+
+    // ---------------------------------------------------------------------
     // Language / turn helpers - identical semantics to before this pass,
     // just reading fields instead of a live Spinner selection.
     // ---------------------------------------------------------------------
@@ -384,6 +464,8 @@ class ConversationsFragment : Fragment() {
         fallbackBinding?.textTurnIndicator?.text = text
         mirroredBinding?.paneTop?.textPaneTurnIndicator?.text = text
         mirroredBinding?.paneBottom?.textPaneTurnIndicator?.text = text
+        largeBinding?.paneLeft?.textPaneTurnIndicator?.text = text
+        largeBinding?.paneRight?.textPaneTurnIndicator?.text = text
     }
 
     private fun setStatus(text: String) {
@@ -391,6 +473,8 @@ class ConversationsFragment : Fragment() {
         fallbackBinding?.textConversationStatus?.text = text
         mirroredBinding?.paneTop?.textPaneStatus?.text = text
         mirroredBinding?.paneBottom?.textPaneStatus?.text = text
+        largeBinding?.paneLeft?.textPaneStatus?.text = text
+        largeBinding?.paneRight?.textPaneStatus?.text = text
     }
 
     // ---------------------------------------------------------------------
@@ -412,11 +496,19 @@ class ConversationsFragment : Fragment() {
         val newLine = "$label: $text"
         if (builder.isEmpty()) builder.append(newLine) else builder.insert(0, "$newLine\n")
 
-        val mb = mirroredBinding ?: return
-        if (paneIsA) {
-            renderPane(paneATranscript, mb.paneTop.textPaneTranscript, mb.paneTop.scrollPaneTranscript)
-        } else {
-            renderPane(paneBTranscript, mb.paneBottom.textPaneTranscript, mb.paneBottom.scrollPaneTranscript)
+        mirroredBinding?.let { mb ->
+            if (paneIsA) {
+                renderPane(paneATranscript, mb.paneTop.textPaneTranscript, mb.paneTop.scrollPaneTranscript)
+            } else {
+                renderPane(paneBTranscript, mb.paneBottom.textPaneTranscript, mb.paneBottom.scrollPaneTranscript)
+            }
+        }
+        largeBinding?.let { lb ->
+            if (paneIsA) {
+                renderPane(paneATranscript, lb.paneLeft.textPaneTranscript, lb.paneLeft.scrollPaneTranscript)
+            } else {
+                renderPane(paneBTranscript, lb.paneRight.textPaneTranscript, lb.paneRight.scrollPaneTranscript)
+            }
         }
     }
 
@@ -540,6 +632,15 @@ class ConversationsFragment : Fragment() {
             mb.paneBottom.btnPaneMic.alpha = if (continuousEnabled) 0.4f else 1f
             if (mb.paneTop.togglePaneContinuous.isChecked != continuousEnabled) mb.paneTop.togglePaneContinuous.isChecked = continuousEnabled
             if (mb.paneBottom.togglePaneContinuous.isChecked != continuousEnabled) mb.paneBottom.togglePaneContinuous.isChecked = continuousEnabled
+        }
+        val lb = largeBinding
+        if (lb != null) {
+            lb.paneLeft.btnPaneMic.isEnabled = !continuousEnabled
+            lb.paneRight.btnPaneMic.isEnabled = !continuousEnabled
+            lb.paneLeft.btnPaneMic.alpha = if (continuousEnabled) 0.4f else 1f
+            lb.paneRight.btnPaneMic.alpha = if (continuousEnabled) 0.4f else 1f
+            if (lb.paneLeft.togglePaneContinuous.isChecked != continuousEnabled) lb.paneLeft.togglePaneContinuous.isChecked = continuousEnabled
+            if (lb.paneRight.togglePaneContinuous.isChecked != continuousEnabled) lb.paneRight.togglePaneContinuous.isChecked = continuousEnabled
         }
     }
 
@@ -707,30 +808,31 @@ class ConversationsFragment : Fragment() {
     }
 
     // ---------------------------------------------------------------------
-    // Saved recordings list - fallback layout only (session file management,
-    // not part of the in-the-moment mirrored conversing view).
+    // Saved recordings list - fallback and large-screen layouts only
+    // (session file management, not part of the in-the-moment mirrored
+    // conversing view - the mirrored fold layout never showed this either).
     // ---------------------------------------------------------------------
 
     private fun refreshRecordingsList() {
-        val fb = fallbackBinding ?: return
-        fb.recordingsList.removeAllViews()
+        val list = fallbackBinding?.recordingsList ?: largeBinding?.recordingsList ?: return
+        list.removeAllViews()
         val files = recordingsStore.list()
         if (files.isEmpty()) {
             val tv = TextView(requireContext())
             tv.text = "No recordings yet."
             tv.textSize = 12f
-            fb.recordingsList.addView(tv)
+            list.addView(tv)
             return
         }
         for (f in files) {
-            val row = ItemRecordingBinding.inflate(layoutInflater, fb.recordingsList, false)
+            val row = ItemRecordingBinding.inflate(layoutInflater, list, false)
             row.textRecordingName.text = f.name
             row.btnPlay.setOnClickListener { playRecording(f) }
             row.btnDelete.setOnClickListener {
                 recordingsStore.delete(f)
                 refreshRecordingsList()
             }
-            fb.recordingsList.addView(row.root)
+            list.addView(row.root)
         }
     }
 
@@ -768,6 +870,7 @@ class ConversationsFragment : Fragment() {
         contentContainer = null
         fallbackBinding = null
         mirroredBinding = null
+        largeBinding = null
         layoutInitialized = false
     }
 

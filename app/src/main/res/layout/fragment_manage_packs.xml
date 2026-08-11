@@ -1,0 +1,144 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  "Manage language packs" - docs/specs/galaxy-tab-s9fe-adaptation.md. Reachable
+  from Settings hub. Shows every pack across all three catalogs
+  (translation/voice-input/natural-voice), a "Download all remaining" bulk
+  action with progress, a "Check for updates" action, and per-pack
+  download/delete. Per-pack rows are built in code (ManagePacksFragment,
+  matching this codebase's existing buildListRow precedent in LearnFragment)
+  rather than one static row per language, since the row count is
+  catalog-driven (~92 total) and identical in shape across all three
+  categories.
+-->
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:padding="16dp">
+
+        <androidx.cardview.widget.CardView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            app:cardElevation="2dp"
+            app:cardCornerRadius="10dp">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:padding="16dp">
+
+                <TextView
+                    android:id="@+id/textPacksSummary"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:textSize="15sp"
+                    android:text="Checking pack status…" />
+
+                <Button
+                    android:id="@+id/btnDownloadAllRemaining"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="10dp"
+                    android:text="Download all remaining packs (Wi-Fi)" />
+
+                <Button
+                    android:id="@+id/btnCancelBulkDownload"
+                    style="@style/Widget.MaterialComponents.Button.OutlinedButton"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="6dp"
+                    android:text="Cancel"
+                    android:visibility="gone" />
+
+                <ProgressBar
+                    android:id="@+id/progressBulkDownload"
+                    style="?android:attr/progressBarStyleHorizontal"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="8dp"
+                    android:max="100"
+                    android:visibility="gone" />
+
+                <TextView
+                    android:id="@+id/textBulkDownloadStatus"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:textSize="12sp"
+                    android:textStyle="italic"
+                    android:layout_marginTop="4dp" />
+
+                <View style="@style/SettingsHubDivider" android:layout_marginVertical="10dp" />
+
+                <Button
+                    android:id="@+id/btnCheckForUpdates"
+                    style="@style/Widget.MaterialComponents.Button.TextButton"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Check for updates" />
+
+                <TextView
+                    android:id="@+id/textUpdateCheckStatus"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:textSize="12sp"
+                    android:alpha="0.75" />
+            </LinearLayout>
+        </androidx.cardview.widget.CardView>
+
+        <TextView
+            android:id="@+id/headerTranslation"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="20dp"
+            android:textSize="17sp"
+            android:textStyle="bold"
+            android:text="Translation packs" />
+
+        <LinearLayout
+            android:id="@+id/listTranslation"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:layout_marginTop="6dp" />
+
+        <TextView
+            android:id="@+id/headerVoiceInput"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="20dp"
+            android:textSize="17sp"
+            android:textStyle="bold"
+            android:text="Voice-input packs (Vosk)" />
+
+        <LinearLayout
+            android:id="@+id/listVoiceInput"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:layout_marginTop="6dp" />
+
+        <TextView
+            android:id="@+id/headerNaturalVoice"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="20dp"
+            android:textSize="17sp"
+            android:textStyle="bold"
+            android:text="Natural voices (Piper)" />
+
+        <LinearLayout
+            android:id="@+id/listNaturalVoice"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:layout_marginTop="6dp"
+            android:paddingBottom="32dp" />
+
+    </LinearLayout>
+</ScrollView>

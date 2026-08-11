@@ -1,13 +1,19 @@
 package com.retroid.translator
 
 import android.Manifest
+import android.content.Context
 import android.content.pm.PackageManager
+import android.net.ConnectivityManager
+import android.net.Network
+import android.net.NetworkCapabilities
+import android.net.NetworkRequest
 import android.os.Bundle
 import android.util.Log
 import android.view.Menu
 import android.view.MenuItem
 import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.appcompat.widget.Toolbar
 import androidx.core.content.ContextCompat
@@ -20,8 +26,12 @@ import com.google.android.material.bottomnavigation.BottomNavigationView
 import com.retroid.translator.fold.FoldPosture
 import com.retroid.translator.fold.FoldPostureProvider
 import com.retroid.translator.fold.FoldState
+import com.retroid.translator.packs.LanguagePackPreferences
+import com.retroid.translator.packs.PackInventory
+import com.retroid.translator.packs.PackStatus
 import com.retroid.translator.settings.FoldAwareLayoutHost
 import com.retroid.translator.settings.LayoutPreferences
+import com.retroid.translator.settings.ManagePacksFragment
 import com.retroid.translator.settings.ScreenMode
 import com.retroid.translator.settings.SettingsHubFragment
 import com.retroid.translator.settings.SettingsTab
@@ -91,6 +101,7 @@ class MainActivity : AppCompatActivity() {
         }
 
         observeFoldAutoSwitch()
+        checkBulkPackDownloadPrompt()
     }
 
     override fun onCreateOptionsMenu(menu: Menu): Boolean {
@@ -227,6 +238,102 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun currentTabFragment(): Fragment? = supportFragmentManager.findFragmentById(R.id.fragmentContainer)
+
+    // -------------------------------------------------------------------
+    // Auto-download all language packs (docs/specs/galaxy-tab-s9fe-adaptation.md).
+    // A one-time confirmation, shown at first launch if Wi-Fi is already
+    // connected, or as soon as Wi-Fi first becomes available afterward if
+    // it wasn't yet - "first launch (or first-Wi-Fi-connection)" per that
+    // spec's wording. Declining or accepting both mark the prompt as shown
+    // (isHasPromptedBulkDownload) so it is never shown again; every pack
+    // stays individually downloadable/deletable afterward from Settings ->
+    // Language packs (ManagePacksFragment) regardless of this prompt's
+    // outcome. No ongoing/ambient networking results from this beyond the
+    // one registered NetworkCallback while the prompt hasn't fired yet -
+    // unregistered in onDestroy, and never re-registered once the prompt
+    // has been shown once.
+    // -------------------------------------------------------------------
+
+    private var wifiWaitCallback: ConnectivityManager.NetworkCallback? = null
+
+    private fun checkBulkPackDownloadPrompt() {
+        if (LanguagePackPreferences.hasPromptedBulkDownload(this)) return
+        val cm = getSystemService(Context.CONNECTIVITY_SERVICE) as? ConnectivityManager ?: return
+        val activeNetwork = cm.activeNetwork
+        val onWifiNow = activeNetwork != null &&
+            cm.getNetworkCapabilities(activeNetwork)?.hasTransport(NetworkCapabilities.TRANSPORT_WIFI) == true
+        if (onWifiNow) {
+            offerBulkDownloadPrompt()
+            return
+        }
+        val request = NetworkRequest.Builder().addTransportType(NetworkCapabilities.TRANSPORT_WIFI).build()
+        val callback = object : ConnectivityManager.NetworkCallback() {
+            override fun onAvailable(network: Network) {
+                runOnUiThread {
+                    if (!LanguagePackPreferences.hasPromptedBulkDownload(this@MainActivity)) {
+                        offerBulkDownloadPrompt()
+                    }
+                    unregisterWifiWaitCallback()
+                }
+            }
+        }
+        wifiWaitCallback = callback
+        try {
+            cm.registerNetworkCallback(request, callback)
+        } catch (e: Exception) {
+            Log.w(TAG, "Couldn't register Wi-Fi wait callback for bulk-download prompt (non-fatal)", e)
+            wifiWaitCallback = null
+        }
+    }
+
+    private fun unregisterWifiWaitCallback() {
+        val callback = wifiWaitCallback ?: return
+        wifiWaitCallback = null
+        val cm = getSystemService(Context.CONNECTIVITY_SERVICE) as? ConnectivityManager ?: return
+        try { cm.unregisterNetworkCallback(callback) } catch (e: Exception) { /* already gone, fine */ }
+    }
+
+    private fun offerBulkDownloadPrompt() {
+        if (isFinishing || isDestroyed) return
+        PackStatus.fetchDownloadedTranslationCodes { downloadedCodes ->
+            if (isFinishing || isDestroyed) return@fetchDownloadedTranslationCodes
+            val remaining = PackInventory.all().filterNot { PackStatus.isDownloaded(app, it, downloadedCodes) }
+            if (remaining.isEmpty()) {
+                // Nothing to offer (e.g. a previous manual round of downloads
+                // already covered everything) - mark as prompted so this
+                // check doesn't keep re-running on every launch.
+                LanguagePackPreferences.setHasPromptedBulkDownload(this, true)
+                return@fetchDownloadedTranslationCodes
+            }
+            val sizeMiB = remaining.sumOf { it.approxSizeMiB }
+            val sizeText = if (sizeMiB >= 1024) "%.1fGB".format(sizeMiB / 1024.0) else "${sizeMiB}MB"
+            AlertDialog.Builder(this)
+                .setTitle("Download all language packs?")
+                .setMessage(
+                    "Download every translation pack, voice-input pack, and natural voice now " +
+                        "(~$sizeText over Wi-Fi, one-time)? Everything works fully offline afterward - " +
+                        "no ongoing network use beyond an explicit \"Check for updates\" later. " +
+                        "You can manage or delete individual packs anytime from Settings > Language packs."
+                )
+                .setPositiveButton("Download") { _, _ ->
+                    LanguagePackPreferences.setHasPromptedBulkDownload(this, true)
+                    supportFragmentManager.beginTransaction()
+                        .replace(R.id.fragmentContainer, ManagePacksFragment.newInstanceAutoStart())
+                        .addToBackStack("language_packs")
+                        .commit()
+                }
+                .setNegativeButton("Not now") { _, _ ->
+                    LanguagePackPreferences.setHasPromptedBulkDownload(this, true)
+                }
+                .setCancelable(false)
+                .show()
+        }
+    }
+
+    override fun onDestroy() {
+        super.onDestroy()
+        unregisterWifiWaitCallback()
+    }
 
     fun hasMicPermission(): Boolean =
         ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED

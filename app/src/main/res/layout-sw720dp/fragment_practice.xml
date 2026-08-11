@@ -1,0 +1,184 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Large-screen (tablet, sw720dp+) redesign of the Practice tab's DEFAULT
+  layout - docs/specs/galaxy-tab-s9fe-adaptation.md. Resource-qualifier
+  alternative of fragment_practice.xml; PracticeFragment's Kotlin is
+  unchanged - every view ID below is identical to the phone version, just
+  rearranged. Left pane: the recording workflow (pick language/voice, type a
+  phrase, hear it, record, play back). Right pane: "Past attempts" as a
+  persistent, always-visible list instead of something you scroll down past
+  the whole form to reach - a genuine master-detail split (record a new
+  attempt on the left while Browse/replaying past ones on the right, no
+  navigation required either way).
+-->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="horizontal">
+
+    <!-- Left pane: recording workflow -->
+    <ScrollView
+        android:layout_width="0dp"
+        android:layout_height="match_parent"
+        android:layout_weight="50"
+        android:fillViewport="true">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:paddingHorizontal="24dp"
+            android:paddingTop="24dp"
+            android:paddingBottom="24dp">
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Practice"
+                android:textSize="26sp"
+                android:textStyle="bold"
+                android:layout_marginBottom="8dp" />
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:textSize="13sp"
+                android:text="Hear a word or phrase pronounced, then record yourself saying it and compare by ear."
+                android:layout_marginBottom="12dp" />
+
+            <Spinner
+                android:id="@+id/spinnerPracticeLang"
+                android:layout_width="match_parent"
+                android:layout_height="48dp" />
+
+            <RadioGroup
+                android:id="@+id/radioGroupGenderPractice"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:layout_marginTop="10dp">
+
+                <RadioButton
+                    android:id="@+id/radioFemalePractice"
+                    android:layout_width="wrap_content"
+                    android:layout_height="48dp"
+                    android:text="♀ Female voice"
+                    android:checked="true" />
+
+                <RadioButton
+                    android:id="@+id/radioMalePractice"
+                    android:layout_width="wrap_content"
+                    android:layout_height="48dp"
+                    android:layout_marginStart="20dp"
+                    android:text="♂ Male voice" />
+            </RadioGroup>
+
+            <com.google.android.material.textfield.TextInputLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="14dp"
+                android:hint="Word or phrase to practice">
+
+                <com.google.android.material.textfield.TextInputEditText
+                    android:id="@+id/editPhrase"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content" />
+            </com.google.android.material.textfield.TextInputLayout>
+
+            <Button
+                android:id="@+id/btnHearReference"
+                android:layout_width="match_parent"
+                android:layout_height="52dp"
+                android:layout_marginTop="12dp"
+                android:text="🔊 Hear reference pronunciation" />
+
+            <TextView
+                android:id="@+id/textNaturalVoiceStatusPractice"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:textSize="13sp"
+                android:layout_marginTop="6dp"
+                android:text="eSpeak (built-in, robotic, always available) is used unless a natural voice is downloaded." />
+
+            <Button
+                android:id="@+id/btnDownloadNaturalVoicePractice"
+                style="@style/Widget.MaterialComponents.Button.OutlinedButton"
+                android:layout_width="wrap_content"
+                android:layout_height="52dp"
+                android:layout_marginTop="6dp"
+                android:text="Download natural voice (Wi-Fi)" />
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:layout_marginTop="16dp">
+
+                <Button
+                    android:id="@+id/btnRecordAttempt"
+                    android:layout_width="0dp"
+                    android:layout_height="56dp"
+                    android:layout_weight="1"
+                    android:text="🎙 Record my attempt" />
+
+                <Button
+                    android:id="@+id/btnPlayAttempt"
+                    android:layout_width="0dp"
+                    android:layout_height="56dp"
+                    android:layout_weight="1"
+                    android:layout_marginStart="10dp"
+                    android:text="▶ Play last attempt"
+                    android:enabled="false" />
+            </LinearLayout>
+
+            <TextView
+                android:id="@+id/textPracticeStatus"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:gravity="center"
+                android:textSize="13sp"
+                android:textStyle="italic"
+                android:layout_marginTop="8dp" />
+
+        </LinearLayout>
+    </ScrollView>
+
+    <View
+        android:layout_width="1dp"
+        android:layout_height="match_parent"
+        android:background="?android:attr/listDivider" />
+
+    <!-- Right pane: persistent "Past attempts" list (master-detail, no
+         scrolling past the form required to reach it). -->
+    <LinearLayout
+        android:layout_width="0dp"
+        android:layout_height="match_parent"
+        android:layout_weight="50"
+        android:orientation="vertical"
+        android:paddingHorizontal="24dp"
+        android:paddingTop="24dp">
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Past attempts"
+            android:textSize="18sp"
+            android:textStyle="bold"
+            android:layout_marginBottom="8dp" />
+
+        <ScrollView
+            android:layout_width="match_parent"
+            android:layout_height="0dp"
+            android:layout_weight="1">
+
+            <LinearLayout
+                android:id="@+id/practiceRecordingsList"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:paddingBottom="24dp" />
+        </ScrollView>
+    </LinearLayout>
+
+</LinearLayout>

@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Default (phone-width) values for the large-screen resource-qualifier
+  switches used by the galaxy-tab-s9fe-adaptation work
+  (docs/specs/galaxy-tab-s9fe-adaptation.md). This is the THIRD presentation
+  mode alongside "default phone" and "fold-aware variant" (the fold/ package,
+  ConversationsFragment's mirrored layout, and the 24-variant
+  Translate/Practice/Learn settings system) - none of those are touched here.
+
+  These bools are read once by each fragment (not polled) to decide whether
+  a resource-qualified large-screen XML layout was actually inflated for the
+  current configuration, since Kotlin code cannot inspect "which
+  layout-sw720dp/*.xml got chosen" directly - the qualifier system resolves
+  that before any Kotlin runs, so a same-named bool resource in the matching
+  values-sw720dp/ qualifier is the standard Android way to let code detect it.
+  See values-sw720dp/bools.xml for the true-on-large-screen overrides.
+-->
+<resources>
+    <!-- Learn tab: keep the unit/lesson browsing pane (left) visible as
+         context while an exercise or lesson-complete summary (right) is
+         active, instead of the phone's one-screen-at-a-time navigation.
+         See LearnFragment.setDefaultScreen. -->
+    <bool name="learn_master_detail">false</bool>
+
+    <!-- Conversations tab: use the large-screen side-by-side two-pane layout
+         (fragment_conversations_large.xml) instead of the phone's single-
+         column fragment_conversations.xml, whenever the device is not
+         currently in a fold-mirrored posture (mirrored always wins - see
+         ConversationsFragment.applyPosture). -->
+    <bool name="conversations_side_by_side">false</bool>
+</resources>
