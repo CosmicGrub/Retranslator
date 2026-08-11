@@ -71,6 +71,28 @@ This is a genuine, real compatibility gap this session surfaced, **out of scope 
 
 Screenshots captured this step: `01_translate_default_launch.png` (initial launch, before display-id was pinned down), `01b_disp3_cover.png`/`01c_disp0_main.png` (both displays, confirming closed posture), `15_post_reboot_clean_launch.png` (clean, no overlay), `16_settings_hub_opened.png`, `17_learn_tab_render.png`.
 
+## Step 4 — posture matrix (item 4/5): all 5 cells confirmed with real FoldingFeature data
+
+Used `adb shell cmd device_state print-states` (task's own suggested first move) to enumerate this OS build's supported states: `CLOSED(0)`, `TENT(1)`, `HALF_OPENED(2)`, `OPENED(3)`, `CONCURRENT_INNER_DEFAULT(4)`, `CONCURRENT_OUTER_DEFAULT(5)`. `TENT` turned out to route the app back to the *cover* display (`NO_FOLDING_FEATURE`), not a tabletop posture — Samsung's TENT state is a cover-screen-active posture on this device, not what the spec's "propped like a tent" tabletop description implies. `HALF_OPENED`/`OPENED` (book postures) work directly; the two `TABLETOP_LANDSCAPE_*` postures additionally needed `settings put system accelerometer_rotation 0` + `user_rotation 1` (forced landscape) layered on top, since `FoldingFeature.orientation` reflects real hinge-to-window geometry, not just device_state.
+
+**All 5 posture-matrix cells from spec §2's table now have real, on-device `FoldingFeature` evidence** (previously the spec only had this level of detail from the original §2 build pass, largely on the Retroid Pocket 2+ substitute; getting real HORIZONTAL-orientation data on the actual Fold 5 hardware is new):
+
+| Posture | Real logcat evidence |
+|---|---|
+| Closed (cover) | `wm size`/`dumpsys window displays` confirm cover display (904x2316) active, main display black; `posture=NO_FOLDING_FEATURE` |
+| Book-portrait, flat | `posture=BOOK_PORTRAIT_FLAT feature.state=FLAT feature.orientation=VERTICAL feature.isSeparating=false` — real transition, app stayed foregrounded on the main display (see honest caveat below) |
+| Book-portrait, angled | `posture=BOOK_PORTRAIT_ANGLED feature.state=HALF_OPENED feature.orientation=VERTICAL feature.isSeparating=true` |
+| **Tabletop-landscape, flat** | `posture=TABLETOP_LANDSCAPE_FLAT feature.state=FLAT feature.orientation=HORIZONTAL feature.isSeparating=false wantMirrored=true` — **mirrored layout genuinely rendered**, see below |
+| **Tabletop-landscape, angled** | `posture=TABLETOP_LANDSCAPE_ANGLED feature.state=HALF_OPENED feature.orientation=HORIZONTAL feature.isSeparating=true wantMirrored=true` |
+
+**Mirrored face-to-face layout (§2) confirmed rendering correctly, real screenshot**: `screenshots/24_conversations_mirrored_clean.png` (flat) and `25_tabletop_angled_mirrored.png` (angled) — two panes split at the hinge (`mirrored geometry: hinge=Rect(0, 906 - 2176, 906) ... topPaneHeight=659 bottomPaneTop=659 bottomPaneHeight=633`, a real, non-50/50 split derived from `FoldingFeature.bounds`, not assumed), top pane genuinely rendered rotated 180° (readable upside-down in the screenshot, as expected for someone facing the phone from across the hinge), each pane showing its own turn indicator / tap-to-speak button / continuous-listening toggle with content positioned nearest the hinge as spec'd. No crash (`logcat | grep FATAL/AndroidRuntime`: empty).
+
+An early attempt to reach this state via `settings put user_rotation` while the Fragment was already showing the *fallback* single-column layout produced a confusing doubled/overlapping screenshot (`20_forced_landscape_check.png`–`22_settled_after_rotation.png`) — diagnosed as a mid-transition rendering artifact from stacking two synthetic ADB overrides while the physical device wasn't actually moving, not a reproducible app bug: relaunching fresh directly into the already-landscape+OPENED state (`23`–`25`) rendered cleanly and consistently every time after that.
+
+**Honest caveat — same class of gap the spec already documented, re-confirmed with new evidence**: resetting the device_state override (`cmd device_state state reset`) to return to the *real* physical CLOSED state, from a fake-OPENED override, did **not** bring the app back to the cover screen — it backgrounded `MainActivity` entirely and foregrounded `com.sec.android.app.launcher` instead (`mFocusedApp=ActivityRecord{... com.sec.android.app.launcher/.activities.LauncherActivity}`). This is a fresh, real reproduction of the exact gap `MainActivity`'s own doc comment already flagged (`adb shell cmd device_state state 0` backgrounding the app rather than producing a foregrounded transition) — not a new regression, but now demonstrated in the open→closed direction specifically, with this session's own evidence rather than only the prior session's note. Fold-triggered auto-switch closing behavior remains unverified with a real foreground transition; only the *opening* direction (cover→main, and posture-to-posture while already foregrounded) was exercised successfully here.
+
+Cleanup: `cmd device_state state reset` + `settings put system accelerometer_rotation 1` + `user_rotation 0` restored before moving on.
+
 ## Pre-built test plan (device-independent prep, so testing is fast once RFCW80CK2RW reconnects)
 
 Code review done while waiting (all device-independent):
