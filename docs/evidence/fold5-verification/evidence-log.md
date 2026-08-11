@@ -31,3 +31,28 @@ No device required for this step — done regardless of Fold 5 connectivity.
 ## Step 2 — device connectivity
 
 (updated live as polling continues)
+
+## Pre-built test plan (device-independent prep, so testing is fast once RFCW80CK2RW reconnects)
+
+Code review done while waiting (all device-independent):
+- `MainActivity.kt` — Settings entry point (MaterialToolbar + `main_menu.xml` action_settings -> `SettingsHubFragment`) and bottom nav (4 items, `bottom_nav_menu.xml`, framework icons) reviewed. No API-level-gated code found. Notably, commit `277955f`'s own message records this *exact* code already on-device-verified on RFCW80CK2RW earlier the same day ("Settings icon -> hub (all 4 rows)... real screenshots + logcat") before the device became unavailable — real prior evidence this worked on the actual target hardware, before whatever regressed/was-found-broken on the Retroid Pocket 2+ substitute. No code changes to this path since. This is a strong prior (not proof) that item 3 (Settings toolbar/Learn tab bug cross-check) will pass on the Fold 5 — needs direct confirmation, not assumed from this alone.
+- `FoldPostureProvider.kt` — posture classification, already carries a real-Fold-5-verified nuance (FLAT tabletop reports `isSeparating=false`, code correctly doesn't gate on it).
+- `ConversationsFragment.kt` — mirrored/fallback layout switch, continuous listening wiring, all reviewed in full (777 lines).
+- `RadioGroup` fix — confirmed present in current tree (`view_translate_variant_option.xml` uses `<merge>` root, matches spec §6's described fix).
+- 24 variant IDs enumerated for the picker-UI test pass (below).
+- `MicPipeline.startContinuousListening` confirmed present (VAD-based continuous capture).
+- `device_state` simulation: task instructions + `MainActivity`'s own doc comment both note `adb shell cmd device_state state 0` previously backgrounded the app on this exact device rather than producing a foregrounded fold transition. Plan: try `adb shell cmd device_state print-states` first to enumerate valid states/IDs on this OS build, then try each candidate state, watching `adb logcat -s ConversationsFragment:D MainActivity:D` for posture emissions, before concluding simulation is unusable again.
+
+Package: `com.retroid.translator`. Key components:
+- `com.retroid.translator/.MainActivity` (launcher)
+- `com.retroid.translator/.prototype.DualRecognizerProtoActivity` (exported debug entry point)
+- `com.retroid.translator/.prototype.ContinuousFlowProtoActivity` (exported debug entry point)
+
+Planned sequence once RFCW80CK2RW is confirmed present and stable:
+1. `adb -s RFCW80CK2RW uninstall com.retroid.translator` (ignore "not installed" failure)
+2. `adb -s RFCW80CK2RW install app/build/outputs/apk/debug/app-debug.apk`
+3. `adb -s RFCW80CK2RW shell am force-stop com.retroid.translator` before every launch
+4. Item 3 first: launch, tap Settings gear, tap Learn tab — screenshot both, logcat check for exceptions.
+5. Item 4/5: posture matrix + 24-variant picker UI walk (real taps, not prefs writes).
+6. Item 6: continuous listening toggle + real_speech_corpus playback proxy.
+7. Item 7: regression pass across all 4 tabs.
