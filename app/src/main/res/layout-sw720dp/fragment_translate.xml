@@ -91,8 +91,9 @@
             <Button
                 android:id="@+id/btnDownloadModels"
                 style="@style/Widget.MaterialComponents.Button.OutlinedButton"
-                android:layout_width="wrap_content"
-                android:layout_height="52dp"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:minHeight="52dp"
                 android:layout_marginTop="8dp"
                 android:text="Download translation pack (Wi-Fi)" />
 
@@ -107,8 +108,9 @@
             <Button
                 android:id="@+id/btnDownloadStt"
                 style="@style/Widget.MaterialComponents.Button.OutlinedButton"
-                android:layout_width="wrap_content"
-                android:layout_height="52dp"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:minHeight="52dp"
                 android:layout_marginTop="8dp"
                 android:text="Download voice-input pack (Wi-Fi)" />
 
@@ -158,8 +160,9 @@
             <Button
                 android:id="@+id/btnDownloadNaturalVoice"
                 style="@style/Widget.MaterialComponents.Button.OutlinedButton"
-                android:layout_width="wrap_content"
-                android:layout_height="52dp"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:minHeight="52dp"
                 android:layout_marginTop="8dp"
                 android:text="Download natural voice (Wi-Fi)" />
 

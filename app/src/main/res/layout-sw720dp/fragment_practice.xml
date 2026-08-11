@@ -89,7 +89,8 @@
             <Button
                 android:id="@+id/btnHearReference"
                 android:layout_width="match_parent"
-                android:layout_height="52dp"
+                android:layout_height="wrap_content"
+                android:minHeight="52dp"
                 android:layout_marginTop="12dp"
                 android:text="🔊 Hear reference pronunciation" />
 
@@ -104,30 +105,31 @@
             <Button
                 android:id="@+id/btnDownloadNaturalVoicePractice"
                 style="@style/Widget.MaterialComponents.Button.OutlinedButton"
-                android:layout_width="wrap_content"
-                android:layout_height="52dp"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:minHeight="52dp"
                 android:layout_marginTop="6dp"
                 android:text="Download natural voice (Wi-Fi)" />
 
             <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:orientation="horizontal"
+                android:orientation="vertical"
                 android:layout_marginTop="16dp">
 
                 <Button
                     android:id="@+id/btnRecordAttempt"
-                    android:layout_width="0dp"
-                    android:layout_height="56dp"
-                    android:layout_weight="1"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:minHeight="56dp"
                     android:text="🎙 Record my attempt" />
 
                 <Button
                     android:id="@+id/btnPlayAttempt"
-                    android:layout_width="0dp"
-                    android:layout_height="56dp"
-                    android:layout_weight="1"
-                    android:layout_marginStart="10dp"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:minHeight="56dp"
+                    android:layout_marginTop="10dp"
                     android:text="▶ Play last attempt"
                     android:enabled="false" />
             </LinearLayout>
