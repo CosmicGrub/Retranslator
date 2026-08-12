@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Wear OS Data Layer API capability declaration (auto-detected by Google
+  Play services from this exact file name + array name - no manifest
+  meta-data entry needed, confirmed against Google's own
+  android/wear-os-samples DataLayer sample). Phone-side half of the
+  watch6-classic-adaptation phone-sync scaffold - see
+  docs/specs/watch6-classic-adaptation.md and
+  com.retroid.translator.wearsync.PhoneWearSyncService. NOT wired into any
+  real sync logic yet; this only makes the phone discoverable to a paired
+  watch via CapabilityClient.getCapability(...).
+-->
+<resources xmlns:tools="http://schemas.android.com/tools" tools:keep="@array/android_wear_capabilities">
+    <string-array name="android_wear_capabilities">
+        <item>retroid_translator_phone_companion</item>
+    </string-array>
+</resources>

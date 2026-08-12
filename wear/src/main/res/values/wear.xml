@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Watch-side half of the same Data Layer API capability pair - see
+  app/src/main/res/values/wear.xml's doc comment for the mechanism. Declared
+  for symmetry/future use; nothing on the phone side queries for this
+  capability yet (see docs/specs/watch6-classic-adaptation.md).
+-->
+<resources xmlns:tools="http://schemas.android.com/tools" tools:keep="@array/android_wear_capabilities">
+    <string-array name="android_wear_capabilities">
+        <item>retroid_translator_watch_companion</item>
+    </string-array>
+</resources>

@@ -66,6 +66,12 @@ dependencies {
     implementation("androidx.recyclerview:recyclerview:1.3.2")
     implementation("androidx.swiperefreshlayout:swiperefreshlayout:1.1.0")
 
+    // Wear OS Data Layer API - phone-side scaffold for the
+    // watch6-classic-adaptation (docs/specs/watch6-classic-adaptation.md,
+    // com.retroid.translator.wearsync.PhoneWearSyncService). Same version
+    // as the :wear module's own dependency.
+    implementation("com.google.android.gms:play-services-wearable:18.2.0")
+
     // Fold-state / hinge-geometry detection for the Z Fold 5 adaptation
     // (docs/specs/fold5-adaptation.md §2/§3) - WindowInfoTracker/FoldingFeature.
     // 1.5.1 is the latest stable release (1.6.0 is alpha-only as of writing;
