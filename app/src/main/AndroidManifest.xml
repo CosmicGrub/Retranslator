@@ -138,6 +138,26 @@
             android:exported="false"
             android:theme="@style/Theme.RetroidTranslator"
             android:screenOrientation="unspecified" />
+
+        <!-- Phone-side half of the watch6-classic-adaptation Data Layer API
+             scaffold (docs/specs/watch6-classic-adaptation.md) - see
+             PhoneWearSyncService's own class doc. exported=true is required
+             for Google Play services (a separate process/app) to deliver
+             Wearable MessageEvent intents to it; this is the standard
+             pattern for WearableListenerService, not a general-purpose
+             open component - the intent-filter below scopes it to only
+             this app's own message path prefix. -->
+        <service
+            android:name=".wearsync.PhoneWearSyncService"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="com.google.android.gms.wearable.MESSAGE_RECEIVED" />
+                <data
+                    android:scheme="wear"
+                    android:host="*"
+                    android:pathPrefix="/retroid" />
+            </intent-filter>
+        </service>
     </application>
 
 </manifest>

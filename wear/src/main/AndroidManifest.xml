@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <uses-feature android:name="android.hardware.type.watch" />
+
+    <!-- One-time ML Kit / Vosk model downloads only; translation and speech
+         recognition run fully offline, on-device, after that - same
+         no-ongoing-network-dependency principle as the phone app
+         (see root README.md). Also used by the Data Layer API scaffold
+         (WearSyncClient) for phone-sync, when paired and nearby. -->
+    <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+
+    <!-- Mic capture for offline Vosk speech-to-text (continuous/ambient
+         listening, see MicPipeline). Requested at runtime as well. -->
+    <uses-permission android:name="android.permission.RECORD_AUDIO" />
+
+    <application
+        android:name=".WearTranslatorApp"
+        android:allowBackup="true"
+        android:icon="@mipmap/ic_launcher"
+        android:label="@string/app_name"
+        android:supportsRtl="true"
+        android:theme="@android:style/Theme.DeviceDefault">
+
+        <!-- Standalone capability declared explicitly, matching this pass's
+             "functionally independent AND phone-synced, in that order of
+             priority" design decision (see spec) - this app must work with
+             no phone paired at all, not just as a tethered companion. -->
+        <meta-data
+            android:name="com.google.android.wearable.standalone"
+            android:value="true" />
+
+        <activity
+            android:name=".MainActivity"
+            android:exported="true"
+            android:configChanges="orientation|screenSize|keyboardHidden">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+
+    </application>
+
+</manifest>
