@@ -1,0 +1,66 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  One transcript bubble row - docs/specs/fold5-adaptation.md §4's tap-to-fix
+  reassign affordance. Used identically by all three Conversations layouts'
+  RecyclerViews (fallback fragment_conversations.xml's recyclerTranscript,
+  and both panes of fragment_conversations_mirrored.xml /
+  fragment_conversations_large.xml via view_conversation_pane.xml's
+  recyclerPaneTranscript) through the one shared TranscriptAdapter - one row
+  per transcript entry instead of a line appended into a growing shared
+  TextView (which is exactly what made the tap affordance impossible to
+  attach before this pass - see TranscriptAdapter's class doc).
+
+  The whole bubble is one tap target, plus a small "⇄" icon (same swap glyph
+  already used elsewhere in this fragment's language-pair spinners) as the
+  visible affordance cue - tapping either flips which side (A/B) the
+  utterance is attributed to and moves it to the other pane/side. Not
+  clickable for translation-failure notes - TranscriptAdapter leaves
+  textReassignIcon GONE and skips the click listener for those, since
+  there's nothing to reassign.
+-->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/bubbleRoot"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    android:background="@drawable/bg_bubble_them"
+    android:paddingHorizontal="10dp"
+    android:paddingVertical="6dp"
+    android:layout_marginVertical="3dp"
+    android:clickable="true"
+    android:focusable="true"
+    android:foreground="?attr/selectableItemBackground">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="center_vertical">
+
+        <TextView
+            android:id="@+id/textBubbleLabel"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:textStyle="bold"
+            android:textSize="11sp" />
+
+        <TextView
+            android:id="@+id/textReassignIcon"
+            android:layout_width="28dp"
+            android:layout_height="28dp"
+            android:gravity="center"
+            android:text="⇄"
+            android:textSize="15sp"
+            android:contentDescription="Reassign to the other side"
+            android:background="?attr/selectableItemBackgroundBorderless" />
+    </LinearLayout>
+
+    <TextView
+        android:id="@+id/textBubbleContent"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:textSize="13sp"
+        android:layout_marginTop="2dp" />
+
+</LinearLayout>

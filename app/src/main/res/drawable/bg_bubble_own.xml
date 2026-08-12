@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Own-speech transcript bubble ("You" - the speaker's original words), a light
+     tint of the app's existing colorPrimary blue. Same bubble family as
+     bg_bubble_them.xml/bg_bubble_failed.xml - see item_transcript_bubble.xml. -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android" android:shape="rectangle">
+    <corners android:radius="10dp" />
+    <solid android:color="#1A1565C0" />
+</shape>

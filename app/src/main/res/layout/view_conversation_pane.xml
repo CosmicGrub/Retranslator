@@ -25,30 +25,24 @@
         android:text="Person A's turn" />
 
     <!--
-      Newest transcript line is inserted at the TOP of textPaneTranscript and
-      this ScrollView stays scrolled to its top (see
-      ConversationsFragment.renderPane) - the edge nearest the physical hinge
-      for both panes (this pane's own top edge sits at the hinge; the other
-      pane's local "top" ends up at the hinge too once it's rotated 180°
-      about its own center, per spec §2's "largest/most recent nearest the
-      hinge").
+      One row per transcript turn belonging to this pane (docs/specs/fold5-adaptation.md
+      §4's tap-to-fix reassign affordance - see TranscriptAdapter/
+      item_transcript_bubble.xml), newest first, scrolled to position 0 on
+      every update (see ConversationsFragment.refreshTranscriptViews) - the
+      edge nearest the physical hinge for both panes (this pane's own top
+      edge sits at the hinge; the other pane's local "top" ends up at the
+      hinge too once it's rotated 180° about its own center, per spec §2's
+      "largest/most recent nearest the hinge"). Replaces what used to be a
+      ScrollView wrapping one growing TextView - a RecyclerView scrolls
+      itself, so the outer ScrollView is gone too.
     -->
-    <ScrollView
-        android:id="@+id/scrollPaneTranscript"
+    <androidx.recyclerview.widget.RecyclerView
+        android:id="@+id/recyclerPaneTranscript"
         android:layout_width="match_parent"
         android:layout_height="0dp"
         android:layout_weight="1"
-        android:layout_marginTop="4dp">
-
-        <TextView
-            android:id="@+id/textPaneTranscript"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:background="#11000000"
-            android:padding="8dp"
-            android:textSize="13sp"
-            android:text="" />
-    </ScrollView>
+        android:layout_marginTop="4dp"
+        android:clipToPadding="false" />
 
     <TextView
         android:id="@+id/textPaneStatus"

@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Translation-failure note bubble - a light tint of the app's existing
+     colorAccent orange, so a failed translation reads visually distinct from
+     a normal "Them" bubble. Not tap-reassignable (TranscriptAdapter hides the
+     reassign icon and skips the click listener for entry.failed == true -
+     there is no other side to move an error message to). -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android" android:shape="rectangle">
+    <corners android:radius="10dp" />
+    <solid android:color="#1AFF6F00" />
+</shape>

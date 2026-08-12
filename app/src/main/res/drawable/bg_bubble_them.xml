@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Translated-speech transcript bubble ("Them" - what got translated for this
+     side's listener). Matches the original single-TextView transcript box's
+     #11000000 tint exactly, just applied per-bubble now. See
+     item_transcript_bubble.xml / bg_bubble_own.xml / bg_bubble_failed.xml. -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android" android:shape="rectangle">
+    <corners android:radius="10dp" />
+    <solid android:color="#11000000" />
+</shape>

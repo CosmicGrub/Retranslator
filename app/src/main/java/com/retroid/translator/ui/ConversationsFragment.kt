@@ -11,7 +11,6 @@ import android.widget.ArrayAdapter
 import android.widget.FrameLayout
 import android.widget.RadioButton
 import android.widget.RadioGroup
-import android.widget.ScrollView
 import android.widget.Spinner
 import android.widget.TextView
 import android.widget.Toast
@@ -20,6 +19,7 @@ import androidx.fragment.app.Fragment
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
+import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.window.layout.FoldingFeature
 import com.retroid.translator.MainActivity
 import com.retroid.translator.R
@@ -30,6 +30,7 @@ import com.retroid.translator.databinding.ItemRecordingBinding
 import com.retroid.translator.audio.MicPipeline
 import com.retroid.translator.audio.RecordingsStore
 import com.retroid.translator.conversation.ContinuousConversationController
+import com.retroid.translator.conversation.TranscriptEntry
 import com.retroid.translator.engine.LanguageCatalog
 import com.retroid.translator.engine.TranslationEngine
 import com.retroid.translator.engine.VoiceGender
@@ -53,9 +54,10 @@ import java.io.File
  * manual alternation ([turnIsA]) below, not a replacement of it. Manual
  * tap-to-talk remains the default and is untouched by the toggle being off;
  * both flows share the same transcript/state helpers
- * (setStatus/appendCombinedTranscript/appendPaneEntry) so either can drive
- * either of the two layouts below identically. See the "Continuous
- * listening" section further down this file for the toggle's own state and
+ * (setStatus/addTurn/addTranslation/addFailureNote - see "Tap-to-fix
+ * reassign affordance" below) so either can drive any of the three layouts
+ * below identically. See the "Continuous listening" section further down
+ * this file for the toggle's own state and
  * [com.retroid.translator.conversation.ContinuousConversationController] for
  * the dual-recognizer streaming engine it drives.
  *
@@ -76,6 +78,30 @@ import java.io.File
  * of that state, held as plain fields on this Fragment rather than read back
  * out of whichever View happens to be inflated right now, specifically so
  * switching layouts mid-conversation never loses or duplicates state.
+ *
+ * **Tap-to-fix reassign affordance (docs/specs/fold5-adaptation.md §4's
+ * "Fallback UX for a wrong guess"), built in this pass.** The transcript
+ * used to be three plain-string `StringBuilder`s
+ * (`combinedTranscript`/`paneATranscript`/`paneBTranscript`) appended into
+ * one shared `TextView` per pane - there was no per-entry view for a tap
+ * listener to attach to, so the spec's described reassign affordance was
+ * never actually buildable. [transcriptEntries] replaces all three with one
+ * ordered list of [TranscriptEntry] rows, rendered by a
+ * [com.retroid.translator.ui.TranscriptAdapter] `RecyclerView` per layout
+ * ([fallbackAdapter] for the single-column fallback view, [paneAAdapter]/
+ * [paneBAdapter] for whichever of the mirrored/large layouts is currently
+ * active - see [refreshTranscriptViews]). Tapping any non-failed bubble
+ * calls [reassignTurn], which flips [TranscriptEntry.speakerIsA] for every
+ * entry sharing that turn's id - moving both the original-speech bubble and
+ * its translation to the opposite pane at once, matching the spec's "tapping
+ * it flips which side the utterance is attributed to and re-renders it
+ * mirrored to the other pane" exactly. This is a pure presentation-layer
+ * correction - it does not re-run speech recognition, dual-recognizer
+ * picking, or translation (see [ContinuousConversationController], which
+ * this class still drives completely unmodified for the language pick
+ * itself). Works identically for manual tap-to-talk turns (added via
+ * [addTurn]/[addTranslation] in `onMicTap`'s `onFinal`) and continuous
+ * auto-detect turns (added the same way from [continuousListener]).
  */
 class ConversationsFragment : Fragment() {
 
@@ -113,12 +139,23 @@ class ConversationsFragment : Fragment() {
     private var continuousController: ContinuousConversationController? = null
     private var continuousLoading = false
 
-    /** Combined transcript for the fallback single-column view - unchanged format from before this pass. */
-    private val combinedTranscript = StringBuilder()
+    /**
+     * The single source of truth for the transcript, replacing the old
+     * `combinedTranscript`/`paneATranscript`/`paneBTranscript` `StringBuilder`s
+     * - see class doc's "Tap-to-fix reassign affordance" section.
+     * Chronological (oldest first); each layout's adapter derives its own
+     * view of this (combined in order, or filtered+newest-first per pane) in
+     * [refreshTranscriptViews].
+     */
+    private val transcriptEntries = mutableListOf<TranscriptEntry>()
+    private var nextEntryId = 0L
+    private var nextTurnId = 0L
 
-    /** Per-pane transcripts for the mirrored view: everything in that pane's language, newest first. */
-    private val paneATranscript = StringBuilder()
-    private val paneBTranscript = StringBuilder()
+    private var fallbackAdapter: TranscriptAdapter? = null
+    /** Bound to whichever layout's "A slot" RecyclerView is currently inflated - mirrored's paneTop or large's paneLeft. */
+    private var paneAAdapter: TranscriptAdapter? = null
+    /** Bound to whichever layout's "B slot" RecyclerView is currently inflated - mirrored's paneBottom or large's paneRight. */
+    private var paneBAdapter: TranscriptAdapter? = null
 
     private val mainActivity get() = activity as? MainActivity
     private lateinit var recordingsStore: RecordingsStore
@@ -349,10 +386,19 @@ class ConversationsFragment : Fragment() {
         // that revert too, which a plain click listener avoids.
         fb.toggleContinuousListening.setOnClickListener { onContinuousToggleRequested(fb.toggleContinuousListening.isChecked) }
         applyContinuousUiState()
-        fb.textTranscript.text = combinedTranscript.toString()
+        fallbackAdapter = TranscriptAdapter(TranscriptAdapter.Mode.COMBINED) { entry -> reassignTurn(entry) }
+        fb.recyclerTranscript.layoutManager = LinearLayoutManager(requireContext())
+        fb.recyclerTranscript.adapter = fallbackAdapter
+        // This RecyclerView lives inside fragment_conversations.xml's own
+        // outer ScrollView (see that file's comment) - disabling nested
+        // scrolling keeps the whole screen scrolling as one region, exactly
+        // like the plain TextView it replaces did, instead of fighting the
+        // outer ScrollView for scroll events.
+        fb.recyclerTranscript.isNestedScrollingEnabled = false
         fb.textConversationStatus.text = statusText
         updateTurnIndicator()
         refreshRecordingsList()
+        refreshTranscriptViews()
     }
 
     private fun setupGenderToggle(fb: FragmentConversationsBinding) =
@@ -412,16 +458,21 @@ class ConversationsFragment : Fragment() {
         applyContinuousUiState()
         mb.paneTop.textPaneStatus.text = statusText
         mb.paneBottom.textPaneStatus.text = statusText
-        renderPane(paneATranscript, mb.paneTop.textPaneTranscript, mb.paneTop.scrollPaneTranscript)
-        renderPane(paneBTranscript, mb.paneBottom.textPaneTranscript, mb.paneBottom.scrollPaneTranscript)
+        paneAAdapter = TranscriptAdapter(TranscriptAdapter.Mode.PANE) { entry -> reassignTurn(entry) }
+        paneBAdapter = TranscriptAdapter(TranscriptAdapter.Mode.PANE) { entry -> reassignTurn(entry) }
+        mb.paneTop.recyclerPaneTranscript.layoutManager = LinearLayoutManager(requireContext())
+        mb.paneTop.recyclerPaneTranscript.adapter = paneAAdapter
+        mb.paneBottom.recyclerPaneTranscript.layoutManager = LinearLayoutManager(requireContext())
+        mb.paneBottom.recyclerPaneTranscript.adapter = paneBAdapter
         updateTurnIndicator()
+        refreshTranscriptViews()
     }
 
     // ---------------------------------------------------------------------
     // Large-screen side-by-side view binding (docs/specs/galaxy-tab-s9fe-adaptation.md).
     // paneLeft == "A"'s pane, paneRight == "B"'s pane - reuses the exact same
-    // view_conversation_pane.xml include and paneATranscript/paneBTranscript
-    // state as bindMirroredView above, just with no rotation and no runtime
+    // view_conversation_pane.xml include and transcriptEntries state as
+    // bindMirroredView above, just with no rotation and no runtime
     // hinge-driven geometry (a static 50/50 XML weight is enough - there's
     // no hinge to size around).
     // ---------------------------------------------------------------------
@@ -440,10 +491,15 @@ class ConversationsFragment : Fragment() {
         applyContinuousUiState()
         lb.paneLeft.textPaneStatus.text = statusText
         lb.paneRight.textPaneStatus.text = statusText
-        renderPane(paneATranscript, lb.paneLeft.textPaneTranscript, lb.paneLeft.scrollPaneTranscript)
-        renderPane(paneBTranscript, lb.paneRight.textPaneTranscript, lb.paneRight.scrollPaneTranscript)
+        paneAAdapter = TranscriptAdapter(TranscriptAdapter.Mode.PANE) { entry -> reassignTurn(entry) }
+        paneBAdapter = TranscriptAdapter(TranscriptAdapter.Mode.PANE) { entry -> reassignTurn(entry) }
+        lb.paneLeft.recyclerPaneTranscript.layoutManager = LinearLayoutManager(requireContext())
+        lb.paneLeft.recyclerPaneTranscript.adapter = paneAAdapter
+        lb.paneRight.recyclerPaneTranscript.layoutManager = LinearLayoutManager(requireContext())
+        lb.paneRight.recyclerPaneTranscript.adapter = paneBAdapter
         updateTurnIndicator()
         refreshRecordingsList()
+        refreshTranscriptViews()
     }
 
     // ---------------------------------------------------------------------
@@ -478,49 +534,102 @@ class ConversationsFragment : Fragment() {
     }
 
     // ---------------------------------------------------------------------
-    // Transcript
+    // Transcript - see class doc's "Tap-to-fix reassign affordance" section.
+    // addTurn/addTranslation/addFailureNote are the only ways entries get
+    // added (called from onMicTap's onFinal for manual turns and from
+    // continuousListener.onUtteranceFinal for auto-detected turns);
+    // reassignTurn is the only way an entry's side ever changes after the
+    // fact. Every mutation ends in refreshTranscriptViews(), which is the
+    // only place that talks to the actual RecyclerView adapters - so there's
+    // exactly one path from "the data changed" to "the UI reflects it",
+    // regardless of which of the three layouts is currently inflated.
     // ---------------------------------------------------------------------
 
-    private fun appendCombinedTranscript(line: String) {
-        if (combinedTranscript.isNotEmpty()) combinedTranscript.append("\n")
-        combinedTranscript.append(line)
-        fallbackBinding?.textTranscript?.text = combinedTranscript.toString()
+    /** Starts a new turn: the speaker's original transcribed words. Returns the turnId its translation (or failure note) should share. */
+    private fun addTurn(speakerIsA: Boolean, text: String, langCode: String, auto: Boolean, basis: String? = null): Long {
+        val turnId = nextTurnId++
+        transcriptEntries.add(
+            TranscriptEntry(
+                id = nextEntryId++, turnId = turnId, speakerIsA = speakerIsA, own = true,
+                text = text, langCode = langCode, auto = auto, basis = basis
+            )
+        )
+        refreshTranscriptViews()
+        return turnId
     }
 
-    /** @param own true if this line is the pane's own speaker's original words; false if it's a translation of the other side. */
-    private fun appendPaneEntry(paneIsA: Boolean, text: String, own: Boolean) {
-        val builder = if (paneIsA) paneATranscript else paneBTranscript
-        val label = if (own) "You" else "Them"
-        // Newest first - see view_conversation_pane.xml's comment on why this
-        // keeps the most recent line nearest the hinge in both panes.
-        val newLine = "$label: $text"
-        if (builder.isEmpty()) builder.append(newLine) else builder.insert(0, "$newLine\n")
+    /** Adds the translation half of a turn started by [addTurn]. Looks up the turn's CURRENT speakerIsA rather than trusting a captured value, in case a reassign tap landed in the gap while translation was in flight. */
+    private fun addTranslation(turnId: Long, text: String, langCode: String, auto: Boolean) {
+        transcriptEntries.add(
+            TranscriptEntry(
+                id = nextEntryId++, turnId = turnId, speakerIsA = currentSpeakerIsA(turnId), own = false,
+                text = text, langCode = langCode, auto = auto
+            )
+        )
+        refreshTranscriptViews()
+    }
 
-        mirroredBinding?.let { mb ->
-            if (paneIsA) {
-                renderPane(paneATranscript, mb.paneTop.textPaneTranscript, mb.paneTop.scrollPaneTranscript)
-            } else {
-                renderPane(paneBTranscript, mb.paneBottom.textPaneTranscript, mb.paneBottom.scrollPaneTranscript)
+    /** Adds a non-reassignable failure note in place of a translation - same format the old appendCombinedTranscript("   (translation failed: ...)") line used, now shown in every layout instead of just the fallback one. */
+    private fun addFailureNote(turnId: Long, text: String, langCode: String) {
+        transcriptEntries.add(
+            TranscriptEntry(
+                id = nextEntryId++, turnId = turnId, speakerIsA = currentSpeakerIsA(turnId), own = false,
+                text = text, langCode = langCode, auto = false, failed = true
+            )
+        )
+        refreshTranscriptViews()
+    }
+
+    private fun currentSpeakerIsA(turnId: Long): Boolean =
+        transcriptEntries.firstOrNull { it.turnId == turnId }?.speakerIsA ?: true
+
+    /**
+     * The reassign affordance itself (docs/specs/fold5-adaptation.md §4):
+     * flips [TranscriptEntry.speakerIsA] to the SAME new value on every
+     * entry sharing [entry]'s turnId (never toggled independently per
+     * entry), so the original-speech bubble and its translation always move
+     * together to the opposite pane. Called from a tapped bubble in any of
+     * the three layouts' RecyclerViews (see TranscriptAdapter's onReassign).
+     */
+    private fun reassignTurn(entry: TranscriptEntry) {
+        val newSpeakerIsA = !entry.speakerIsA
+        var changed = false
+        for (e in transcriptEntries) {
+            if (e.turnId == entry.turnId) {
+                e.speakerIsA = newSpeakerIsA
+                changed = true
             }
+        }
+        if (changed) {
+            Log.i(TAG, "reassign: turnId=${entry.turnId} -> ${if (newSpeakerIsA) "A" else "B"}")
+            refreshTranscriptViews()
+        }
+    }
+
+    /** The one place that pushes [transcriptEntries] out to whichever layout's adapter(s) are currently live. */
+    private fun refreshTranscriptViews() {
+        if (fallbackBinding != null) {
+            fallbackAdapter?.submitList(transcriptEntries.toList())
+        }
+        // Newest first, per pane - matches the pre-RecyclerView behavior
+        // (view_conversation_pane.xml's comment on inserting newest at the
+        // top so it lands nearest the hinge).
+        val paneAList = transcriptEntries.filter { it.paneIsA }.asReversed()
+        val paneBList = transcriptEntries.filterNot { it.paneIsA }.asReversed()
+        mirroredBinding?.let { mb ->
+            paneAAdapter?.submitList(paneAList) { mb.paneTop.recyclerPaneTranscript.scrollToPosition(0) }
+            paneBAdapter?.submitList(paneBList) { mb.paneBottom.recyclerPaneTranscript.scrollToPosition(0) }
         }
         largeBinding?.let { lb ->
-            if (paneIsA) {
-                renderPane(paneATranscript, lb.paneLeft.textPaneTranscript, lb.paneLeft.scrollPaneTranscript)
-            } else {
-                renderPane(paneBTranscript, lb.paneRight.textPaneTranscript, lb.paneRight.scrollPaneTranscript)
-            }
+            paneAAdapter?.submitList(paneAList) { lb.paneLeft.recyclerPaneTranscript.scrollToPosition(0) }
+            paneBAdapter?.submitList(paneBList) { lb.paneRight.recyclerPaneTranscript.scrollToPosition(0) }
         }
-    }
-
-    private fun renderPane(source: StringBuilder, textView: TextView, scroll: ScrollView) {
-        textView.text = source.toString()
-        scroll.post { scroll.scrollTo(0, 0) }
     }
 
     // ---------------------------------------------------------------------
     // Mic / recognition / translation flow - unchanged logic from before
     // this pass, just reading state from fields and writing through the
-    // setStatus/appendCombinedTranscript/appendPaneEntry helpers above so it
+    // setStatus/addTurn/addTranslation/addFailureNote helpers above so it
     // works identically regardless of which layout is currently inflated.
     // ---------------------------------------------------------------------
 
@@ -569,24 +678,21 @@ class ConversationsFragment : Fragment() {
                 override fun onFinal(text: String) {
                     if (contentContainer == null) return
                     setStatus("")
-                    val who = if (turnIsA) "A" else "B"
                     val speakerIsA = turnIsA
-                    appendCombinedTranscript("$who (${LanguageCatalog.displayNameFor(speakerLang())}): $text")
-                    appendPaneEntry(speakerIsA, text, own = true)
                     val srcCode = speakerLang()
                     val dstCode = listenerLang()
+                    val turnId = addTurn(speakerIsA, text, srcCode, auto = false)
                     TranslationEngine.translate(srcCode, dstCode, text,
                         onResult = onResult@{ translated ->
                             if (contentContainer == null) return@onResult
-                            appendCombinedTranscript("   → (${LanguageCatalog.displayNameFor(dstCode)}): $translated")
-                            appendPaneEntry(!speakerIsA, translated, own = false)
+                            addTranslation(turnId, translated, dstCode, auto = false)
                             val router = mainActivity?.app?.tts
                             router?.speak(translated, dstCode, selectedGender(), onDone = { switchTurn() }, onError = { switchTurn() })
                                 ?: switchTurn()
                         },
                         onError = onError@{ err ->
                             if (contentContainer == null) return@onError
-                            appendCombinedTranscript("   (translation failed: $err)")
+                            addFailureNote(turnId, "(translation failed: $err)", dstCode)
                             switchTurn()
                         }
                     )
@@ -755,10 +861,7 @@ class ConversationsFragment : Fragment() {
             if (contentContainer == null) return
             setStatus("Translating…")
             val speakerIsA = result.pickedLang == langACode
-            appendCombinedTranscript(
-                "${if (speakerIsA) "A" else "B"} (${LanguageCatalog.displayNameFor(result.pickedLang)}) [auto, ${result.decisionBasis}]: ${result.text}"
-            )
-            appendPaneEntry(speakerIsA, result.text, own = true)
+            val turnId = addTurn(speakerIsA, result.text, result.pickedLang, auto = true, basis = result.decisionBasis)
 
             val dstCode = result.otherLang
             TranslationEngine.translate(result.pickedLang, dstCode, result.text,
@@ -766,8 +869,7 @@ class ConversationsFragment : Fragment() {
                     if (contentContainer == null) return@onResult
                     val translateDoneNanos = System.nanoTime()
                     setStatus("Listening… (auto-detects ${LanguageCatalog.displayNameFor(langACode)} / ${LanguageCatalog.displayNameFor(langBCode)})")
-                    appendCombinedTranscript("   → (${LanguageCatalog.displayNameFor(dstCode)}) [auto]: $translated")
-                    appendPaneEntry(!speakerIsA, translated, own = false)
+                    addTranslation(turnId, translated, dstCode, auto = true)
                     val router = mainActivity?.app?.tts ?: return@onResult
                     router.speak(
                         translated, dstCode, selectedGender(),
@@ -801,7 +903,7 @@ class ConversationsFragment : Fragment() {
                 onError = onError@{ err ->
                     if (contentContainer == null) return@onError
                     setStatus("Listening… (auto-detects ${LanguageCatalog.displayNameFor(langACode)} / ${LanguageCatalog.displayNameFor(langBCode)})")
-                    appendCombinedTranscript("   (translation failed: $err)")
+                    addFailureNote(turnId, "(translation failed: $err)", dstCode)
                 }
             )
         }
@@ -871,6 +973,9 @@ class ConversationsFragment : Fragment() {
         fallbackBinding = null
         mirroredBinding = null
         largeBinding = null
+        fallbackAdapter = null
+        paneAAdapter = null
+        paneBAdapter = null
         layoutInitialized = false
     }
 
