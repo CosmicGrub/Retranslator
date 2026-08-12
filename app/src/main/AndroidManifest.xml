@@ -13,6 +13,27 @@
          permission). -->
     <uses-permission android:name="android.permission.RECORD_AUDIO" />
 
+    <!-- Wake-lock reliability fix (docs/specs/fold5-adaptation.md §4): scoped
+         ONLY to Conversations' continuous-listening mode (ContinuousListeningService),
+         acquired/released around that session, never a blanket always-on lock
+         for the app. WAKE_LOCK backs the PARTIAL_WAKE_LOCK that keeps the CPU
+         scheduled for the mic-capture/VAD/dual-recognizer-decode threads
+         through a screen lock; FOREGROUND_SERVICE + FOREGROUND_SERVICE_MICROPHONE
+         are required by Android 14 (this project's targetSdk) to run a
+         foreground service that keeps capturing microphone audio once the
+         app is no longer in the foreground - without the microphone-typed
+         foreground service, the OS can refuse to deliver mic audio at all
+         once backgrounded, independent of any battery-management killing.
+         POST_NOTIFICATIONS lets that foreground service's persistent
+         "Listening for conversation..." notification actually display on
+         Android 13+ (the service itself still runs without it, but the
+         honest visible indicator - the whole reason a foreground service
+         was chosen over a silent wake lock - would silently not show). -->
+    <uses-permission android:name="android.permission.WAKE_LOCK" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MICROPHONE" />
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+
     <application
         android:name=".TranslatorApp"
         android:allowBackup="true"
@@ -61,6 +82,17 @@
             android:name=".prototype.ContinuousFlowProtoActivity"
             android:exported="true"
             android:label="Continuous Flow Prototype (debug)" />
+
+        <!-- Wake-lock reliability fix (docs/specs/fold5-adaptation.md §4) -
+             see ContinuousListeningService's own class doc for the full
+             rationale. Not exported (only ConversationsFragment, in this
+             same app process, ever starts/stops it); foregroundServiceType
+             declared per Android 14's requirement (developer.android.com/
+             about/versions/14/changes/fgs-types-required). -->
+        <service
+            android:name=".audio.ContinuousListeningService"
+            android:exported="false"
+            android:foregroundServiceType="microphone" />
     </application>
 
 </manifest>

@@ -55,6 +55,21 @@ class MainActivity : AppCompatActivity() {
         }
 
     /**
+     * Wake-lock reliability fix (docs/specs/fold5-adaptation.md §4):
+     * ContinuousListeningService's persistent "Listening for conversation..."
+     * notification needs this runtime-granted on Android 13+ to actually be
+     * shown to the user - the foreground service itself still starts and
+     * keeps the mic pipeline alive even if this is denied (Android does not
+     * gate starting a foreground service on POST_NOTIFICATIONS, only on
+     * whether its notification is visible), so denial is not fatal to the
+     * feature, just to the honest-visibility half of why a foreground
+     * service was chosen over a silent wake lock. No error Toast on denial
+     * for that reason - unlike mic permission, this isn't a hard blocker.
+     */
+    private val notificationPermissionLauncher =
+        registerForActivityResult(ActivityResultContracts.RequestPermission()) { }
+
+    /**
      * Which of the three settings-managed tabs (see [SettingsTab]) is
      * currently on screen - null while Conversations is showing (excluded
      * from the layout-variant system, see [SettingsTab]'s doc comment) or
@@ -83,6 +98,7 @@ class MainActivity : AppCompatActivity() {
         }
 
         requestMicPermissionIfNeeded()
+        requestNotificationPermissionIfNeeded()
 
         val bottomNav = findViewById<BottomNavigationView>(R.id.bottomNav)
         if (savedInstanceState == null) {
@@ -341,6 +357,14 @@ class MainActivity : AppCompatActivity() {
     fun requestMicPermissionIfNeeded() {
         if (!hasMicPermission()) {
             micPermissionLauncher.launch(Manifest.permission.RECORD_AUDIO)
+        }
+    }
+
+    private fun requestNotificationPermissionIfNeeded() {
+        if (android.os.Build.VERSION.SDK_INT < android.os.Build.VERSION_CODES.TIRAMISU) return // permission didn't exist before API 33
+        val granted = ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS) == PackageManager.PERMISSION_GRANTED
+        if (!granted) {
+            notificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
         }
     }
 
