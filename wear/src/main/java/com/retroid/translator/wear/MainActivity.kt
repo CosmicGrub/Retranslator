@@ -14,7 +14,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -44,28 +43,39 @@ class MainActivity : ComponentActivity() {
 
     private lateinit var controller: TranslateController
 
+    /**
+     * Real bug found via on-device testing (docs/specs/watch6-classic-adaptation.md
+     * "hard technical question" pass): this MUST be a Compose state read
+     * directly by the callback below, not re-checked synchronously right
+     * after calling `.launch()` in the click handler. `launch()` only
+     * *starts* the system permission Activity - it returns immediately,
+     * long before the user has answered the dialog - so a same-stack-frame
+     * `hasRecordAudioPermission()` call after it always observes the
+     * pre-grant state. Confirmed on the real Watch6 Classic: tapping
+     * "While using app" on the real system dialog genuinely granted the
+     * permission (`adb shell dumpsys package` showed
+     * `RECORD_AUDIO: granted=true`) but the UI kept showing "Grant mic"
+     * until this fix, because the Composable never got told. The permission
+     * *system* worked correctly the whole time; this was purely a
+     * state-plumbing bug in this new code.
+     */
+    private var micPermissionGranted by mutableStateOf(false)
+
     private val requestMicPermission = registerForActivityResult(
         ActivityResultContracts.RequestPermission()
-    ) { /* result observed via hasRecordAudioPermission() on next recomposition trigger below */ }
+    ) { granted -> micPermissionGranted = granted }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         controller = TranslateController(applicationContext)
+        micPermissionGranted = hasRecordAudioPermission()
 
         setContent {
-            var permissionGranted by remember { mutableStateOf(hasRecordAudioPermission()) }
             WearTranslateApp(
                 controller = controller,
-                micPermissionGranted = permissionGranted,
+                micPermissionGranted = micPermissionGranted,
                 onRequestMicPermission = {
                     requestMicPermission.launch(Manifest.permission.RECORD_AUDIO)
-                    // Wear Compose has no permission-result callback wired
-                    // into recomposition here without a full ViewModel/Flow
-                    // setup (out of scope for this pass's single screen) -
-                    // re-check synchronously right after the system dialog
-                    // returns control, which is good enough for a single
-                    // grant/deny tap.
-                    permissionGranted = hasRecordAudioPermission()
                 }
             )
         }

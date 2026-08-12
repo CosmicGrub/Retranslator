@@ -56,6 +56,17 @@ class TranslateController(private val context: Context) {
 
     private var activeRecognizer: Recognizer? = null
 
+    init {
+        // Answers this pass's central "hard technical question" (see spec)
+        // without needing a real downloaded model: does Vosk's native/JNI
+        // layer load and execute at all on this device's real ABI? Logged
+        // at startup, unconditionally, tag VOSK_NATIVE_PROBE - grep for it
+        // in the spec's real logcat evidence.
+        vosk.probeNativeLoad { outcome, detail ->
+            Log.i("VOSK_NATIVE_PROBE", "outcome=$outcome detail=$detail")
+        }
+    }
+
     fun cycleSourceLang() {
         if (state != ListenState.IDLE) return
         val idx = WearLanguages.CURATED.indexOf(sourceLang)
