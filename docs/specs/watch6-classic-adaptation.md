@@ -156,6 +156,8 @@ Per the task brief's minimum bar ("at least scaffold the listener/service, not f
 
 **Neither side is called from any real UI flow.** This is a real, compiling starting point for a follow-up sync pass, not a functional feature — matching the task brief's explicit priority ("standalone first, sync is layered on top, cut sync before you cut standalone").
 
+**Build verification**: `./gradlew :app:assembleDebug` → **BUILD SUCCESSFUL**, 39/39 tasks executed, confirming the phone-side addition doesn't break the existing, already-verified phone app. Only pre-existing warnings survived (same ones already on record in `docs/specs/fold5-adaptation.md`'s own build-verification notes — `DownloadManager.kt`'s deprecated `nextTarEntry`, `LearnFragment.kt`'s deprecated APIs, `TranslateFragment.kt:822`'s duplicate-label warning) — no new warnings introduced.
+
 ## 8. Emulator setup
 
 Per the task brief, checked what was already installed before assuming a fresh Android Studio SDK install was needed. Two SDK installations exist on this machine:
