@@ -85,11 +85,29 @@ class TranslateController(private val context: Context) {
 
     fun isSourceModelDownloaded(): Boolean = vosk.isModelDownloaded(sourceLang.code)
 
-    /** Real download path, deliberately never invoked by this pass's own automated verification - see class doc / spec's honest-gaps section. */
-    fun downloadSourceModel(onDone: (Boolean, String?) -> Unit) {
+    /**
+     * Downloads the current [sourceLang]'s Vosk STT pack. Requires explicit
+     * user consent per language before being called - see this class's
+     * call site in `MainActivity`'s Compose UI (the "Download X" button
+     * only exists because the user directly authorized these specific
+     * downloads; do not wire this to auto-trigger on language selection).
+     * Manages [state]/[statusMessage] itself, same pattern [startListening]
+     * already uses, so the Compose UI's recomposition picks up progress and
+     * completion without the caller needing its own callback.
+     */
+    fun downloadSourceModel() {
+        if (state == ListenState.LOADING_MODEL) return
+        state = ListenState.LOADING_MODEL
+        statusMessage = "Downloading ${sourceLang.displayName} pack..."
         val dir = vosk.modelRootDir(sourceLang.code)
         com.retroid.translator.wear.engine.DownloadManager.downloadAndUnzip(
-            context, sourceLang.voskUrl, dir, requireWifi = true, onDone = onDone
+            context, sourceLang.voskUrl, dir, requireWifi = true,
+            onDone = { success, error ->
+                mainHandler.post {
+                    state = ListenState.IDLE
+                    statusMessage = if (success) "Tap to start listening" else (error ?: "Download failed")
+                }
+            }
         )
     }
 

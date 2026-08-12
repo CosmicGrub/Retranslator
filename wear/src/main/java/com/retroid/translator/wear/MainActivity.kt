@@ -105,9 +105,21 @@ fun WearTranslateApp(
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.spacedBy(4.dp)
             ) {
+                // Two separate compact controls, not one combined chip: the
+                // combined "X -> Y" label was tap-to-cycle-source only, and
+                // with no way to move target off its default (Spanish),
+                // source could never reach Spanish either - cycleSourceLang's
+                // own skip-if-equals-target logic permanently locked it out.
+                // Real gap, not a display nit - any language pair selection
+                // needs both directions changeable.
                 Chip(
                     onClick = { controller.cycleSourceLang() },
-                    label = { Text("${controller.sourceLang.displayName} -> ${controller.targetLang.displayName}") },
+                    label = { Text(controller.sourceLang.displayName) },
+                    colors = ChipDefaults.primaryChipColors()
+                )
+                Chip(
+                    onClick = { controller.cycleTargetLang() },
+                    label = { Text("-> ${controller.targetLang.displayName}") },
                     colors = ChipDefaults.secondaryChipColors()
                 )
 
@@ -122,10 +134,23 @@ fun WearTranslateApp(
                         Text("Grant mic")
                     }
                 } else if (!controller.isSourceModelDownloaded()) {
-                    Text(
-                        "${controller.sourceLang.displayName} pack not downloaded",
-                        textAlign = TextAlign.Center,
-                        style = MaterialTheme.typography.caption2
+                    // Chip, not Button: Wear Compose's Button is circular/
+                    // compact and wraps longer labels badly mid-word on a
+                    // round screen (confirmed on real hardware) - Chip is
+                    // the wider pill shape already used for the language
+                    // selectors above, and fits this label properly.
+                    Chip(
+                        onClick = { controller.downloadSourceModel() },
+                        label = {
+                            Text(
+                                if (controller.state == ListenState.LOADING_MODEL)
+                                    "Downloading..."
+                                else
+                                    "Download ${controller.sourceLang.displayName}"
+                            )
+                        },
+                        colors = ChipDefaults.primaryChipColors(),
+                        enabled = controller.state != ListenState.LOADING_MODEL
                     )
                 } else {
                     Button(
