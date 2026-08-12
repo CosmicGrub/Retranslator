@@ -1,5 +1,6 @@
 package com.retroid.translator.ui
 
+import android.content.Intent
 import android.media.MediaPlayer
 import android.os.Bundle
 import android.util.Log
@@ -27,6 +28,8 @@ import com.retroid.translator.databinding.FragmentConversationsBinding
 import com.retroid.translator.databinding.FragmentConversationsLargeBinding
 import com.retroid.translator.databinding.FragmentConversationsMirroredBinding
 import com.retroid.translator.databinding.ItemRecordingBinding
+import androidx.core.content.ContextCompat
+import com.retroid.translator.audio.ContinuousListeningService
 import com.retroid.translator.audio.MicPipeline
 import com.retroid.translator.audio.RecordingsStore
 import com.retroid.translator.conversation.ContinuousConversationController
@@ -805,6 +808,13 @@ class ConversationsFragment : Fragment() {
                 continuousController = controller
                 continuousEnabled = true
                 applyContinuousUiState()
+                // Start the wake-lock/foreground-service backing (see
+                // ContinuousListeningService's class doc) BEFORE the mic
+                // pipeline itself, so the CPU-wake guarantee and Android
+                // 14's mic-typed foreground-service requirement are both in
+                // place before the first audio chunk can arrive, not raced
+                // against it.
+                startContinuousListeningService()
                 mainActivity?.app?.mic?.startContinuousListening(controller.micListener)
                 setStatus("Listening… (auto-detects ${LanguageCatalog.displayNameFor(a)} / ${LanguageCatalog.displayNameFor(b)})")
             }
@@ -815,6 +825,7 @@ class ConversationsFragment : Fragment() {
         mainActivity?.app?.mic?.stop()
         continuousController?.reset()
         continuousEnabled = false
+        stopContinuousListeningService()
         setStatus("")
         applyContinuousUiState()
     }
@@ -825,10 +836,23 @@ class ConversationsFragment : Fragment() {
         continuousController?.reset()
         continuousController = null
         continuousEnabled = false
+        stopContinuousListeningService()
         continuousEngineA?.release()
         continuousEngineB?.release()
         continuousEngineA = null
         continuousEngineB = null
+    }
+
+    /** See ContinuousListeningService's class doc for the full lifecycle contract this pairs with. */
+    private fun startContinuousListeningService() {
+        val ctx = context ?: return
+        ContextCompat.startForegroundService(ctx, Intent(ctx, ContinuousListeningService::class.java))
+    }
+
+    /** Safe to call even if the service was never started (no-op) - every stop path below calls this unconditionally rather than tracking "did we start it" separately. */
+    private fun stopContinuousListeningService() {
+        val ctx = context ?: return
+        ctx.stopService(Intent(ctx, ContinuousListeningService::class.java))
     }
 
     private val continuousListener = object : ContinuousConversationController.Listener {
@@ -954,12 +978,33 @@ class ConversationsFragment : Fragment() {
 
     override fun onPause() {
         super.onPause()
-        mainActivity?.app?.mic?.stop()
-        // Full stop (not just reset()) so continuousEnabled/the toggle UI
-        // don't go stale while paused - leaving continuousEnabled=true here
-        // with the mic actually stopped would show "on" for a session that
-        // isn't really listening once the tab is backgrounded.
-        if (continuousEnabled) stopContinuousMode()
+        // Deliberate lifecycle divergence, disclosed here (wake-lock
+        // reliability fix, docs/specs/fold5-adaptation.md §4): this used to
+        // unconditionally call mic.stop() + stopContinuousMode() here,
+        // which also fires on a mere screen lock (Fragment.onPause() runs
+        // whenever the hosting Activity pauses, including screen-off via
+        // the power button, not just real navigation away) - meaning
+        // continuous listening was being silently torn down by this exact
+        // code the moment the screen locked, which is the precise failure
+        // mode ContinuousListeningService now exists to survive. Tearing it
+        // down here would make that fix a no-op, since onPause would always
+        // win the race before the service/wake lock ever got a chance to
+        // matter.
+        //
+        // Tap-to-talk (non-continuous) capture has no such requirement -
+        // there is no expectation a one-shot recording should keep running
+        // through a screen lock, so it still stops here exactly as before.
+        // Continuous listening now only stops via: explicit toggle-off
+        // (stopContinuousMode, still calls mic.stop() itself), an
+        // unrecoverable error (startContinuousMode's own revert paths,
+        // which never reach continuousEnabled = true in the first place),
+        // the Fragment's view actually going away (onDestroyView ->
+        // releaseContinuousEngines, e.g. switching tabs or the Activity
+        // being torn down for real), or the app being swiped away from
+        // Recents entirely (ContinuousListeningService.onTaskRemoved).
+        if (!continuousEnabled) {
+            mainActivity?.app?.mic?.stop()
+        }
         player?.release()
         player = null
     }

@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Status-bar/notification small icon for ContinuousListeningService's
+     persistent "Listening for conversation..." notification (see that
+     class's doc comment). A plain white mic-glyph silhouette, matching what
+     Android expects for a status-bar icon (System UI auto-masks/tints
+     small icons to a flat color on API 21+ regardless of the fill set here,
+     so a solid white glyph on a transparent background renders correctly in
+     both light and dark status bars). Standard mic-glyph path shape - not a
+     vendored asset, hand-written here the same way the project's other
+     small vector drawables (bg_chip_filled.xml etc.) are. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24"
+    android:tint="#FFFFFFFF">
+    <path
+        android:fillColor="#FF000000"
+        android:pathData="M12,14c1.66,0 3,-1.34 3,-3L15,5c0,-1.66 -1.34,-3 -3,-3S9,3.34 9,5v6c0,1.66 1.34,3 3,3z M17,11c0,2.76 -2.24,5 -5,5s-5,-2.24 -5,-5L5,11c0,3.53 2.61,6.43 6,6.92L11,21h2v-3.08c3.39,-0.49 6,-3.39 6,-6.92h-2z" />
+</vector>
