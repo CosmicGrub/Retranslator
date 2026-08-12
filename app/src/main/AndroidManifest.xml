@@ -34,6 +34,27 @@
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MICROPHONE" />
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
 
+    <!-- Camera OCR translate (docs/specs/fold5-adaptation.md "Camera OCR
+         translate" section): single-shot capture only (CameraCaptureActivity
+         takes one frame and runs on-device ML Kit Text Recognition on it,
+         same "processes one frame, not a live stream" design already used
+         nowhere else in this app but chosen for the same offline/no-cloud
+         reasons everything else here is offline). Requested at runtime too
+         (dangerous permission), same pattern MainActivity already uses for
+         RECORD_AUDIO. -->
+    <uses-permission android:name="android.permission.CAMERA" />
+    <!-- Declares this device needs a camera for the feature to be offered,
+         but doesn't require ANY camera specifically (autofocus not assumed -
+         the Retroid Pocket 2+'s camera hardware is weak/fixed-focus) and
+         doesn't make the whole app uninstallable on a hypothetical
+         camera-less device (required="false"). -->
+    <uses-feature
+        android:name="android.hardware.camera"
+        android:required="false" />
+    <uses-feature
+        android:name="android.hardware.camera.autofocus"
+        android:required="false" />
+
     <application
         android:name=".TranslatorApp"
         android:allowBackup="true"
@@ -83,6 +104,18 @@
             android:exported="true"
             android:label="Continuous Flow Prototype (debug)" />
 
+        <!-- Throwaway debug entry point for the Camera OCR translate feature
+             (docs/specs/fold5-adaptation.md "Camera OCR translate" section) -
+             see OcrTestActivity's own class doc for exactly why this exists
+             alongside the real CameraCaptureActivity. Same exported=true
+             rationale as the other prototype activities above (Android 16
+             blocks `adb shell am start` of a non-exported activity even in a
+             debuggable app). Not linked from any nav flow, off the launcher. -->
+        <activity
+            android:name=".prototype.OcrTestActivity"
+            android:exported="true"
+            android:label="OCR Engine Test (debug)" />
+
         <!-- Wake-lock reliability fix (docs/specs/fold5-adaptation.md §4) -
              see ContinuousListeningService's own class doc for the full
              rationale. Not exported (only ConversationsFragment, in this
@@ -93,6 +126,18 @@
             android:name=".audio.ContinuousListeningService"
             android:exported="false"
             android:foregroundServiceType="microphone" />
+
+        <!-- Camera OCR translate (docs/specs/fold5-adaptation.md "Camera OCR
+             translate" section): reachable only from TranslateFragment's new
+             camera button, launched via startActivityForResult and returning
+             the recognized text as an Intent extra - not exported, no
+             intent-filter, off the launcher, same "internal-only Activity"
+             shape as this app's other non-launcher activities above. -->
+        <activity
+            android:name=".ocr.CameraCaptureActivity"
+            android:exported="false"
+            android:theme="@style/Theme.RetroidTranslator"
+            android:screenOrientation="unspecified" />
     </application>
 
 </manifest>

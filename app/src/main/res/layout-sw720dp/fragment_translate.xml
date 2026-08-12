@@ -218,6 +218,22 @@
                     android:contentDescription="Voice input"
                     android:src="@android:drawable/ic_btn_speak_now" />
 
+                <!-- Camera OCR translate (docs/specs/fold5-adaptation.md
+                     "Camera OCR translate" section) - same view ID as the
+                     phone layout (fragment_translate.xml), required so
+                     FragmentTranslateBinding.btnCamera stays non-null across
+                     both resource-qualifier variants; TranslateFragment.kt
+                     itself needed no changes for this variant, same as
+                     every other view ID here. -->
+                <ImageButton
+                    android:id="@+id/btnCamera"
+                    android:layout_width="56dp"
+                    android:layout_height="56dp"
+                    android:layout_marginStart="4dp"
+                    android:background="?attr/selectableItemBackgroundBorderless"
+                    android:contentDescription="Scan text with camera"
+                    android:src="@android:drawable/ic_menu_camera" />
+
                 <Button
                     android:id="@+id/btnTranslate"
                     android:layout_width="0dp"

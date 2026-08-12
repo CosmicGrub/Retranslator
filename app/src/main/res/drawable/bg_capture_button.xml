@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Plain white circle behind the camera-capture button (activity_camera_capture.xml) - same "simple shape drawable" approach already used elsewhere in this app's resources, no new asset pipeline needed. -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android"
+    android:shape="oval">
+    <solid android:color="#FFFFFF" />
+</shape>

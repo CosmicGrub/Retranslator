@@ -1,0 +1,106 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Camera OCR translate capture screen (docs/specs/fold5-adaptation.md
+  "Camera OCR translate" section). Deliberately the ONLY layout for this
+  feature - reachable from whichever Translate layout is currently active
+  (task instruction: "the capture screen itself should be
+  layout-variant-agnostic... rather than needing to be duplicated across all
+  8 variants"), so this file does not get cover/Flex variants the way
+  TranslateFragment's own layouts do.
+
+  Single-shot capture, not a live AR sweep: one large capture button, a
+  live CameraX PreviewView behind it so the user can frame the shot, and a
+  script picker (Latin default, plus Chinese on-demand) up top.
+-->
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="#000000">
+
+    <androidx.camera.view.PreviewView
+        android:id="@+id/previewView"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent" />
+
+    <!-- Top bar: close button + script picker + (conditionally) a download
+         button/status line for whichever non-bundled script is selected. -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_gravity="top"
+        android:orientation="vertical"
+        android:background="#88000000"
+        android:paddingHorizontal="12dp"
+        android:paddingVertical="8dp">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center_vertical">
+
+            <ImageButton
+                android:id="@+id/btnClose"
+                android:layout_width="40dp"
+                android:layout_height="40dp"
+                android:background="?attr/selectableItemBackgroundBorderless"
+                android:contentDescription="Close camera"
+                android:src="@android:drawable/ic_menu_close_clear_cancel"
+                app:tint="#FFFFFF" />
+
+            <Spinner
+                android:id="@+id/spinnerScript"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:layout_marginStart="8dp" />
+
+            <Button
+                android:id="@+id/btnDownloadScript"
+                style="@style/Widget.MaterialComponents.Button.OutlinedButton"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Download (Wi-Fi)"
+                android:textColor="#FFFFFF"
+                android:visibility="gone" />
+        </LinearLayout>
+
+        <TextView
+            android:id="@+id/textOcrStatus"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="4dp"
+            android:textColor="#FFFFFF"
+            android:textSize="13sp"
+            android:text="Point the camera at printed or on-screen text, then tap the button below." />
+    </LinearLayout>
+
+    <!-- Bottom bar: the one capture control. -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_gravity="bottom"
+        android:orientation="vertical"
+        android:gravity="center_horizontal"
+        android:background="#88000000"
+        android:paddingVertical="20dp">
+
+        <ProgressBar
+            android:id="@+id/progressRecognizing"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="10dp"
+            android:visibility="gone" />
+
+        <ImageButton
+            android:id="@+id/btnCapture"
+            android:layout_width="72dp"
+            android:layout_height="72dp"
+            android:background="@drawable/bg_capture_button"
+            android:contentDescription="Capture"
+            android:src="@android:drawable/ic_menu_camera"
+            app:tint="#000000" />
+    </LinearLayout>
+
+</FrameLayout>

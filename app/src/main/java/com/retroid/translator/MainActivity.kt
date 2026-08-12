@@ -70,6 +70,29 @@ class MainActivity : AppCompatActivity() {
         registerForActivityResult(ActivityResultContracts.RequestPermission()) { }
 
     /**
+     * Camera OCR translate (docs/specs/fold5-adaptation.md "Camera OCR
+     * translate" section) - same [ActivityResultContracts.RequestPermission]
+     * launcher pattern as [micPermissionLauncher] above, requested eagerly
+     * at startup for the same reason mic is (so it's very likely already
+     * granted by the time the user taps the new camera button, rather than
+     * making that tap the very first time they see the system prompt).
+     * [TranslateFragment][com.retroid.translator.ui.TranslateFragment]'s
+     * camera button also defensively re-checks/re-requests before
+     * launching the capture screen, mirroring [beginMicCapture]'s own
+     * defensive re-check for mic permission.
+     */
+    private val cameraPermissionLauncher =
+        registerForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
+            if (!granted) {
+                Toast.makeText(
+                    this,
+                    "Camera permission denied — the camera OCR translate button won't work until it's granted.",
+                    Toast.LENGTH_LONG
+                ).show()
+            }
+        }
+
+    /**
      * Which of the three settings-managed tabs (see [SettingsTab]) is
      * currently on screen - null while Conversations is showing (excluded
      * from the layout-variant system, see [SettingsTab]'s doc comment) or
@@ -99,6 +122,7 @@ class MainActivity : AppCompatActivity() {
 
         requestMicPermissionIfNeeded()
         requestNotificationPermissionIfNeeded()
+        requestCameraPermissionIfNeeded()
 
         val bottomNav = findViewById<BottomNavigationView>(R.id.bottomNav)
         if (savedInstanceState == null) {
@@ -357,6 +381,15 @@ class MainActivity : AppCompatActivity() {
     fun requestMicPermissionIfNeeded() {
         if (!hasMicPermission()) {
             micPermissionLauncher.launch(Manifest.permission.RECORD_AUDIO)
+        }
+    }
+
+    fun hasCameraPermission(): Boolean =
+        ContextCompat.checkSelfPermission(this, Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED
+
+    fun requestCameraPermissionIfNeeded() {
+        if (!hasCameraPermission()) {
+            cameraPermissionLauncher.launch(Manifest.permission.CAMERA)
         }
     }
 

@@ -176,6 +176,19 @@
                 android:contentDescription="Voice input"
                 android:src="@android:drawable/ic_btn_speak_now" />
 
+            <!-- Camera OCR translate (docs/specs/fold5-adaptation.md "Camera
+                 OCR translate" section) - positioned alongside the mic
+                 button, same spot/size/background style, since both are
+                 alternate ways of getting text into the same input flow. -->
+            <ImageButton
+                android:id="@+id/btnCamera"
+                android:layout_width="48dp"
+                android:layout_height="48dp"
+                android:layout_marginStart="4dp"
+                android:background="?attr/selectableItemBackgroundBorderless"
+                android:contentDescription="Scan text with camera"
+                android:src="@android:drawable/ic_menu_camera" />
+
             <Button
                 android:id="@+id/btnTranslate"
                 android:layout_width="0dp"

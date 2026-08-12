@@ -9,6 +9,7 @@ Built as an alternative to installing existing translator apps or relying on pai
 ## Features
 
 - **Translate** — text translation across ~59 languages (Google ML Kit Translate), with automatic source-language detection (ML Kit Language ID) and per-language-pair offline model downloads.
+- **Camera OCR translate** — point the camera at printed or on-screen text (a book, a label, a sign) and translate it: single-shot capture (not a live AR overlay), on-device ML Kit Text Recognition v2 (Latin script bundled in the APK, Chinese available as an on-demand Play-services download), feeding straight into the same translate pipeline typed/spoken text already uses. See `docs/specs/fold5-adaptation.md` §9 for design details and real on-device verification.
 - **Conversations** — a turn-taking two-way interpreter mode: listen (source language) → translate → speak (target language) → switch turn, with a live transcript and optional per-turn audio recording.
 - **Practice** — pronunciation practice: hear a reference pronunciation via offline text-to-speech, record your own attempt, and play both back to compare by ear. (No automated pronunciation scoring — this is a listen-and-compare tool, not a grader.)
 - **Offline speech-to-text** — [Vosk](https://alphacephei.com/vosk/) (Apache-2.0), 25 languages available as on-demand-downloaded models, fully offline after download.

@@ -1,7 +1,9 @@
 package com.retroid.translator.ui
 
+import android.app.Activity
 import android.app.AlertDialog
 import android.content.Context
+import android.content.Intent
 import android.content.SharedPreferences
 import android.os.Bundle
 import android.os.Handler
@@ -20,6 +22,7 @@ import android.widget.LinearLayout
 import android.widget.Spinner
 import android.widget.TextView
 import android.widget.Toast
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.core.content.ContextCompat
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.Lifecycle
@@ -53,6 +56,7 @@ import com.retroid.translator.engine.VoskResultParsing
 import com.retroid.translator.fold.FoldPosture
 import com.retroid.translator.fold.FoldPostureProvider
 import com.retroid.translator.fold.FoldState
+import com.retroid.translator.ocr.CameraCaptureActivity
 import com.retroid.translator.settings.FoldAwareLayoutHost
 import com.retroid.translator.settings.LayoutPreferences
 import com.retroid.translator.settings.ScreenMode
@@ -186,6 +190,27 @@ class TranslateFragment : Fragment(), FoldAwareLayoutHost {
     private val languageIdentifier by lazy { LanguageIdentification.getClient() }
     private lateinit var foldPostureProvider: FoldPostureProvider
     private var layoutPrefsListener: SharedPreferences.OnSharedPreferenceChangeListener? = null
+
+    /**
+     * Camera OCR translate (docs/specs/fold5-adaptation.md "Camera OCR
+     * translate" section) - registered unconditionally at field-init time
+     * (required by [androidx.activity.result.ActivityResultCaller], same
+     * rule Activities follow for their own launchers). Only wired up on
+     * [ActiveLayout.DEFAULT] (see `bindDefault`'s doc note on why the other
+     * 7 layouts don't get this entry point this pass) but the launcher
+     * itself is layout-agnostic - it just hands recognized text into
+     * [performTranslate] exactly like the mic flow already does.
+     */
+    private val cameraCaptureLauncher = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
+        if (result.resultCode != Activity.RESULT_OK) return@registerForActivityResult
+        val text = result.data?.getStringExtra(CameraCaptureActivity.EXTRA_RECOGNIZED_TEXT)
+        Log.i(TAG, "Camera OCR returned to TranslateFragment: \"$text\"")
+        if (contentContainer == null || text.isNullOrBlank()) return@registerForActivityResult
+        defaultBinding?.editInput?.setText(text)
+        defaultBinding?.editInput?.setSelection(text.length)
+        lastInputText = text
+        performTranslate(text)
+    }
 
     private var currentPosture: FoldPosture = FoldPosture.NO_FOLDING_FEATURE
     private var currentFeature: FoldingFeature? = null
@@ -654,6 +679,24 @@ class TranslateFragment : Fragment(), FoldAwareLayoutHost {
         beginMicCapture(speakCode, statusSetter, onTranscribed)
     }
 
+    /**
+     * Camera OCR translate entry point (docs/specs/fold5-adaptation.md
+     * "Camera OCR translate" section). Same permission-check-then-toast
+     * shape as [beginMicCapture]'s mic-permission check just above, for the
+     * camera permission instead - if it's not granted yet, this both
+     * triggers the request (so the very next tap after granting works) and
+     * gives immediate feedback rather than silently doing nothing.
+     */
+    private fun launchCameraCapture() {
+        val activity = mainActivity ?: return
+        if (!activity.hasCameraPermission()) {
+            activity.requestCameraPermissionIfNeeded()
+            toast("Grant camera permission, then try again", long = true)
+            return
+        }
+        cameraCaptureLauncher.launch(Intent(activity, CameraCaptureActivity::class.java))
+    }
+
     private fun recentPairs(): List<Pair<String, String>> {
         val seen = LinkedHashSet<Pair<String, String>>()
         for (e in transcript) {
@@ -726,6 +769,20 @@ class TranslateFragment : Fragment(), FoldAwareLayoutHost {
     // =======================================================================
     // "default" - the tab's original full layout, reused unchanged for both
     // book-portrait/non-fold AND ScreenMode.COVER's "default" variant.
+    //
+    // Camera OCR translate's entry button (btnCamera, launchCameraCapture)
+    // lives ONLY here, deliberately not duplicated across the other 7
+    // layouts (single_circle/live_transcript/face_to_face/flex_default/
+    // across_table/multi_broadcast/mirror_panes) - a scope decision, not an
+    // oversight: this is the tab's primary, full-featured, most-used
+    // layout, and the capture screen itself
+    // (com.retroid.translator.ocr.CameraCaptureActivity) is already fully
+    // layout-variant-agnostic (it doesn't know or care which of the 8
+    // layouts launched it), satisfying the task's actual requirement
+    // ("don't duplicate the capture screen 8 times"). Adding the entry
+    // button to the other 7 - several of which are narrow cover-screen
+    // widgets with an already-full button set - was left out of this pass
+    // rather than rushed in unverified.
     // =======================================================================
 
     private fun bindDefault(b: FragmentTranslateBinding) {
@@ -767,6 +824,7 @@ class TranslateFragment : Fragment(), FoldAwareLayoutHost {
                 performTranslate(text)
             }
         }
+        b.btnCamera.setOnClickListener { launchCameraCapture() }
         b.btnSpeak.setOnClickListener { speakLastResult() }
         if (lastInputText.isNotEmpty()) b.editInput.setText(lastInputText)
 

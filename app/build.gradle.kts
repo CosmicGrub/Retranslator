@@ -80,6 +80,51 @@ dependencies {
     implementation("com.google.mlkit:translate:17.0.2")
     implementation("com.google.mlkit:language-id:17.0.5")
 
+    // Camera OCR translate (docs/specs/fold5-adaptation.md "Camera OCR
+    // translate" section). CameraX for the capture UI - this app had zero
+    // existing camera code before this feature. The actual latest stable
+    // release is 1.5.1, but it requires compileSdk 35 + AGP 8.6+ (confirmed
+    // by a real, failed build attempt: `checkDebugAarMetadata` rejected it
+    // against this project's compileSdk 34 / AGP 8.3.2) - bumping the
+    // whole project's compileSdk/AGP/Gradle wrapper to chase the newest
+    // CameraX point release was judged out of scope for this feature (a
+    // wider-reaching, riskier change than this task called for), so this
+    // pins to 1.3.4, the last 1.3.x stable release, confirmed compatible
+    // with this project's existing compileSdk 34 by that same real build
+    // succeeding once pinned here. camera-core comes in transitively via
+    // camera-camera2/camera-lifecycle/camera-view, not declared separately.
+    implementation("androidx.camera:camera-camera2:1.3.4")
+    implementation("androidx.camera:camera-lifecycle:1.3.4")
+    implementation("androidx.camera:camera-view:1.3.4")
+
+    // ML Kit Text Recognition v2, Latin script - bundled variant
+    // (com.google.mlkit, not com.google.android.gms:play-services-mlkit-*):
+    // the model ships inside the APK (~4MB) and is available immediately,
+    // no RemoteModelManager-style download step exists for it at all (this
+    // differs from Translate/Language-ID above, which DO use
+    // RemoteModelManager - Text Recognition's bundled variant simply has no
+    // download to gate). Covers every Latin-alphabet language this app
+    // already supports (English, Spanish, French, German, ...) - the large
+    // majority of real camera-OCR use.
+    implementation("com.google.mlkit:text-recognition:16.0.1")
+
+    // One additional, on-demand non-Latin script pack - Chinese - using the
+    // UNBUNDLED Play-services variant instead, specifically because it DOES
+    // have genuine on-demand-download semantics (unlike the bundled
+    // artifacts above), which lets this feature's "script pack not
+    // downloaded yet" edge case be real rather than hypothetical. This is a
+    // real, different download mechanism from RemoteModelManager -
+    // com.google.android.gms.common.moduleinstall.ModuleInstallClient - not
+    // a re-skin of the existing pattern; see OcrEngine.kt's doc comment for
+    // why. Japanese/Korean/Devanagari packs are NOT added this pass: they'd
+    // mirror this exact same ModuleInstallClient code path per-script, but
+    // no real Japanese/Korean/Devanagari text sample was available this
+    // session to verify them end-to-end on-device, and this project's house
+    // style doesn't ship an unverified code path just because it would
+    // compile - see the spec's Camera OCR section for the full reasoning.
+    implementation("com.google.android.gms:play-services-mlkit-text-recognition-chinese:16.0.1")
+    implementation("com.google.android.gms:play-services-base:18.5.0")
+
     // Vosk - fully offline, open-source (Apache-2.0) on-device speech-to-text.
     // No cloud, no API key. Native libs + JNA come bundled in the AAR.
     implementation("com.alphacephei:vosk-android:0.3.75")
