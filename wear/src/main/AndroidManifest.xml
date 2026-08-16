@@ -15,6 +15,33 @@
          listening, see MicPipeline). Requested at runtime as well. -->
     <uses-permission android:name="android.permission.RECORD_AUDIO" />
 
+    <!-- Wake-lock / foreground-service reliability fix
+         (docs/specs/watch6-classic-adaptation.md "Continuous-listening
+         reliability" follow-up item, porting the CONCEPT of the phone app's
+         fix at docs/specs/fold5-adaptation.md §4 - see
+         audio/ContinuousListeningService.kt's own doc comment for the
+         wear-specific adaptations, not a copy-paste). Scoped ONLY to
+         continuous/ambient listening (TranslateController.startListening),
+         never a blanket always-on lock. WAKE_LOCK backs the
+         PARTIAL_WAKE_LOCK that keeps the CPU scheduled for MicPipeline's
+         capture thread and the active Vosk Recognizer through a screen
+         lock; FOREGROUND_SERVICE + FOREGROUND_SERVICE_MICROPHONE are
+         required by Android 14+ (this module's targetSdk 34, and the real
+         Watch6 Classic's actual OS, Android 16/API 36, well above that
+         floor) to keep capturing microphone audio once the app is no
+         longer in the foreground - without the microphone-typed
+         foreground service, the OS can refuse to deliver mic audio at all
+         once backgrounded. POST_NOTIFICATIONS lets the foreground
+         service's persistent "Listening…" indicator actually display on
+         Android 13+ (the service and wake lock still run without it -
+         denial isn't fatal to the feature itself, only to its visible-
+         indicator half, same reasoning as the phone app's identical
+         permission). -->
+    <uses-permission android:name="android.permission.WAKE_LOCK" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MICROPHONE" />
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+
     <application
         android:name=".WearTranslatorApp"
         android:allowBackup="true"
@@ -42,6 +69,18 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+
+        <!-- Wake-lock / foreground-service reliability fix - see
+             audio/ContinuousListeningService.kt's own doc comment for the
+             full rationale and its wear-specific adaptations vs. the phone
+             app's ContinuousListeningService. Not exported (only
+             TranslateController, in this same app process, ever starts/
+             stops it); foregroundServiceType declared per Android 14's
+             requirement, same as the phone app's own manifest entry. -->
+        <service
+            android:name=".audio.ContinuousListeningService"
+            android:exported="false"
+            android:foregroundServiceType="microphone" />
 
     </application>
 
