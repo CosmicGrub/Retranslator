@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Modern backup/transfer-exclusion rules (android:dataExtractionRules),
+  API 31+. See backup_rules.xml's doc comment for why each path is excluded
+  and why both files exist (this app's minSdk 28 predates this mechanism).
+  cloud-backup covers Android's Auto Backup to Google's cloud;
+  device-transfer covers the wired/Wi-Fi old-device-to-new-device copy flow
+  (D2D) - recordings of a conversation partner's voice have no more business
+  auto-transferring to a new device than auto-backing-up to the cloud, so
+  both are excluded the same way.
+-->
+<data-extraction-rules>
+    <cloud-backup>
+        <exclude domain="file" path="recordings/" />
+        <exclude domain="file" path="vosk-models/" />
+        <exclude domain="file" path="piper-voices/" />
+    </cloud-backup>
+    <device-transfer>
+        <exclude domain="file" path="recordings/" />
+        <exclude domain="file" path="vosk-models/" />
+        <exclude domain="file" path="piper-voices/" />
+    </device-transfer>
+</data-extraction-rules>

@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Legacy backup-exclusion rules (android:fullBackupContent), used on API
+  23-30. Superseded by data_extraction_rules.xml on API 31+, but this app's
+  minSdk is 28, so both are needed to actually cover the supported range -
+  declaring only dataExtractionRules would silently leave API 28-30 devices
+  unprotected.
+
+  Excludes: recordings/ (real user/conversation-partner voice audio -
+  RecordingsStore.kt writes here; this is the actual privacy-sensitive data
+  behind this file's existence, not the other two, which are excluded for
+  backup-quota/no-value-preserving reasons instead), vosk-models/ and
+  piper-voices/ (large, fully re-downloadable model packs - no privacy
+  content, but no reason to consume backup quota on multi-hundred-MB files
+  that download fresh on any new device anyway).
+-->
+<full-backup-content>
+    <exclude domain="file" path="recordings/" />
+    <exclude domain="file" path="vosk-models/" />
+    <exclude domain="file" path="piper-voices/" />
+</full-backup-content>

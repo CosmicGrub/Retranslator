@@ -244,7 +244,13 @@ class CameraCaptureActivity : AppCompatActivity() {
     /** No text detected is a real, disclosed outcome, not a silent no-op: a Toast plus a status line, and the capture screen stays open so the user can reposition and try again. */
     private fun onRecognized(text: String) {
         recognizing = false
-        Log.i(TAG, "OCR result (script=$selectedScript): \"$text\"")
+        // Metadata only, never the recognized text itself - it could be a
+        // photographed document, letter, ID, or other private content, and
+        // this is a shipped (non-debug-gated) log line, not a prototype one.
+        // Matches ConversationsFragment's CONTINUOUS_LATENCY line, which
+        // logs only timing/decision metadata and never transcript/
+        // translation text for the same reason.
+        Log.i(TAG, "OCR result: script=$selectedScript chars=${text.length} blank=${text.isBlank()}")
         if (text.isBlank()) {
             setBusy(false, "No text detected in that frame - reposition and try again.")
             Toast.makeText(this, "No text detected", Toast.LENGTH_SHORT).show()

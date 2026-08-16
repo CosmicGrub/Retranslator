@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Modern equivalent of backup_rules.xml (API 31+) - see that file's doc comment. -->
+<data-extraction-rules>
+    <cloud-backup>
+        <exclude domain="file" path="vosk-models/" />
+    </cloud-backup>
+    <device-transfer>
+        <exclude domain="file" path="vosk-models/" />
+    </device-transfer>
+</data-extraction-rules>

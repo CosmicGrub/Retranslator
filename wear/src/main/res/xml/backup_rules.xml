@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Legacy backup-exclusion rules (android:fullBackupContent), API 23-30 -
+  this module's minSdk is 30, so this is still needed alongside
+  data_extraction_rules.xml (API 31+) to cover the full supported range.
+
+  Unlike the phone app, :wear has no RecordingsStore-equivalent (no
+  conversation-recording feature here), so there's no privacy-sensitive
+  audio to exclude - just its own downloaded Vosk STT model packs
+  (WearLanguages/VoskEngine.modelRootDir), excluded for the same
+  backup-quota/no-value-preserving reason as the phone app's model packs:
+  large, fully re-downloadable, no reason to consume backup quota on a
+  16GB-total-storage device.
+-->
+<full-backup-content>
+    <exclude domain="file" path="vosk-models/" />
+</full-backup-content>

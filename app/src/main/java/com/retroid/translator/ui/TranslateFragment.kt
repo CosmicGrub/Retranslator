@@ -204,7 +204,10 @@ class TranslateFragment : Fragment(), FoldAwareLayoutHost {
     private val cameraCaptureLauncher = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
         if (result.resultCode != Activity.RESULT_OK) return@registerForActivityResult
         val text = result.data?.getStringExtra(CameraCaptureActivity.EXTRA_RECOGNIZED_TEXT)
-        Log.i(TAG, "Camera OCR returned to TranslateFragment: \"$text\"")
+        // Metadata only, not the text itself - see CameraCaptureActivity.onRecognized's
+        // matching comment for why (potentially private photographed content,
+        // shipped non-debug-gated log line).
+        Log.i(TAG, "Camera OCR returned to TranslateFragment: chars=${text?.length ?: 0}")
         if (contentContainer == null || text.isNullOrBlank()) return@registerForActivityResult
         defaultBinding?.editInput?.setText(text)
         defaultBinding?.editInput?.setSelection(text.length)
