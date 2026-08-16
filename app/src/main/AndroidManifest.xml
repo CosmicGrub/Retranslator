@@ -14,9 +14,11 @@
     <uses-permission android:name="android.permission.RECORD_AUDIO" />
 
     <!-- Wake-lock reliability fix (docs/specs/fold5-adaptation.md §4): scoped
-         ONLY to Conversations' continuous-listening mode (ContinuousListeningService),
-         acquired/released around that session, never a blanket always-on lock
-         for the app. WAKE_LOCK backs the PARTIAL_WAKE_LOCK that keeps the CPU
+         to continuous-listening sessions backed by ContinuousListeningService
+         (Conversations' continuous mode, and - as of the §4 "second surface"
+         update - Translate's single_circle cover widget's own opt-in
+         continuous toggle), acquired/released around each such session, never
+         a blanket always-on lock for the app. WAKE_LOCK backs the PARTIAL_WAKE_LOCK that keeps the CPU
          scheduled for the mic-capture/VAD/dual-recognizer-decode threads
          through a screen lock; FOREGROUND_SERVICE + FOREGROUND_SERVICE_MICROPHONE
          are required by Android 14 (this project's targetSdk) to run a
