@@ -35,6 +35,7 @@ import com.google.mlkit.nl.translate.TranslateLanguage
 import com.google.mlkit.nl.translate.TranslateRemoteModel
 import com.retroid.translator.MainActivity
 import com.retroid.translator.R
+import com.retroid.translator.audio.ContinuousListeningService
 import com.retroid.translator.audio.MicPipeline
 import com.retroid.translator.databinding.FragmentTranslateBinding
 import com.retroid.translator.databinding.FragmentTranslateCoverFaceToFaceBinding
@@ -160,6 +161,19 @@ class TranslateFragment : Fragment(), FoldAwareLayoutHost {
      * language pair, so it drives [MicPipeline.startContinuousListening]
      * with exactly one [Recognizer] - no dual-recognizer language-pick logic
      * needed here, just the same VAD/continuous-capture mechanism.
+     *
+     * **Wake-lock/foreground-service backing (docs/specs/fold5-adaptation.md
+     * §4's "§4 status update (2026-08-11)"), propagated to this second call
+     * site.** [ContinuousListeningService] is started right before
+     * [MicPipeline.startContinuousListening] in [startSingleCircleContinuous]
+     * and stopped on every path that ends this flag's "on" state - explicit
+     * toggle-off ([stopSingleCircleContinuous]), a layout switch away from
+     * this widget ([switchTo]), and the Fragment's view actually going away
+     * ([onDestroyView]) - but deliberately NOT by [onPause] alone, exactly
+     * mirroring [com.retroid.translator.ui.ConversationsFragment]'s own
+     * `continuousEnabled` field and its identical lifecycle contract. See
+     * [onPause]'s own comment for why a mere screen lock must not tear this
+     * down.
      */
     private var singleCircleContinuousEnabled = false
     private var singleCircleContinuousLoading = false
@@ -364,8 +378,14 @@ class TranslateFragment : Fragment(), FoldAwareLayoutHost {
         // about to be torn down below anyway) - reset it alongside the mic
         // stop above so a later re-entry into single_circle starts clean
         // rather than showing a stale "on" toggle for a session that already
-        // stopped.
+        // stopped. Unlike a mere screen lock (see onPause), swapping to a
+        // DIFFERENT one of the 8 layouts is a real "this widget is going
+        // away" event - single_circle's continuous mode has no business
+        // surviving that, so the wake-lock/foreground-service backing it
+        // (see startContinuousListeningService's doc) is stopped here too,
+        // unconditionally, same as the mic stop above.
         singleCircleContinuousEnabled = false
+        stopContinuousListeningService()
         container.removeAllViews()
         defaultBinding = null
         coverSingleCircleBinding = null
@@ -1087,6 +1107,15 @@ class TranslateFragment : Fragment(), FoldAwareLayoutHost {
             }
             singleCircleContinuousEnabled = true
             circleState = CircleState.PROMPT
+            // Wake-lock/foreground-service reliability fix (docs/specs/fold5-adaptation.md
+            // §4's "§4 status update (2026-08-11)"), propagated to this second
+            // call site: start the same ContinuousListeningService
+            // ConversationsFragment.startContinuousMode already starts, BEFORE
+            // the mic pipeline itself, for the identical reason given there -
+            // the CPU-wake guarantee and Android 14's mic-typed
+            // foreground-service requirement must both be in place before the
+            // first audio chunk can arrive, not raced against it.
+            startContinuousListeningService()
             app.mic.startContinuousListening(singleCircleContinuousListener)
             current?.let { refreshSingleCircleContent(it) }
         }
@@ -1096,7 +1125,20 @@ class TranslateFragment : Fragment(), FoldAwareLayoutHost {
         mainActivity?.app?.mic?.stop()
         singleCircleContinuousEnabled = false
         circleState = CircleState.PROMPT
+        stopContinuousListeningService()
         coverSingleCircleBinding?.let { refreshSingleCircleContent(it) }
+    }
+
+    /** See ContinuousListeningService's class doc for the full lifecycle contract this pairs with - identical helper to ConversationsFragment's own, same service, second call site. */
+    private fun startContinuousListeningService() {
+        val ctx = context ?: return
+        ContextCompat.startForegroundService(ctx, Intent(ctx, ContinuousListeningService::class.java))
+    }
+
+    /** Safe to call even if the service was never started (no-op) - every stop path below calls this unconditionally rather than tracking "did we start it" separately. */
+    private fun stopContinuousListeningService() {
+        val ctx = context ?: return
+        ctx.stopService(Intent(ctx, ContinuousListeningService::class.java))
     }
 
     /**
@@ -1575,14 +1617,47 @@ class TranslateFragment : Fragment(), FoldAwareLayoutHost {
 
     override fun onPause() {
         super.onPause()
-        mainActivity?.app?.mic?.stop()
-        singleCircleContinuousEnabled = false
+        // Wake-lock/foreground-service reliability fix (docs/specs/fold5-adaptation.md
+        // §4's "§4 status update (2026-08-11)"), propagated here to
+        // single_circle's continuous mode - same deliberate lifecycle
+        // divergence ConversationsFragment.onPause already documents for its
+        // own continuous-listening toggle. This used to unconditionally call
+        // mic.stop() + reset singleCircleContinuousEnabled here, which also
+        // fires on a mere screen lock (Fragment.onPause() runs whenever the
+        // hosting Activity pauses, not just real navigation away) - meaning
+        // single_circle's continuous listening was being silently torn down
+        // by this exact code the moment the screen locked, before
+        // ContinuousListeningService's wake lock/foreground service ever got
+        // a chance to matter. This is now conditional: ordinary tap-to-talk
+        // and single_circle's own hold-to-talk gesture (neither of which set
+        // singleCircleContinuousEnabled) still stop on pause exactly as
+        // before - there is no expectation a one-shot capture should keep
+        // running through a screen lock. Continuous listening (once started)
+        // no longer stops merely because the Fragment paused - it keeps
+        // running, backed by the wake lock and foreground service, and only
+        // stops via: explicit toggle-off (stopSingleCircleContinuous, still
+        // calls mic.stop() itself), an unrecoverable error
+        // (startSingleCircleContinuous's own revert paths, which never reach
+        // singleCircleContinuousEnabled = true in the first place), switching
+        // to a different one of the 8 layouts (switchTo, a real "widget going
+        // away" event), the Fragment's view actually going away (onDestroyView,
+        // below), or the app being swiped away from Recents entirely
+        // (ContinuousListeningService.onTaskRemoved).
+        if (!singleCircleContinuousEnabled) {
+            mainActivity?.app?.mic?.stop()
+        }
     }
 
     override fun onDestroyView() {
         super.onDestroyView()
+        // Unlike onPause above, a real view teardown (tab switched away via
+        // MainActivity.showTab's FragmentManager.replace, or the Activity
+        // being torn down for real) is a genuine end of this session, exactly
+        // like ConversationsFragment.releaseContinuousEngines - stop
+        // everything unconditionally here, continuous or not.
         mainActivity?.app?.mic?.stop()
         singleCircleContinuousEnabled = false
+        stopContinuousListeningService()
         unregisterLayoutPrefsListener()
         contentContainer = null
         defaultBinding = null
