@@ -2,6 +2,7 @@ package com.retroid.translator.wear
 
 import android.Manifest
 import android.content.pm.PackageManager
+import android.os.Build
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -65,10 +66,28 @@ class MainActivity : ComponentActivity() {
         ActivityResultContracts.RequestPermission()
     ) { granted -> micPermissionGranted = granted }
 
+    /**
+     * Wake-lock/foreground-service fix (see ContinuousListeningService's
+     * class doc): requested eagerly here, not gated behind a visible UI
+     * button the way mic permission is, because a denial isn't fatal to
+     * continuous listening itself - it only suppresses the persistent
+     * "Listening…" notification's visibility (Android doesn't gate
+     * starting a foreground service on this permission), so there's no
+     * app state that needs to react to the result the way
+     * [micPermissionGranted] does. No-op callback is deliberate, not an
+     * oversight.
+     */
+    private val requestNotificationPermission = registerForActivityResult(
+        ActivityResultContracts.RequestPermission()
+    ) { /* no-op - see doc above */ }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         controller = TranslateController(applicationContext)
         micPermissionGranted = hasRecordAudioPermission()
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            requestNotificationPermission.launch(Manifest.permission.POST_NOTIFICATIONS)
+        }
 
         setContent {
             WearTranslateApp(
