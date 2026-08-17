@@ -31,6 +31,36 @@ object WaveformReader {
     private const val HEADER_BYTES = 44
 
     /**
+     * Real clip duration in seconds, read directly from the WAV header this
+     * project's own [com.retroid.translator.audio.WavFileWriter] writes (byte
+     * offset 24: 4-byte little-endian sample rate; offset 40: 4-byte
+     * little-endian data-chunk size; 16-bit mono, so 2 bytes/sample) - not
+     * inferred from file length against an assumed constant sample rate,
+     * since MicPipeline/Practice recordings and other capture paths are not
+     * guaranteed to all share one rate. Returns 0f (never throws) on any
+     * missing/short/unreadable file, same failure contract as [readPeaks].
+     */
+    fun durationSeconds(file: File): Float = try {
+        RandomAccessFile(file, "r").use { raf ->
+            if (raf.length() < HEADER_BYTES) return 0f
+            val header = ByteArray(HEADER_BYTES)
+            raf.seek(0)
+            raf.readFully(header)
+            fun le32(offset: Int): Long =
+                (header[offset].toLong() and 0xFF) or
+                    ((header[offset + 1].toLong() and 0xFF) shl 8) or
+                    ((header[offset + 2].toLong() and 0xFF) shl 16) or
+                    ((header[offset + 3].toLong() and 0xFF) shl 24)
+            val sampleRate = le32(24)
+            val dataBytes = le32(40)
+            if (sampleRate <= 0) return 0f
+            (dataBytes / 2f) / sampleRate.toFloat() // 16-bit mono: 2 bytes/sample
+        }
+    } catch (e: Exception) {
+        0f
+    }
+
+    /**
      * [bucketCount] peak amplitudes, each normalized 0f..1f against the
      * loudest bucket in this same file (not a global scale - two different
      * files' bars are not directly comparable in absolute loudness, only in

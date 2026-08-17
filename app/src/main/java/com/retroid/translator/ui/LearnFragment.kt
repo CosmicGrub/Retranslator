@@ -933,7 +933,29 @@ class LearnFragment : Fragment(), FoldAwareLayoutHost {
         b.cardExerciseOverlay.visibility = View.GONE
         b.ringView.progress = if (ringQueue.isEmpty()) 1f else 0f
         b.ringView.setOnClickListener { onRingTapped(b) }
+        updateRingAccessibility(b)
         sizeRingViews(b)
+    }
+
+    /**
+     * Real due-review state for TalkBack - `ringView` carries actual
+     * progress via its drawn ring fill (`b.ringView.progress`) but that's
+     * purely visual; without this, TalkBack exposes nothing beyond
+     * "unlabeled, clickable". Reflects the same [ringQueue]/[ringDueDone]
+     * counts the visual ring animates from, kept in sync at bind time and
+     * after every answered review (see [onRingTapped]'s completion
+     * callback) - not a static label.
+     */
+    private fun updateRingAccessibility(b: FragmentLearnCoverProgressRingBinding) {
+        val total = ringQueue.size
+        b.ringView.contentDescription = when {
+            total == 0 -> "No reviews due today."
+            ringDueDone >= total -> "All $total reviews due today are done."
+            else -> {
+                val remaining = total - ringDueDone
+                "$remaining of $total reviews due today. Double tap to continue."
+            }
+        }
     }
 
     private fun sizeRingViews(b: FragmentLearnCoverProgressRingBinding) {
@@ -964,6 +986,7 @@ class LearnFragment : Fragment(), FoldAwareLayoutHost {
             handleAnswer(ref.exerciseKey, correct, isReview = true) {
                 ringDueDone++
                 b.ringView.animateProgressTo(ringDueDone.toFloat() / ringDueTotal.toFloat())
+                updateRingAccessibility(b)
                 hapticFeedback(b.cardExerciseOverlay, correct)
                 b.cardExerciseOverlay.postDelayed({ closeRingCard(b) }, RING_CLOSE_DELAY_MS)
             }
@@ -1411,6 +1434,7 @@ class LearnFragment : Fragment(), FoldAwareLayoutHost {
         val c = lessonCursor ?: return
         currentExerciseAnswered = false
         b.imageArcFeedback.visibility = View.INVISIBLE
+        b.imageArcFeedback.contentDescription = "Result not yet available"
         b.textArcStatus.text = ""
         val exercise = c.lesson.exercises[c.index]
         val isSpeaking = exercise.type == ExerciseType.SPEAKING
@@ -1502,6 +1526,14 @@ class LearnFragment : Fragment(), FoldAwareLayoutHost {
 
     private fun showArcFeedbackIcon(b: FragmentLearnFlexSpeakingArcBinding, correct: Boolean) {
         b.imageArcFeedback.setImageResource(if (correct) android.R.drawable.checkbox_on_background else android.R.drawable.ic_delete)
+        // The checkmark/x icon is this control's entire purpose - a static
+        // "Result" description told TalkBack nothing an outcome depends on.
+        // Set on every real attempt so it reflects what actually happened,
+        // not a placeholder. View.setContentDescription auto-fires a
+        // content-changed accessibility event, same mechanism the
+        // single_circle fix (docs/specs/fold5-adaptation.md §10) already
+        // relies on for its own live-updating description.
+        b.imageArcFeedback.contentDescription = if (correct) "Correct" else "Incorrect"
         b.imageArcFeedback.visibility = View.VISIBLE
     }
 

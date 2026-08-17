@@ -33,13 +33,23 @@
             android:textSize="19sp"
             android:textStyle="bold" />
 
+        <!--
+          contentDescription is intentionally NOT a static "Result" label -
+          it's the one piece of information this icon exists to convey
+          (correct vs incorrect), so LearnFragment.showArcFeedbackIcon sets
+          it to the real per-attempt outcome every time this becomes
+          visible. The XML default below is only what would show if some
+          future path made this visible without going through that
+          function; renderArcExercise also resets it back to this neutral
+          text whenever the icon is hidden again for a new exercise.
+        -->
         <ImageView
             android:id="@+id/imageArcFeedback"
             android:layout_width="48dp"
             android:layout_height="48dp"
             android:layout_marginTop="14dp"
             android:visibility="invisible"
-            android:contentDescription="Result" />
+            android:contentDescription="Result not yet available" />
 
         <TextView
             android:id="@+id/textArcStatus"

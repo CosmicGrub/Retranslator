@@ -41,7 +41,8 @@
                 android:id="@+id/switchAutoSwitchOnFold"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:layout_gravity="center_vertical" />
+                android:layout_gravity="center_vertical"
+                android:contentDescription="Auto-switch on fold: automatically switch the active tab to its cover-screen layout when you fold the device" />
         </LinearLayout>
 
         <View style="@style/SettingsHubDivider" android:layout_marginTop="8dp" android:layout_marginBottom="8dp" />
@@ -78,7 +79,8 @@
                 android:id="@+id/switchForceCompact"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:layout_gravity="center_vertical" />
+                android:layout_gravity="center_vertical"
+                android:contentDescription="Force compact layout: stay in the compact cover-style layout regardless of physical fold state" />
         </LinearLayout>
 
         <View style="@style/SettingsHubDivider" android:layout_marginTop="8dp" android:layout_marginBottom="8dp" />

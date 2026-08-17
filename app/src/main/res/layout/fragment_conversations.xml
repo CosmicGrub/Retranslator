@@ -133,13 +133,21 @@
           so this still scrolls as part of the outer ScrollView, exactly like
           the plain TextView it replaces did - no new nested-scroll UX.
         -->
+        <!--
+          accessibilityLiveRegion="polite" (not "assertive"): new turns
+          arriving during continuous listening (ContinuousConversationController)
+          should be announced to TalkBack without cutting off whatever the
+          user is currently doing - "polite" queues the announcement after
+          the current speech output finishes instead of interrupting it.
+        -->
         <androidx.recyclerview.widget.RecyclerView
             android:id="@+id/recyclerTranscript"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:minHeight="80dp"
             android:layout_marginTop="4dp"
-            android:clipToPadding="false" />
+            android:clipToPadding="false"
+            android:accessibilityLiveRegion="polite" />
 
         <TextView
             android:layout_width="wrap_content"
