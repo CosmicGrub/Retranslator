@@ -117,14 +117,16 @@
         app:cardCornerRadius="26dp"
         app:cardElevation="8dp"
         app:cardBackgroundColor="?attr/colorAccent"
-        android:layout_gravity="top|start">
+        android:layout_gravity="top|start"
+        android:contentDescription="Swap languages">
 
         <ImageView
             android:layout_width="26dp"
             android:layout_height="26dp"
             android:layout_gravity="center"
             android:src="@android:drawable/ic_menu_rotate"
-            android:tint="#FFFFFF" />
+            android:tint="#FFFFFF"
+            android:importantForAccessibility="no" />
     </androidx.cardview.widget.CardView>
 
 </FrameLayout>
