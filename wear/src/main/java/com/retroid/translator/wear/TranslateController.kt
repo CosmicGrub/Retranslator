@@ -17,6 +17,7 @@ import com.retroid.translator.wear.engine.VoskResultParsing
 import com.retroid.translator.wear.engine.WearLanguage
 import com.retroid.translator.wear.engine.WearLanguages
 import com.retroid.translator.wear.tts.SystemTtsSpeaker
+import com.retroid.translator.wear.tts.WearEspeakEngine
 import org.vosk.Recognizer
 
 enum class ListenState { IDLE, LOADING_MODEL, LISTENING, SPEECH_ACTIVE, TRANSLATING }
@@ -24,8 +25,12 @@ enum class ListenState { IDLE, LOADING_MODEL, LISTENING, SPEECH_ACTIVE, TRANSLAT
 /**
  * Owns the watch's standalone translate flow end to end: continuous/ambient
  * mic listening (MicPipeline) -> offline STT (VoskEngine) -> on-device
- * translation (TranslationEngine) -> speech output (SystemTtsSpeaker). Not a
- * port of anything from the phone app - Conversations' two-way,
+ * translation (TranslationEngine) -> speech output ([WearEspeakEngine],
+ * this app's own offline eSpeak NG voice, preferred; [SystemTtsSpeaker] as
+ * fallback when eSpeak isn't ready yet or doesn't cover the target
+ * language - see `WearEspeakEngine`'s doc comment for why an armeabi-v7a
+ * eSpeak build is now real, not the "not ported" state this controller
+ * originally shipped with). Not a port of anything from the phone app - Conversations' two-way,
  * dual-recognizer auto-detect model (ContinuousConversationController)
  * doesn't fit a single-user "pick source+target, watch listens and
  * translates" flow, so this is a new, simpler, single-recognizer
@@ -52,6 +57,7 @@ class TranslateController(private val context: Context) {
     private val mic = MicPipeline()
     private val vosk = VoskEngine(context)
     private val ttsSpeaker = SystemTtsSpeaker(context)
+    private val espeak = WearEspeakEngine(context)
 
     var sourceLang by mutableStateOf(WearLanguages.CURATED[0]) // English
         private set
@@ -76,6 +82,15 @@ class TranslateController(private val context: Context) {
         // in the spec's real logcat evidence.
         vosk.probeNativeLoad { outcome, detail ->
             Log.i("VOSK_NATIVE_PROBE", "outcome=$outcome detail=$detail")
+        }
+        // eSpeak init is a blocking asset-unpack (18MB espeak-ng-data,
+        // first run only) + native synth init - always off the main
+        // thread, same as the phone app's own EspeakEngine.initAsync usage.
+        // SystemTtsSpeaker stays the fallback if this fails or a language
+        // isn't covered (see speakTranslated below), so a slow/failed
+        // eSpeak init never blocks the flow.
+        espeak.initAsync { success ->
+            Log.i(TAG, "WearEspeakEngine init: success=$success")
         }
     }
 
@@ -208,9 +223,7 @@ class TranslateController(private val context: Context) {
                                 translated = result
                                 state = ListenState.LISTENING
                                 statusMessage = "Listening..."
-                                ttsSpeaker.speak(result, targetLang.code, onDone = {}, onError = { err ->
-                                    Log.w(TAG, "TTS speak failed: $err")
-                                })
+                                speakTranslated(result)
                             },
                             onError = { err ->
                                 statusMessage = "Translate failed: $err"
@@ -236,6 +249,29 @@ class TranslateController(private val context: Context) {
         }
     }
 
+    /**
+     * Speaks [text] in [targetLang], preferring this app's own offline
+     * eSpeak NG voice ([espeak]) and transparently falling back to the
+     * platform [ttsSpeaker] when eSpeak isn't ready or doesn't cover this
+     * language - same fallback shape as the phone app's `TtsRouter`
+     * (Piper -> eSpeak there; eSpeak -> system TTS here, one tier
+     * shallower since `:wear` has no Piper/sherpa-onnx voice wired in yet).
+     */
+    private fun speakTranslated(text: String) {
+        if (espeak.supportsLanguage(targetLang.code)) {
+            espeak.speak(text, targetLang.code, onDone = {}, onError = { err ->
+                Log.w(TAG, "eSpeak speak failed, falling back to system TTS: $err")
+                ttsSpeaker.speak(text, targetLang.code, onDone = {}, onError = { err2 ->
+                    Log.w(TAG, "TTS speak failed: $err2")
+                })
+            })
+        } else {
+            ttsSpeaker.speak(text, targetLang.code, onDone = {}, onError = { err ->
+                Log.w(TAG, "TTS speak failed: $err")
+            })
+        }
+    }
+
     private fun stopListening() {
         mic.stop()
         // Called directly here too, not left to the async
@@ -257,6 +293,7 @@ class TranslateController(private val context: Context) {
         stopListeningService()
         vosk.release()
         ttsSpeaker.release()
+        espeak.release()
     }
 
     /** See ContinuousListeningService's class doc for the full lifecycle contract this pairs with. */

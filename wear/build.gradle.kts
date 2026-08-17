@@ -136,15 +136,41 @@ dependencies {
     implementation("com.alphacephei:vosk-android:0.3.75")
     implementation("net.java.dev.jna:jna:5.18.1@aar")
 
-    // eSpeak NG / sherpa-onnx (Piper) - the phone app's own offline TTS
-    // engines - were NOT ported in this pass. Both are vendored in :app as
-    // prebuilt arm64-v8a-only .so files with no in-repo build recipe; the
-    // real target device's 32-bit-only ABI (see above) means those exact
-    // binaries could never load on real hardware regardless, and building
-    // 32-bit versions from source is a real undertaking, correctly scoped
-    // as follow-up work (see spec). This pass uses the Android system
-    // TextToSpeech API instead (com.google.android.tts, confirmed present
-    // and selectable as the default engine on the real Watch6 Classic via
-    // `adb shell pm list packages` - see spec) as an honest stand-in, not a
-    // silent gap.
+    // eSpeak NG - the phone app's own offline TTS floor - IS now ported.
+    // A follow-up pass (see spec's "eSpeak NG on :wear" section) found
+    // upstream espeak-ng's own official signed release APK
+    // (github.com/espeak-ng/espeak-ng/releases/download/1.52.0/
+    // espeak-1.52.0-signed.apk) already bundles a prebuilt
+    // lib/armeabi-v7a/libttsespeak.so alongside arm64-v8a - no NDK
+    // cross-compile needed, just extracting a second ABI from a release
+    // artifact this project's own arm64-v8a binary was already sourced
+    // from (confirmed byte-identical by sha256). Vendored at
+    // wear/src/main/jniLibs/armeabi-v7a/libttsespeak.so +
+    // wear/src/main/assets/espeak-ng-data (same asset :app ships). See
+    // com.retroid.translator.wear.tts.WearEspeakEngine's doc comment for
+    // the full verification trail and how this became the preferred TTS
+    // path, with SystemTtsSpeaker (below) as fallback.
+    //
+    // sherpa-onnx (Piper neural voices) was NOT ported this pass, despite
+    // the same investigation also finding official prebuilt armeabi-v7a
+    // binaries for both sherpa-onnx (the exact v1.13.4 release AAR :app
+    // already vendors bundles jni/armeabi-v7a/*.so, confirmed identical
+    // JNI symbol set to the vendored arm64-v8a build) AND ONNX Runtime
+    // itself (Maven Central's onnxruntime-android AAR ships
+    // jni/armeabi-v7a/libonnxruntime.so) - i.e. this path turned out more
+    // tractable than expected too, not a dead end. It was deliberately not
+    // wired into a live TTS path this pass because sherpa-onnx's Kotlin
+    // OfflineTts wrapper has a documented native-crash risk (see
+    // PiperTtsEngine.kt's own comment: an invalid/incomplete model config
+    // doesn't fail cleanly at construction, it segfaults on the next native
+    // call) when probed without a real, fully-downloaded Piper voice pack,
+    // and downloading one (~65MB) requires explicit user permission this
+    // unattended pass could not obtain - see spec for the full reasoning
+    // and what a follow-up pass would need to do to finish this.
+    //
+    // This pass uses the Android system TextToSpeech API as the remaining
+    // fallback (com.google.android.tts, confirmed present and selectable as
+    // the default engine on the real Watch6 Classic via
+    // `adb shell pm list packages` - see spec) for languages/moments eSpeak
+    // doesn't cover, not a silent gap.
 }

@@ -8,21 +8,16 @@ import java.util.Locale
 import java.util.UUID
 
 /**
- * Speech output for :wear, NOT a port of the phone app's [TtsRouter]/
- * [EspeakEngine]/[PiperTtsEngine] stack. Those are vendored as prebuilt
- * arm64-v8a-only `.so` files with no in-repo build recipe - and this pass's
- * real-device finding (docs/specs/watch6-classic-adaptation.md) is that the
- * real Watch6 Classic is 32-bit-ARM-only, so those exact binaries could
- * never load on it regardless of how they were wired in. Building
- * armeabi-v7a versions of eSpeak-ng/sherpa-onnx/onnxruntime from source is a
- * real, scoped-out-of-this-pass undertaking (see spec's recommended
- * follow-up work).
- *
- * This wraps the platform [TextToSpeech] API instead - confirmed present and
- * usable on the real device via `com.google.android.tts` being installed
- * (`adb shell pm list packages`, see spec) - as an honest, disclosed stand-in
- * for the phone app's own higher-quality offline engines, not a silent
- * feature downgrade.
+ * Fallback speech output for :wear, used when [com.retroid.translator.wear.tts.WearEspeakEngine]
+ * (the app's own offline eSpeak NG voice, preferred - see that class for why
+ * an armeabi-v7a eSpeak build turned out to be tractable after all) isn't
+ * ready yet or doesn't cover a given language. Historically this was
+ * `:wear`'s *only* TTS path - see the now-superseded reasoning in
+ * `WearEspeakEngine`'s own doc comment for what changed and why. This class
+ * itself is unmodified: wraps the platform [TextToSpeech] API, confirmed
+ * present and usable on the real device via `com.google.android.tts` being
+ * installed (`adb shell pm list packages`, see spec), as an honest,
+ * disclosed fallback rather than a silent feature downgrade.
  */
 class SystemTtsSpeaker(context: Context) {
     private var tts: TextToSpeech? = null
