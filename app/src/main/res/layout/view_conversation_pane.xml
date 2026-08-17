@@ -36,13 +36,19 @@
       ScrollView wrapping one growing TextView - a RecyclerView scrolls
       itself, so the outer ScrollView is gone too.
     -->
+    <!--
+      accessibilityLiveRegion="polite" (not "assertive"): new turns arriving
+      during continuous listening should be announced to TalkBack without
+      interrupting whatever the user is currently doing/hearing.
+    -->
     <androidx.recyclerview.widget.RecyclerView
         android:id="@+id/recyclerPaneTranscript"
         android:layout_width="match_parent"
         android:layout_height="0dp"
         android:layout_weight="1"
         android:layout_marginTop="4dp"
-        android:clipToPadding="false" />
+        android:clipToPadding="false"
+        android:accessibilityLiveRegion="polite" />
 
     <TextView
         android:id="@+id/textPaneStatus"

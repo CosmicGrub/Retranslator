@@ -52,7 +52,7 @@
             android:gravity="center"
             android:text="⇄"
             android:textSize="15sp"
-            android:contentDescription="Reassign to the other side"
+            android:contentDescription="Reassign this message to the other speaker"
             android:background="?attr/selectableItemBackgroundBorderless" />
     </LinearLayout>
 
