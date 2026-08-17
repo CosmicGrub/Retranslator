@@ -16,21 +16,34 @@ package com.retroid.translator.conversation
  * original transcribed speech ([own] = true, rendered as "You" in the
  * speaker's own pane) and its translation ([own] = false, rendered as
  * "Them" in the other pane) - or, on a translation failure, a single
- * [failed] note instead of a translation entry. [speakerIsA] is the only
- * mutable field on this class - reassigning a turn flips it to the SAME new
- * value on every entry sharing that [turnId] at once (see
- * `ConversationsFragment.reassignTurn`), which is enough to move every
- * bubble of that turn to the opposite pane (see [paneIsA]) without
- * re-decoding or re-translating anything. That is deliberate and matches
- * the spec precisely: "Commit to the best guess immediately... correction
- * happens after the fact, on the result itself, not through new persistent
- * UI" - this is a pure presentation-layer correction, not a re-run of
- * speech recognition or translation.
+ * [failed] note instead of a translation entry. Reassigning a turn flips
+ * [speakerIsA] to the SAME new value on every entry sharing that [turnId]
+ * at once (see `ConversationsFragment.reassignTurn`), which is enough to
+ * move every bubble of that turn to the opposite pane (see [paneIsA])
+ * without re-decoding or re-translating anything. That is deliberate and
+ * matches the spec precisely: "Commit to the best guess immediately...
+ * correction happens after the fact, on the result itself, not through new
+ * persistent UI" - this is a pure presentation-layer correction, not a
+ * re-run of speech recognition or translation.
+ *
+ * [speakerIsA] is `val`, not `var`, on purpose: `reassignTurn` replaces
+ * entries via `.copy(speakerIsA = ...)` rather than mutating a field in
+ * place. A prior version made it `var` and mutated it directly, which
+ * silently broke the reassign affordance's UI update - `TranscriptAdapter`'s
+ * `DiffUtil.ItemCallback` compares `oldItem`/`newItem` by field equality,
+ * but in-place mutation on the same object instances already held by the
+ * adapter's current list meant `oldItem`/`newItem` were literally the same
+ * object by the time the diff ran, so `areContentsTheSame` always returned
+ * true and the RecyclerView never rebound the changed row - confirmed live
+ * on real Fold 5 hardware (RFCW80CK2RW): logcat showed
+ * `reassign: turnId=0 -> B` firing correctly on every tap, but the bubble's
+ * displayed side never visually changed. Keeping this `val` makes that bug
+ * class structurally impossible to reintroduce.
  */
 data class TranscriptEntry(
     val id: Long,
     val turnId: Long,
-    var speakerIsA: Boolean,
+    val speakerIsA: Boolean,
     val own: Boolean,
     val text: String,
     val langCode: String,

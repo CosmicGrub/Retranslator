@@ -593,13 +593,20 @@ class ConversationsFragment : Fragment() {
      * entry), so the original-speech bubble and its translation always move
      * together to the opposite pane. Called from a tapped bubble in any of
      * the three layouts' RecyclerViews (see TranscriptAdapter's onReassign).
+     *
+     * Replaces matching entries with `.copy(speakerIsA = ...)` at their
+     * existing index rather than mutating a field in place - see
+     * [TranscriptEntry]'s doc comment for why in-place mutation silently
+     * broke this exact feature (DiffUtil couldn't tell the "old" and "new"
+     * item apart when both were the same object instance).
      */
     private fun reassignTurn(entry: TranscriptEntry) {
         val newSpeakerIsA = !entry.speakerIsA
         var changed = false
-        for (e in transcriptEntries) {
+        for (i in transcriptEntries.indices) {
+            val e = transcriptEntries[i]
             if (e.turnId == entry.turnId) {
-                e.speakerIsA = newSpeakerIsA
+                transcriptEntries[i] = e.copy(speakerIsA = newSpeakerIsA)
                 changed = true
             }
         }
