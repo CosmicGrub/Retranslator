@@ -78,33 +78,22 @@
             </intent-filter>
         </activity>
 
-        <!-- The three throwaway debug-prototype activities that used to live
+        <!-- The four throwaway debug-prototype activities that used to live
              here (DualRecognizerProtoActivity, ContinuousFlowProtoActivity,
-             OcrTestActivity - all docs/specs/fold5-adaptation.md §4/"Camera
-             OCR translate" spike entry points) have moved to
-             app/src/debug/AndroidManifest.xml, a debug-only Gradle source-set
-             overlay. They needed android:exported="true" purely so
-             `adb shell am start` could reach them for testing (Android 16
-             blocks `adb shell am start` of a non-exported activity even in a
-             debuggable app - see each Activity's own class doc), which meant
-             they were reachable release-build attack surface for no shipped
-             functionality. The debug source set is the idiomatic Android fix:
-             the manifest merger includes these declarations only in debug
-             builds, so they simply don't exist in a release APK/AAB at all,
-             rather than existing-but-hopefully-unreachable. -->
-
-        <!-- Throwaway debug entry point verifying the TranslationEngine.translate()
-             Wi-Fi gating fix (docs/ENGINES.md Translation-engines "Known
-             limits/gaps" #1) - see WifiGateTestActivity's own class doc for
-             the full bug/fix explanation and trigger sequence. Same
-             exported=true rationale as the other prototype activities above
-             (Android 16 blocks `adb shell am start` of a non-exported
-             activity even in a debuggable app). Not linked from any nav
-             flow, off the launcher. -->
-        <activity
-            android:name=".prototype.WifiGateTestActivity"
-            android:exported="true"
-            android:label="Wi-Fi Gate Test (debug)" />
+             OcrTestActivity, WifiGateTestActivity - all docs/specs/fold5-
+             adaptation.md §4/"Camera OCR translate" spike entry points, plus
+             WifiGateTestActivity verifying docs/ENGINES.md's Wi-Fi-gating
+             fix) have moved to app/src/debug/AndroidManifest.xml, a debug-
+             only Gradle source-set overlay. They needed android:exported=
+             "true" purely so `adb shell am start` could reach them for
+             testing (Android 16 blocks `adb shell am start` of a non-
+             exported activity even in a debuggable app - see each Activity's
+             own class doc), which meant they were reachable release-build
+             attack surface for no shipped functionality. The debug source
+             set is the idiomatic Android fix: the manifest merger includes
+             these declarations only in debug builds, so they simply don't
+             exist in a release APK/AAB at all, rather than existing-but-
+             hopefully-unreachable. -->
 
         <!-- Wake-lock reliability fix (docs/specs/fold5-adaptation.md §4) -
              see ContinuousListeningService's own class doc for the full

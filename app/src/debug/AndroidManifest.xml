@@ -2,11 +2,12 @@
 <!-- Debug-only Gradle source-set overlay (app/src/debug/), merged into
      app/src/main/AndroidManifest.xml only for debug builds - a release
      build never sees anything declared in this file. This is where the
-     three throwaway debug-prototype activities for
-     docs/specs/fold5-adaptation.md §4 / "Camera OCR translate" live, since
-     they exist purely for adb-triggered manual spikes/harnesses, are never
-     linked from any shipped nav flow, and have no reason to ship in a
-     release build at all. -->
+     four throwaway debug-prototype activities for
+     docs/specs/fold5-adaptation.md §4 / "Camera OCR translate" /
+     docs/ENGINES.md's Wi-Fi-gating fix live, since they exist purely for
+     adb-triggered manual spikes/harnesses, are never linked from any
+     shipped nav flow, and have no reason to ship in a release build at
+     all. -->
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
 
     <application>
@@ -58,6 +59,21 @@
             android:name=".prototype.OcrTestActivity"
             android:exported="true"
             android:label="OCR Engine Test (debug)" />
+
+        <!-- Throwaway debug entry point verifying the TranslationEngine.translate()
+             Wi-Fi gating fix (docs/ENGINES.md Translation-engines "Known
+             limits/gaps" #1) - see WifiGateTestActivity's own class doc for
+             the full bug/fix explanation and trigger sequence. Same
+             exported=true rationale as the other prototype activities above
+             (Android 16 blocks `adb shell am start` of a non-exported
+             activity even in a debuggable app). Not linked from any nav
+             flow, off the launcher. Debug-build-only (see this file's own
+             top-of-file comment) - this activity does not exist at all in a
+             release build. -->
+        <activity
+            android:name=".prototype.WifiGateTestActivity"
+            android:exported="true"
+            android:label="Wi-Fi Gate Test (debug)" />
 
     </application>
 
