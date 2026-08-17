@@ -97,7 +97,11 @@ object LearnCourseLoader {
         return assets.filter { it.endsWith("_course.json") }.map { it.removeSuffix("_course.json") }
     }
 
-    private fun parse(json: String): LearnCourse {
+    // internal (not private) so a plain-JVM unit test can parse the real
+    // shipped en_course.json directly without needing a mocked android
+    // Context - see LearnCourseLoaderTest. Pure parsing logic, no behavior
+    // change: still only called from load() within this file.
+    internal fun parse(json: String): LearnCourse {
         val root = JSONObject(json)
         val language = root.getString("language")
         val unitsArr = root.getJSONArray("units")

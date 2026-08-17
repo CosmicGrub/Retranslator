@@ -160,4 +160,16 @@ dependencies {
     // java.util.zip only understands zip/gzip. Apache Commons Compress
     // (Apache-2.0, Maven Central) is the standard, well-known library for this.
     implementation("org.apache.commons:commons-compress:1.26.1")
+
+    // Plain-JVM unit tests (src/test) - JUnit 4 only, no Robolectric/Espresso.
+    // Scope: pure-Kotlin logic with no Android-framework dependency (see
+    // docs/ENGINES.md's testing-infrastructure note for what's covered).
+    testImplementation("junit:junit:4.13.2")
+    // org.json.JSONObject is part of the Android SDK, so on the unit-test
+    // classpath it's normally the stub android.jar version (silently
+    // returns default/empty values instead of real parsing - no exception,
+    // so failures look like "parsed to blank" rather than a crash). This
+    // real implementation shadows that stub for src/test only, so
+    // VoskResultParsingTest actually exercises real JSON parsing.
+    testImplementation("org.json:json:20240303")
 }

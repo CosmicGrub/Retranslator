@@ -147,4 +147,9 @@ dependencies {
     // and selectable as the default engine on the real Watch6 Classic via
     // `adb shell pm list packages` - see spec) as an honest stand-in, not a
     // silent gap.
+
+    // Plain-JVM unit tests (src/test) - JUnit 4 only, no Robolectric/Espresso.
+    // Scope: pure-Kotlin logic with no Android-framework dependency (see
+    // docs/ENGINES.md's testing-infrastructure note for what's covered).
+    testImplementation("junit:junit:4.13.2")
 }

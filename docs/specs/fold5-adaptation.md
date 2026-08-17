@@ -129,6 +129,8 @@ The prototype's plausibility heuristic (`DualRecognizerPrototype.pickLanguage`) 
 
 The correct-language recognizer won every time, but margins were not uniform: English clips won by wide margins (0.2–0.7); two of the three Spanish clips (`es_1`, `es_3`) won by narrow margins (0.02–0.05) **in both runs**, consistently rather than by chance — suggesting the small Spanish model's confidence calibration runs closer to the English model's on some phrase shapes.
 
+**Test infrastructure note (2026-08-16)**: the real Spanish JSON blob above and this avgWordConf margin table are no longer just narrative evidence — they now back real, passing, plain-JVM unit tests in `app/src/test/java/com/retroid/translator/engine/VoskResultParsingTest.kt` (13 tests, including the `es_1`/`es_3` narrow-margin cases above and the `en_r2` empty-result/word-count-fallback failure mode from the 2026-08-10 update below), run via `./gradlew :app:testDebugUnitTest`. See `docs/ENGINES.md` §7 for the full test-infrastructure inventory (33 tests total across both modules) and what's still out of scope (Robolectric/Espresso/instrumented tests).
+
 **Vosk API / implementation surprises hit and resolved**:
 
 - The forced-mismatch decode is not silent garbage, it's a phonetically-plausible false transcription. Forcing the English recognizer to decode the Spanish "Quisiera una taza de café, por favor" clip produced `"keys you in on us on your coffee pot family"` (`avgWordConf` 0.695) — a coherent-looking, if nonsensical, English sentence, not empty output. This is exactly why the word-count fallback heuristic would have been much weaker than the word-confidence signal actually used (both recognizers "sound" like they found something).
