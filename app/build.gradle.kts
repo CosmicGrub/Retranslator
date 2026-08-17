@@ -83,7 +83,11 @@ dependencies {
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.7.3")
 
     // Google ML Kit - on-device, free, no API key, no billing.
-    implementation("com.google.mlkit:translate:17.0.2")
+    // translate bumped 17.0.2 -> 17.0.3: 17.0.2's libtranslate_jni.so ships
+    // with a 4KB-only PT_LOAD alignment, flagged by Android's 16KB page-size
+    // compatibility check (confirmed via direct ELF inspection); 17.0.3 is
+    // 16KB-aligned. See docs/specs/fold5-adaptation.md for the full audit.
+    implementation("com.google.mlkit:translate:17.0.3")
     implementation("com.google.mlkit:language-id:17.0.5")
 
     // Camera OCR translate (docs/specs/fold5-adaptation.md "Camera OCR

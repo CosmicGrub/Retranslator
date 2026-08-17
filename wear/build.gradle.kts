@@ -118,7 +118,11 @@ dependencies {
     // phone app (com.retroid.translator.engine.TranslationEngine on the
     // phone side). No native/JNI component, so no ABI concerns porting it
     // here - pure Kotlin/Java + Play-Services-backed downloads.
-    implementation("com.google.mlkit:translate:17.0.2")
+    // Bumped to 17.0.3 in lockstep with the phone app's dependency (17.0.2's
+    // libtranslate_jni.so fails the 16KB page-size alignment check on arm64;
+    // :wear doesn't ship arm64-v8a so isn't itself affected, but keeping the
+    // version pinned the same across modules avoids drift).
+    implementation("com.google.mlkit:translate:17.0.3")
 
     // Vosk - same offline on-device STT engine as the phone app. This is
     // this pass's central open question (see spec's "hard technical
