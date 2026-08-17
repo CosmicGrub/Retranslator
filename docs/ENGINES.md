@@ -268,6 +268,34 @@ Module tags: **(app)** = `:app` only, **(wear)** = `:wear` only, **(both)** = pr
 
 ---
 
+## 7. Test infrastructure
+
+| Module | Framework | Real coverage |
+|---|---|---|
+| `:app` | JUnit 4.13.2 (plain JVM, `src/test`) | 29 tests: `VoskResultParsing`, `LanguageCatalog.displayNameFor`, `TranscriptEntry.paneIsA`, `LearnModels`/`LearnCourseLoader` |
+| `:wear` | JUnit 4.13.2 (plain JVM, `src/test`) | 4 tests: `WearLanguages` |
+
+Before this pass, this project had zero automated tests anywhere — no `test`/`androidTest` source sets, no JUnit/Robolectric/Espresso dependency, in either module; every verification this project had ever done was manual, real-device testing (see every other section of this doc and `docs/specs/*-adaptation.md` for that evidence). A prior audit (`docs/specs/engines-inventory.md`) identified the concrete, low-friction first targets below; this section covers exactly those, not a generic test suite, and everything here runs on a plain JVM (no Android runtime, no emulator, no Robolectric).
+
+**`testImplementation("junit:junit:4.13.2")`** was added to both `app/build.gradle.kts` and `wear/build.gradle.kts` (`:app` also adds `testImplementation("org.json:json:20240303")` — see gap below). Neither addition touches a `implementation`/`api` block, so the production APK is unaffected; confirmed by a real `./gradlew clean :app:assembleDebug :wear:assembleDebug` after adding both dependencies (BUILD SUCCESSFUL, same pre-existing warnings as everywhere else in this doc, no new ones).
+
+- **`VoskResultParsingTest` (`app/src/test/java/com/retroid/translator/engine/VoskResultParsingTest.kt`, 13 tests)** — the best starting point per the audit: `VoskResultParsing.kt` has zero Android-framework dependency beyond `org.json.JSONObject`. Uses real captured data, not invented fixtures: the actual raw Vosk JSON for the Spanish recognizer decoding "¿Dónde está la estación de tren?" (`fold5-adaptation.md` §4, ~line 104-115) for `extractText`/`extractWordConfStats`, and the real `avgWordConf` margin table (`fold5-adaptation.md` §4, ~line 119-128) for `pickLanguage` — including the two narrow-margin real clips (`es_1`, `es_3`) and the documented real failure mode (the `en_r2` clip where the correct-language recognizer returned an empty result and the wrong-language recognizer won on the word-count fallback by hallucinating a full sentence).
+- **`LanguageCatalogTest`** (`app/.../engine/LanguageCatalogTest.kt`, 3 tests) — `LanguageCatalog.displayNameFor` only touches `java.util.Locale`, never `codes` (which needs a real ML Kit `TranslateLanguage` runtime, out of scope here).
+- **`TranscriptEntryTest`** (`app/.../conversation/TranscriptEntryTest.kt`, 3 tests) — `paneIsA`'s pure boolean transform, plus a regression test for the real `val`-not-`var` reassign bug documented in that class's own doc comment.
+- **`WearLanguagesTest`** (`wear/.../engine/WearLanguagesTest.kt`, 4 tests) — a duplicate-`code` invariant check across `CURATED` (asserts no two of the 12 curated languages share a code) plus `byCode` lookup/miss cases.
+- **`LearnModelsTest`** (`app/.../learn/LearnModelsTest.kt`, 6 tests) — `findLessonById`/`resolveExerciseKey` against a small hand-built course, including the literal-`#`-in-lesson-id edge case the doc comment calls out.
+- **`LearnCourseLoaderTest`** (`app/.../learn/LearnCourseLoaderTest.kt`, 4 tests) — parses the real, shipped `app/src/main/assets/learn/en_course.json` directly off disk (not a copy/fixture) and asserts the real shape (2 units, 2 lessons, 16 exercises) and real tatoebaId spot-checks (2258234 = "Good morning.", 1037732 = "My very educated mother just showed us nine planets.") already cited elsewhere in this doc. Required one visibility change: `LearnCourseLoader.parse` went from `private` to `internal` (doc comment explains why) so the test can call it directly without a mocked Android `Context` — purely a testability change, no behavior difference; `load()` still calls it the same way it always did.
+
+**Real gap found and fixed while building this**: on this project's AGP 8.3.2 setup, calling into `org.json.JSONObject` from a plain `src/test` unit test does not throw ("not mocked") the way Android's stub-jar unit-test docs describe — it silently succeeds and returns default/empty values (blank strings, `0`, `null`) with no exception at all, which is a worse failure mode than a crash (a parsing test would pass-but-lie, asserting on values `optString`/`optJSONArray` never actually produced). Fixed by adding `testImplementation("org.json:json:20240303")` to `:app` only (`:wear`'s `VoskResultParsing` port wasn't tested this pass), which shadows the stub with a real implementation for `src/test` alone — confirmed by running `VoskResultParsingTest` before/after: 4 of 13 tests silently returned blank/zero values without this dependency, all 13 pass real assertions with it.
+
+**Deliberately out of scope this pass** (per the audit's own scoping, not an oversight): Robolectric, Espresso, or any Android-instrumented test (`androidTest` source set) — anything needing a real Android runtime or emulator. Everything above is plain-JVM-testable pure logic only. Not covered: `TranslationEngine`, `VoskEngine`, `MicPipeline`, `TtsRouter`, any `Fragment`/`Activity`/UI code, `LearnProgressStore` (SQLite, needs a real or Robolectric-provided `SQLiteOpenHelper`), and `AnswerChecker` (untested this pass despite being pure logic — not one of the audit's named first targets, left for a follow-up).
+
+**Real, verified pass/fail** (2026-08-16, this session): `./gradlew :app:testDebugUnitTest :wear:testDebugUnitTest` — **33/33 tests passed, 0 failures, 0 errors** (`app/build/test-results/testDebugUnitTest/` and `wear/build/test-results/testDebugUnitTest/`, real JUnit XML reports, not a claimed/assumed result).
+
+- **Source**: `app/build.gradle.kts` (testImplementation additions); `wear/build.gradle.kts` (testImplementation addition); `app/src/test/java/com/retroid/translator/{engine,conversation,learn}/*Test.kt`; `wear/src/test/java/com/retroid/translator/wear/engine/WearLanguagesTest.kt`; `app/.../learn/LearnModels.kt` (`parse` visibility change); `docs/specs/engines-inventory.md` (the audit this section implements); `docs/specs/fold5-adaptation.md` §4 (source of the real Vosk JSON/avgWordConf data).
+
+---
+
 ## At a glance
 
 | Engine | Module | Real coverage number | Offline after setup? |
