@@ -5,6 +5,17 @@
   for the hold/release/tap/swipe touch-state machine driving textCircleContent
   and cardCircle's background color. No separate field/mic/swap/result chrome
   per the variant's design brief.
+
+  Accessibility: cardCircle is clickable/focusable so it's a real
+  TalkBack-navigable stop (it previously wasn't, despite being the entire
+  widget's interactive surface - see TranslateFragment's
+  installSingleCircleAccessibility doc comment for the fix). Its
+  contentDescription is set dynamically in code
+  (refreshSingleCircleContent/singleCircleAccessibilityDescription), not
+  here, since it must reflect live state. textCircleContent is marked
+  importantForAccessibility="no" so TalkBack doesn't also stop separately on
+  the inner label - cardCircle's own description already covers it,
+  avoiding a redundant/confusing second stop for the same control.
 -->
 <androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
@@ -30,6 +41,8 @@
         android:id="@+id/cardCircle"
         android:layout_width="220dp"
         android:layout_height="220dp"
+        android:clickable="true"
+        android:focusable="true"
         app:cardCornerRadius="110dp"
         app:cardElevation="6dp"
         app:cardBackgroundColor="?attr/colorPrimary"
@@ -47,6 +60,7 @@
             android:padding="24dp"
             android:textColor="#FFFFFF"
             android:textSize="17sp"
+            android:importantForAccessibility="no"
             android:text="Hold to speak" />
     </androidx.cardview.widget.CardView>
 

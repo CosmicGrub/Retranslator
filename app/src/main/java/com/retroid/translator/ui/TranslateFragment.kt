@@ -24,6 +24,9 @@ import android.widget.TextView
 import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.core.content.ContextCompat
+import androidx.core.view.AccessibilityDelegateCompat
+import androidx.core.view.ViewCompat
+import androidx.core.view.accessibility.AccessibilityNodeInfoCompat
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.lifecycleScope
@@ -178,6 +181,53 @@ class TranslateFragment : Fragment(), FoldAwareLayoutHost {
     private var singleCircleContinuousEnabled = false
     private var singleCircleContinuousLoading = false
     private val singleCircleMainHandler = Handler(Looper.getMainLooper())
+
+    /**
+     * TalkBack accessibility for "single_circle" (fixes: cardCircle's entire
+     * interaction - hold-to-speak, swipe-to-flip, tap-to-hear-result - was
+     * implemented purely via [android.view.View.setOnTouchListener] raw
+     * [MotionEvent], with `cardCircle` never marked clickable/focusable and
+     * never given a contentDescription. TalkBack's touch-exploration layer
+     * intercepts single-finger gestures before they reach a raw
+     * onTouchListener, and a non-clickable/non-focusable view is never a
+     * stop during linear swipe navigation at all - so none of the three
+     * gestures were reachable by a TalkBack user, full stop).
+     *
+     * Fix: [installSingleCircleAccessibility] attaches an
+     * [AccessibilityDelegateCompat] to `cardCircle` (now
+     * `clickable`/`focusable="true"` in the XML, making it a real
+     * accessibility-navigable stop) that exposes three custom accessibility
+     * actions - "Start listening"/"Stop listening" (mutually exclusive by
+     * [circleState]), "Flip direction", "Hear result" - each calling the
+     * *exact same* underlying functions the touch gesture set already calls
+     * ([beginSingleCircleHoldCapture]/[stopSingleCircleHoldCapture] factored
+     * out of the touch listener's hold-runnable/release handling so both
+     * paths share one implementation, [swapLanguages], [speakLastResult]),
+     * gated by the identical state conditions the touch gestures already
+     * enforce (e.g. no flip while [CircleState.RECORDING], matching the
+     * touch listener's own `circleState != CircleState.RECORDING` swipe
+     * guard) - not reimplemented, not approximated. These actions surface in
+     * TalkBack's local context menu (discoverable via linear swipe
+     * navigation once focus reaches `cardCircle`), which is the only real
+     * way to make a hold/swipe/tap gesture set operable under
+     * touch-exploration. The original touch-gesture path in [bindSingleCircle]
+     * is completely unchanged for sighted/touch-exploring users.
+     *
+     * [refreshSingleCircleContent] also now keeps `cardCircle.contentDescription`
+     * (via [singleCircleAccessibilityDescription]) in sync with real
+     * [circleState] on every state change - not a static label - so
+     * TalkBack's live announcement (Android auto-fires a content-changed
+     * accessibility event on `View.setContentDescription`) reflects what's
+     * actually happening (idle/listening/translating/result), the same
+     * event this doc's parent task called out as the actual bug: cosmetic
+     * labeling alone doesn't fix raw-touch-gesture-only interaction, but a
+     * real state-reflecting description is still part of the fix once the
+     * view is genuinely operable.
+     */
+    private val a11yActionStartListening = View.generateViewId()
+    private val a11yActionStopListening = View.generateViewId()
+    private val a11yActionFlipDirection = View.generateViewId()
+    private val a11yActionHearResult = View.generateViewId()
 
     /** "live_transcript" session history, newest first. */
     private val transcript = mutableListOf<TranscriptEntry>()
@@ -1004,18 +1054,7 @@ class TranslateFragment : Fragment(), FoldAwareLayoutHost {
         var downX = 0f
         var downTime = 0L
         var swipeHandled = false
-        val holdRunnable = Runnable {
-            circleState = CircleState.RECORDING
-            refreshSingleCircleContent(b)
-            beginMicCapture(
-                sourceCode,
-                { s -> if (contentContainer != null && s.isNotEmpty()) coverSingleCircleBinding?.textCircleContent?.text = s }
-            ) { text ->
-                circleState = CircleState.TRANSLATING
-                refreshAllContent()
-                translateWith(sourceCode, targetCode, text)
-            }
-        }
+        val holdRunnable = Runnable { beginSingleCircleHoldCapture(b) }
         b.cardCircle.setOnTouchListener { v, event ->
             when (event.actionMasked) {
                 MotionEvent.ACTION_DOWN -> {
@@ -1042,7 +1081,7 @@ class TranslateFragment : Fragment(), FoldAwareLayoutHost {
                 MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
                     v.removeCallbacks(holdRunnable)
                     if (!singleCircleContinuousEnabled && circleState == CircleState.RECORDING) {
-                        mainActivity?.app?.mic?.stop()
+                        stopSingleCircleHoldCapture()
                     } else if (!swipeHandled) {
                         v.performClick()
                         val held = System.currentTimeMillis() - downTime
@@ -1064,7 +1103,135 @@ class TranslateFragment : Fragment(), FoldAwareLayoutHost {
             }
             if (wantOn) startSingleCircleContinuous(b) else stopSingleCircleContinuous()
         }
+        installSingleCircleAccessibility(b)
         refreshSingleCircleContent(b)
+    }
+
+    /**
+     * The actual hold-to-speak start: was inlined in [bindSingleCircle]'s
+     * `holdRunnable` (fired after [HOLD_THRESHOLD_MS] of a real touch hold);
+     * factored out so the TalkBack "Start listening" accessibility action
+     * ([installSingleCircleAccessibility]) triggers the identical logic
+     * rather than a re-implementation - no hold-duration wait for the
+     * accessibility path since a discrete action has no press-and-hold
+     * duration to measure.
+     */
+    private fun beginSingleCircleHoldCapture(b: FragmentTranslateCoverSingleCircleBinding) {
+        circleState = CircleState.RECORDING
+        refreshSingleCircleContent(b)
+        beginMicCapture(
+            sourceCode,
+            { s -> if (contentContainer != null && s.isNotEmpty()) coverSingleCircleBinding?.textCircleContent?.text = s }
+        ) { text ->
+            circleState = CircleState.TRANSLATING
+            refreshAllContent()
+            translateWith(sourceCode, targetCode, text)
+        }
+    }
+
+    /** The release-side counterpart to [beginSingleCircleHoldCapture] - was inlined in the touch listener's `ACTION_UP` branch; factored out for the same reason (shared by the TalkBack "Stop listening" action). */
+    private fun stopSingleCircleHoldCapture() {
+        if (circleState == CircleState.RECORDING) mainActivity?.app?.mic?.stop()
+    }
+
+    /**
+     * Attaches the TalkBack-operable alternative to `cardCircle`'s
+     * touch-only gesture set - see this class's `a11yAction*` field doc
+     * comment for the full rationale. Every action here calls the exact
+     * same function the corresponding touch gesture calls, gated by the
+     * identical [circleState]/[singleCircleContinuousEnabled] conditions the
+     * touch listener already enforces:
+     *  - "Start listening" / "Stop listening" (mutually exclusive; neither
+     *    offered while continuous mode is on, matching the touch listener's
+     *    own `if (!singleCircleContinuousEnabled) v.postDelayed(holdRunnable, ...)`
+     *    suspension of the hold gesture in that mode)
+     *  - "Flip direction" (hidden while [CircleState.RECORDING], matching
+     *    the touch listener's swipe guard `circleState != CircleState.RECORDING`)
+     *  - "Hear result" (only while [CircleState.RESULT] with a real result,
+     *    matching the touch listener's quick-tap `circleState == CircleState.RESULT` check)
+     *
+     * The standard double-tap-to-activate action (`ACTION_CLICK`) is also
+     * mapped, narrowly, to the two cases that have an unambiguous single
+     * "obvious" outcome: hearing the result when one is showing (identical
+     * to what a sighted user's plain quick tap already does - no new
+     * behavior invented) and starting a listen from the idle prompt (the
+     * single most expected first action on this widget). Every other state
+     * leaves `ACTION_CLICK` unhandled rather than guessing, exactly as
+     * today's `performClick()` call (present only to satisfy Android's
+     * touch-listener/accessibility convention) already does nothing in the
+     * absence of a real `OnClickListener` - not a regression, just unmapped.
+     */
+    private fun installSingleCircleAccessibility(b: FragmentTranslateCoverSingleCircleBinding) {
+        ViewCompat.setAccessibilityDelegate(b.cardCircle, object : AccessibilityDelegateCompat() {
+            override fun onInitializeAccessibilityNodeInfo(host: View, info: AccessibilityNodeInfoCompat) {
+                super.onInitializeAccessibilityNodeInfo(host, info)
+                if (!singleCircleContinuousEnabled) {
+                    info.addAction(
+                        if (circleState == CircleState.RECORDING)
+                            AccessibilityNodeInfoCompat.AccessibilityActionCompat(a11yActionStopListening, "Stop listening")
+                        else
+                            AccessibilityNodeInfoCompat.AccessibilityActionCompat(a11yActionStartListening, "Start listening")
+                    )
+                }
+                if (circleState != CircleState.RECORDING) {
+                    info.addAction(AccessibilityNodeInfoCompat.AccessibilityActionCompat(a11yActionFlipDirection, "Flip direction"))
+                }
+                if (circleState == CircleState.RESULT && lastResultText.isNotBlank() && lastResultText != "Translating...") {
+                    info.addAction(AccessibilityNodeInfoCompat.AccessibilityActionCompat(a11yActionHearResult, "Hear result"))
+                }
+            }
+
+            override fun performAccessibilityAction(host: View, action: Int, args: Bundle?): Boolean {
+                return when (action) {
+                    a11yActionStartListening -> {
+                        if (!singleCircleContinuousEnabled && circleState != CircleState.RECORDING) beginSingleCircleHoldCapture(b)
+                        true
+                    }
+                    a11yActionStopListening -> { stopSingleCircleHoldCapture(); true }
+                    a11yActionFlipDirection -> {
+                        if (circleState != CircleState.RECORDING) swapLanguages()
+                        true
+                    }
+                    a11yActionHearResult -> {
+                        if (circleState == CircleState.RESULT) speakLastResult()
+                        true
+                    }
+                    AccessibilityNodeInfoCompat.ACTION_CLICK -> when {
+                        circleState == CircleState.RESULT && lastResultText.isNotBlank() && lastResultText != "Translating..." -> {
+                            speakLastResult(); true
+                        }
+                        !singleCircleContinuousEnabled && circleState == CircleState.PROMPT -> {
+                            beginSingleCircleHoldCapture(b); true
+                        }
+                        else -> super.performAccessibilityAction(host, action, args)
+                    }
+                    else -> super.performAccessibilityAction(host, action, args)
+                }
+            }
+        })
+    }
+
+    /**
+     * Real, state-reflecting `cardCircle` announcement for TalkBack -
+     * mirrors exactly what [refreshSingleCircleContent] already renders
+     * visually per [circleState], not a static label. Called from
+     * [refreshSingleCircleContent] on every state change; setting
+     * `View.contentDescription` fires Android's own content-changed
+     * accessibility event automatically, so a focused TalkBack user hears
+     * "Listening..." / "Translating..." / the real result text as it
+     * happens, without needing to re-navigate to the view.
+     */
+    private fun singleCircleAccessibilityDescription(): String {
+        val pair = "${LanguageCatalog.displayNameFor(sourceCode)} to ${LanguageCatalog.displayNameFor(targetCode)}"
+        return when (circleState) {
+            CircleState.PROMPT -> if (singleCircleContinuousEnabled)
+                "Translate, $pair. Continuous listening is on, it starts automatically when you speak."
+            else
+                "Translate, $pair. Idle. Double tap, or use the actions menu, to start listening."
+            CircleState.RECORDING -> "Translate, $pair. Listening now."
+            CircleState.TRANSLATING -> "Translate, $pair. Translating."
+            CircleState.RESULT -> "Translate result, $pair: ${lastResultText.ifBlank { "no result" }}."
+        }
     }
 
     private fun startSingleCircleContinuous(b: FragmentTranslateCoverSingleCircleBinding) {
@@ -1243,6 +1410,9 @@ class TranslateFragment : Fragment(), FoldAwareLayoutHost {
                 b.cardCircle.setCardBackgroundColor(ContextCompat.getColor(ctx, R.color.colorPrimaryDark))
             }
         }
+        // Real, state-reflecting TalkBack announcement - see
+        // singleCircleAccessibilityDescription's doc comment.
+        b.cardCircle.contentDescription = singleCircleAccessibilityDescription()
     }
 
     // =======================================================================
