@@ -640,7 +640,7 @@ class TranslateFragment : Fragment(), FoldAwareLayoutHost {
     private fun translateWith(srcCode: String, tgtCode: String, text: String) {
         lastResultText = "Translating..."
         refreshAllContent()
-        TranslationEngine.translate(srcCode, tgtCode, text,
+        TranslationEngine.translate(requireContext(), srcCode, tgtCode, text,
             onResult = onResult@{ translated ->
                 if (contentContainer == null) return@onResult
                 lastResultText = translated
@@ -667,7 +667,7 @@ class TranslateFragment : Fragment(), FoldAwareLayoutHost {
     ) {
         statusSetter?.invoke("Translating...")
         refreshAllContent()
-        TranslationEngine.translate(srcCode, tgtCode, text,
+        TranslationEngine.translate(requireContext(), srcCode, tgtCode, text,
             onResult = onResult@{ translated ->
                 if (contentContainer == null) return@onResult
                 resultSetter(translated)
@@ -1366,7 +1366,7 @@ class TranslateFragment : Fragment(), FoldAwareLayoutHost {
 
     /** Same translate flow as [translateWith], plus auto-speaking the result - continuous mode has no tap-to-hear step, so it speaks each turn on its own to actually be hands-free. */
     private fun translateAndSpeakContinuous(text: String) {
-        TranslationEngine.translate(sourceCode, targetCode, text,
+        TranslationEngine.translate(requireContext(), sourceCode, targetCode, text,
             onResult = onResult@{ translated ->
                 if (contentContainer == null) return@onResult
                 lastResultText = translated
@@ -1482,7 +1482,7 @@ class TranslateFragment : Fragment(), FoldAwareLayoutHost {
     }
 
     private fun translateForTranscript(src: String, tgt: String, text: String) {
-        TranslationEngine.translate(src, tgt, text,
+        TranslationEngine.translate(requireContext(), src, tgt, text,
             onResult = onResult@{ translated ->
                 if (contentContainer == null) return@onResult
                 transcript.add(0, TranscriptEntry(src, tgt, text, translated))
@@ -1709,8 +1709,9 @@ class TranslateFragment : Fragment(), FoldAwareLayoutHost {
         broadcastStatusText = "Translating to ${broadcastTargets.size} language(s)..."
         refreshAllContent()
         var remaining = broadcastTargets.size
+        val ctx = requireContext()
         broadcastTargets.toList().forEach { tgt ->
-            TranslationEngine.translate(sourceCode, tgt, text,
+            TranslationEngine.translate(ctx, sourceCode, tgt, text,
                 onResult = onResult@{ translated ->
                     if (contentContainer == null) return@onResult
                     broadcastResults[tgt] = translated

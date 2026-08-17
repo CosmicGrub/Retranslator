@@ -114,7 +114,7 @@ class OcrTestActivity : Activity() {
                         val srcCode = if (script == OcrScript.CHINESE) "zh" else "en"
                         val tgtCode = if (script == OcrScript.CHINESE) "en" else "es"
                         appendLog("$label: feeding recognized text into the real TranslationEngine ($srcCode -> $tgtCode)...")
-                        TranslationEngine.translate(srcCode, tgtCode, recognized,
+                        TranslationEngine.translate(this@OcrTestActivity, srcCode, tgtCode, recognized,
                             onResult = { translated -> appendLog("$label TRANSLATION RESULT ($srcCode->$tgtCode): \"$translated\"") },
                             onError = { err -> appendLog("$label translation failed: $err (translation packs may not be downloaded on this device)") }
                         )

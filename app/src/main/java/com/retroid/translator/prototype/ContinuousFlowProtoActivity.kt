@@ -173,7 +173,7 @@ class ContinuousFlowProtoActivity : Activity() {
                             )
 
                             val translateStartNanos = System.nanoTime()
-                            TranslationEngine.translate(result.pickedLang, result.otherLang, result.text,
+                            TranslationEngine.translate(this@ContinuousFlowProtoActivity, result.pickedLang, result.otherLang, result.text,
                                 onResult = { translated ->
                                     val translateDoneNanos = System.nanoTime()
                                     val translateMs = (translateDoneNanos - translateStartNanos) / 1_000_000
@@ -242,8 +242,8 @@ class ContinuousFlowProtoActivity : Activity() {
     /** Blocking; downloads/confirms both translation directions are ready before the timed loop, mirroring what a real session would already have done via the Translate tab. */
     private fun prewarmTranslation() {
         val latch = CountDownLatch(2)
-        TranslationEngine.translate(LANG_A, LANG_B, "hello", onResult = { latch.countDown() }, onError = { latch.countDown() })
-        TranslationEngine.translate(LANG_B, LANG_A, "hola", onResult = { latch.countDown() }, onError = { latch.countDown() })
+        TranslationEngine.translate(this, LANG_A, LANG_B, "hello", onResult = { latch.countDown() }, onError = { latch.countDown() })
+        TranslationEngine.translate(this, LANG_B, LANG_A, "hola", onResult = { latch.countDown() }, onError = { latch.countDown() })
         latch.await(60, TimeUnit.SECONDS)
     }
 

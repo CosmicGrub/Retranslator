@@ -203,7 +203,7 @@ class TranslateController(private val context: Context) {
                         state = ListenState.TRANSLATING
                         statusMessage = "Translating..."
                         TranslationEngine.translate(
-                            sourceLang.code, targetLang.code, text,
+                            context, sourceLang.code, targetLang.code, text,
                             onResult = { result ->
                                 translated = result
                                 state = ListenState.LISTENING

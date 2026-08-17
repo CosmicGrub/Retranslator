@@ -93,6 +93,19 @@
              builds, so they simply don't exist in a release APK/AAB at all,
              rather than existing-but-hopefully-unreachable. -->
 
+        <!-- Throwaway debug entry point verifying the TranslationEngine.translate()
+             Wi-Fi gating fix (docs/ENGINES.md Translation-engines "Known
+             limits/gaps" #1) - see WifiGateTestActivity's own class doc for
+             the full bug/fix explanation and trigger sequence. Same
+             exported=true rationale as the other prototype activities above
+             (Android 16 blocks `adb shell am start` of a non-exported
+             activity even in a debuggable app). Not linked from any nav
+             flow, off the launcher. -->
+        <activity
+            android:name=".prototype.WifiGateTestActivity"
+            android:exported="true"
+            android:label="Wi-Fi Gate Test (debug)" />
+
         <!-- Wake-lock reliability fix (docs/specs/fold5-adaptation.md §4) -
              see ContinuousListeningService's own class doc for the full
              rationale. Not exported (only ConversationsFragment, in this

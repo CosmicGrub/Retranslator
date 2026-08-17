@@ -692,7 +692,7 @@ class ConversationsFragment : Fragment() {
                     val srcCode = speakerLang()
                     val dstCode = listenerLang()
                     val turnId = addTurn(speakerIsA, text, srcCode, auto = false)
-                    TranslationEngine.translate(srcCode, dstCode, text,
+                    TranslationEngine.translate(requireContext(), srcCode, dstCode, text,
                         onResult = onResult@{ translated ->
                             if (contentContainer == null) return@onResult
                             addTranslation(turnId, translated, dstCode, auto = false)
@@ -895,7 +895,7 @@ class ConversationsFragment : Fragment() {
             val turnId = addTurn(speakerIsA, result.text, result.pickedLang, auto = true, basis = result.decisionBasis)
 
             val dstCode = result.otherLang
-            TranslationEngine.translate(result.pickedLang, dstCode, result.text,
+            TranslationEngine.translate(requireContext(), result.pickedLang, dstCode, result.text,
                 onResult = onResult@{ translated ->
                     if (contentContainer == null) return@onResult
                     val translateDoneNanos = System.nanoTime()
