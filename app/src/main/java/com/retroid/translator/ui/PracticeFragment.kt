@@ -648,7 +648,37 @@ class PracticeFragment : Fragment(), FoldAwareLayoutHost {
         }
         thumb.textWaveformThumbLabel.text = timeLabelFor(file)
         thumb.root.setOnClickListener { playFile(file) }
+        thumb.root.contentDescription = waveformThumbDescription(file, peaks)
         return thumb.root
+    }
+
+    /**
+     * Real content description for a waveform-thumbnail card: states the
+     * action (plays the recorded attempt, not just "button"), the real clip
+     * duration ([WaveformReader.durationSeconds], read from this exact
+     * file's own WAV header - not the shared decorative-bars estimate), and
+     * a coarse real-amplitude-shape hint derived from the same [peaks] the
+     * visible bars are drawn from, so a TalkBack user gets a sense of the
+     * actual envelope shape a sighted user sees at a glance, not just a
+     * bare timestamp.
+     */
+    private fun waveformThumbDescription(file: File, peaks: List<Float>): String {
+        val timeLabel = timeLabelFor(file)
+        val duration = WaveformReader.durationSeconds(file)
+        val durationText = if (duration > 0f) String.format(Locale.US, "%.1f second recording", duration) else "recording"
+        val shape = if (peaks.isEmpty()) {
+            ""
+        } else {
+            val midpoint = peaks.size / 2
+            val firstHalfAvg = peaks.take(midpoint.coerceAtLeast(1)).average()
+            val secondHalfAvg = peaks.drop(midpoint).average()
+            when {
+                firstHalfAvg > secondHalfAvg * 1.3 -> ", louder at the start"
+                secondHalfAvg > firstHalfAvg * 1.3 -> ", louder at the end"
+                else -> ", steady volume throughout"
+            }
+        }
+        return "Play recorded attempt from $timeLabel, $durationText$shape."
     }
 
     /**
@@ -1379,6 +1409,7 @@ class PracticeFragment : Fragment(), FoldAwareLayoutHost {
         val addBtn = ImageButton(requireContext())
         addBtn.setImageResource(android.R.drawable.ic_input_add)
         addBtn.setBackgroundColor(0x00000000)
+        addBtn.contentDescription = "Add phrase to the feed"
         addBtn.layoutParams = LinearLayout.LayoutParams((40 * density).toInt(), (40 * density).toInt())
         addBtn.setOnClickListener {
             addPhraseToQueue(edit.text?.toString().orEmpty())
