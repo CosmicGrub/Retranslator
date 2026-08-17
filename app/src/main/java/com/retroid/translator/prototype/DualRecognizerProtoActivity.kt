@@ -11,7 +11,7 @@ import java.io.File
 import java.util.concurrent.CountDownLatch
 
 /**
- * Throwaway, NON-exported debug entry point for the dual-recognizer spike
+ * Throwaway debug entry point for the dual-recognizer spike
  * (docs/specs/fold5-adaptation.md §4). Deliberately not registered in any
  * navigation flow — trigger directly via:
  *
@@ -20,6 +20,14 @@ import java.util.concurrent.CountDownLatch
  * then watch `adb logcat -s DualRecoProto`. UI is a single scrolling
  * TextView; this never needs to look good, it exists purely to prove (or
  * disprove) the dual-recognizer approach with real on-device numbers.
+ *
+ * Declared `android:exported="true"` in app/src/debug/AndroidManifest.xml
+ * (a debug-only Gradle source-set overlay — this Activity does not exist at
+ * all in a release build) purely so `adb shell am start` can reach it:
+ * Android 16 blocks `adb shell am start` of a non-exported activity even in
+ * a debuggable app, a hardening change from what used to be a standard
+ * debug workflow. It stays out of the launcher and out of every shipped nav
+ * flow regardless.
  *
  * Requires the "en" and "es" Vosk STT packs to already be downloaded (drive
  * the Translate tab's normal download UI first) — this prototype does not

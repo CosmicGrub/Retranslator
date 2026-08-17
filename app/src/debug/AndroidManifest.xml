@@ -1,0 +1,64 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Debug-only Gradle source-set overlay (app/src/debug/), merged into
+     app/src/main/AndroidManifest.xml only for debug builds - a release
+     build never sees anything declared in this file. This is where the
+     three throwaway debug-prototype activities for
+     docs/specs/fold5-adaptation.md §4 / "Camera OCR translate" live, since
+     they exist purely for adb-triggered manual spikes/harnesses, are never
+     linked from any shipped nav flow, and have no reason to ship in a
+     release build at all. -->
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <application>
+
+        <!-- Throwaway debug-only prototype for docs/specs/fold5-adaptation.md §4
+             (dual-recognizer parallel Vosk decoding spike). Not linked from any
+             nav flow (MainActivity/BottomNavigationView never reference it) —
+             trigger directly with:
+             adb shell am start -n com.retroid.translator/.prototype.DualRecognizerProtoActivity
+             exported=true only because Android 16 (confirmed on-device, API 36,
+             security patch 2026-06-05) blocks `adb shell am start` of a
+             non-exported activity even in a debuggable app - a hardening change
+             from what used to be a standard debug workflow. There is no other
+             way to trigger a non-exported activity from adb on this OS version;
+             it stays out of the launcher and out of every shipped nav flow.
+             Debug-build-only (see this file's own top-of-file comment) - this
+             activity does not exist at all in a release build. -->
+        <activity
+            android:name=".prototype.DualRecognizerProtoActivity"
+            android:exported="true"
+            android:label="Dual Recognizer Prototype (debug)" />
+
+        <!-- Throwaway debug entry point validating the continuous-listening
+             pipeline (VAD -> dual-recognizer -> early guess -> translate ->
+             TTS, docs/specs/fold5-adaptation.md §4 wired into
+             ConversationsFragment) against real recorded human speech.
+             Same exported=true rationale as DualRecognizerProtoActivity
+             above (Android 16 blocks `adb shell am start` of a non-exported
+             activity even in a debuggable app). Trigger:
+             adb shell am start -n com.retroid.translator/.prototype.ContinuousFlowProtoActivity
+             Not linked from any nav flow, off the launcher. Debug-build-only
+             (see this file's own top-of-file comment) - this activity does
+             not exist at all in a release build. -->
+        <activity
+            android:name=".prototype.ContinuousFlowProtoActivity"
+            android:exported="true"
+            android:label="Continuous Flow Prototype (debug)" />
+
+        <!-- Throwaway debug entry point for the Camera OCR translate feature
+             (docs/specs/fold5-adaptation.md "Camera OCR translate" section) -
+             see OcrTestActivity's own class doc for exactly why this exists
+             alongside the real CameraCaptureActivity. Same exported=true
+             rationale as the other prototype activities above (Android 16
+             blocks `adb shell am start` of a non-exported activity even in a
+             debuggable app). Not linked from any nav flow, off the launcher.
+             Debug-build-only (see this file's own top-of-file comment) -
+             this activity does not exist at all in a release build. -->
+        <activity
+            android:name=".prototype.OcrTestActivity"
+            android:exported="true"
+            android:label="OCR Engine Test (debug)" />
+
+    </application>
+
+</manifest>

@@ -1,18 +1,18 @@
 package com.retroid.translator.settings
 
 /**
- * Optional contract a tab Fragment (Translate/Practice/Learn) implements
- * once it has a real cover-screen layout variant to switch to (the "24
- * layout variants" work, built in a later phase per
- * docs/specs/fold5-adaptation.md - explicitly NOT built by this pass).
+ * Contract implemented by each of the three tab Fragments with a real
+ * cover-screen layout variant to switch to (the "24 layout variants" work
+ * per docs/specs/fold5-adaptation.md §6). All three of `TranslateFragment`,
+ * `PracticeFragment`, and `LearnFragment` implement this today (each with
+ * its own `override val settingsTab`).
  *
- * No tab implements this yet as of this pass. `MainActivity`'s fold-driven
- * auto-switch coordinator and the "Fold behavior" screen's manual
- * force-compact toggle both look up the currently-attached fragment via
- * `as? FoldAwareLayoutHost` and safely no-op (just a log line) when it isn't
- * one - so implementing this interface on a tab Fragment is the only change
- * a later phase needs to make to start receiving real switch events; no
- * `MainActivity` edits required.
+ * `MainActivity`'s fold-driven auto-switch coordinator and the "Fold
+ * behavior" screen's manual force-compact toggle both look up the
+ * currently-attached fragment via `as? FoldAwareLayoutHost` and safely no-op
+ * (just a log line) when it isn't one - so implementing this interface on a
+ * tab Fragment is the only change any future tab needs to make to start
+ * receiving real switch events; no `MainActivity` edits required.
  */
 interface FoldAwareLayoutHost {
 
