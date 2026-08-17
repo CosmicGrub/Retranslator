@@ -91,6 +91,29 @@ class TranslateController(private val context: Context) {
         // eSpeak init never blocks the flow.
         espeak.initAsync { success ->
             Log.i(TAG, "WearEspeakEngine init: success=$success")
+            // One-time, startup-only self-test (tag ESPEAK_SELFTEST) -
+            // speaks a fixed, known English phrase the instant eSpeak is
+            // ready, with no dependency on a downloaded Vosk model or a
+            // live human speaker. This exists purely to answer this pass's
+            // real evidence bar ("confirm via dumpsys audio showing a real
+            // AudioTrack ... actually hearing/confirming real synthesized
+            // speech was produced") without requiring the full
+            // listen->translate->speak pipeline, which no agent can
+            // exercise end-to-end (no live mic input available - same
+            // constraint this repo's other specs already disclose
+            // repeatedly). Same spirit as this class's own
+            // VOSK_NATIVE_PROBE above and the phone app's various
+            // throwaway *ProtoActivity debug entry points
+            // (fold5-adaptation.md §4) - a small, clearly-tagged
+            // verification aid, not a shipped user-facing feature.
+            if (success) {
+                espeak.speak(
+                    "This is a real device test of the eSpeak engine on Wear OS.",
+                    "en",
+                    onDone = { Log.i("ESPEAK_SELFTEST", "self-test speak completed") },
+                    onError = { err -> Log.w("ESPEAK_SELFTEST", "self-test speak failed: $err") }
+                )
+            }
         }
     }
 
