@@ -1126,7 +1126,7 @@ class TranslateFragment : Fragment(), FoldAwareLayoutHost {
         val app = mainActivity?.app ?: return
         llmStatusText = if (app.llmAssist.isModelDownloaded()) {
             "AI assistant downloaded (~${LlmAssistEngine.APPROX_SIZE_MIB}MB, ${LlmAssistEngine.MODEL_DISPLAY_NAME}) — runs fully offline, no network needed."
-        } else if (BuildConfig.ALLOW_CELLULAR_DOWNLOADS) {
+        } else if (LanguagePackPreferences.allowCellularDownloads(requireContext())) {
             "AI assistant not downloaded (~${LlmAssistEngine.APPROX_SIZE_MIB}MB, ${LlmAssistEngine.MODEL_DISPLAY_NAME})."
         } else {
             "AI assistant not downloaded (~${LlmAssistEngine.APPROX_SIZE_MIB}MB, Wi-Fi, ${LlmAssistEngine.MODEL_DISPLAY_NAME})."
@@ -1138,7 +1138,10 @@ class TranslateFragment : Fragment(), FoldAwareLayoutHost {
 
     private fun downloadLlmModel() {
         val app = mainActivity?.app ?: return
-        val requireWifi = !BuildConfig.ALLOW_CELLULAR_DOWNLOADS
+        // Fold5 edition: real Settings toggle (Settings -> Manage language
+        // packs), same as every other download in this app - see
+        // LanguagePackPreferences.allowCellularDownloads's doc comment.
+        val requireWifi = !LanguagePackPreferences.allowCellularDownloads(requireContext())
         llmStatusText = if (requireWifi) "Downloading AI assistant (Wi-Fi required)..." else "Downloading AI assistant..."
         defaultBinding?.textLlmStatus?.text = llmStatusText
         app.llmAssist.downloadModel(
