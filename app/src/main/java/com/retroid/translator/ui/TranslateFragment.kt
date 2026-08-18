@@ -265,6 +265,15 @@ class TranslateFragment : Fragment(), FoldAwareLayoutHost {
      * 7 layouts don't get this entry point this pass) but the launcher
      * itself is layout-agnostic - it just hands recognized text into
      * [performTranslate] exactly like the mic flow already does.
+     *
+     * Passes `forceAutoDetect = true` (docs/specs/engines-upgrade-plan.md):
+     * without it, OCR text translated using whatever [sourceCode] was last
+     * manually picked - plausibly stale from an earlier typed/spoken
+     * exchange in a different language - unless the user separately
+     * happened to also have the auto-detect checkbox on. A photographed
+     * source language has no relationship to prior manual selections, so
+     * this call site always identifies it fresh regardless of the user's
+     * own toggle state.
      */
     private val cameraCaptureLauncher = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
         if (result.resultCode != Activity.RESULT_OK) return@registerForActivityResult
@@ -277,7 +286,7 @@ class TranslateFragment : Fragment(), FoldAwareLayoutHost {
         defaultBinding?.editInput?.setText(text)
         defaultBinding?.editInput?.setSelection(text.length)
         lastInputText = text
-        performTranslate(text)
+        performTranslate(text, forceAutoDetect = true)
     }
 
     private var currentPosture: FoldPosture = FoldPosture.NO_FOLDING_FEATURE
@@ -616,11 +625,22 @@ class TranslateFragment : Fragment(), FoldAwareLayoutHost {
         if (isAdded) Toast.makeText(requireContext(), msg, if (long) Toast.LENGTH_LONG else Toast.LENGTH_SHORT).show()
     }
 
-    /** Same auto-detect-or-not flow as the tab's original single layout, generalized to write into shared state instead of one fixed binding. */
-    private fun performTranslate(rawText: String) {
+    /**
+     * Same auto-detect-or-not flow as the tab's original single layout, generalized to write into shared state instead of one fixed binding.
+     *
+     * [forceAutoDetect] exists for callers where trusting [sourceCode] would
+     * be wrong regardless of the user's own auto-detect toggle state - camera
+     * OCR is the one caller that passes `true` (docs/specs/engines-upgrade-plan.md):
+     * a photographed source language has no relationship to whatever language
+     * was last manually selected for typed/spoken input, so silently
+     * translating OCR text from a stale manual [sourceCode] would be actively
+     * wrong, not just less convenient. Every other caller leaves this `false`
+     * and keeps the existing manual-toggle-respecting behavior unchanged.
+     */
+    private fun performTranslate(rawText: String, forceAutoDetect: Boolean = false) {
         val text = rawText.trim()
         if (text.isEmpty()) { toast("Type or speak something first"); return }
-        if (autoDetectEnabled) {
+        if (autoDetectEnabled || forceAutoDetect) {
             languageIdentifier.identifyLanguage(text)
                 .addOnSuccessListener { code ->
                     if (contentContainer == null) return@addOnSuccessListener
