@@ -75,6 +75,23 @@
             android:exported="true"
             android:label="Wi-Fi Gate Test (debug)" />
 
+        <!-- Throwaway debug entry point for the sherpa-onnx v1.13.4 -> v1.13.5
+             re-vendor's required full 4-language regression pass
+             (docs/specs/engines-upgrade-plan.md Tier 2 item) - see
+             PiperRegressionTestActivity's own class doc for exactly why this
+             exists (real UI navigation for this pass was repeatedly disrupted
+             by a different concurrently-installed build sharing this same
+             physical device's foreground slot). Same exported=true rationale
+             as the other prototype activities above (Android 16 blocks
+             `adb shell am start` of a non-exported activity even in a
+             debuggable app). Not linked from any nav flow, off the launcher.
+             Debug-build-only (see this file's own top-of-file comment) -
+             this activity does not exist at all in a release build. -->
+        <activity
+            android:name=".prototype.PiperRegressionTestActivity"
+            android:exported="true"
+            android:label="Piper Regression Test (debug)" />
+
     </application>
 
 </manifest>
