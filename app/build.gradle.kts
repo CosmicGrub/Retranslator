@@ -88,7 +88,12 @@ dependencies {
     // compatibility check (confirmed via direct ELF inspection); 17.0.3 is
     // 16KB-aligned. See docs/specs/fold5-adaptation.md for the full audit.
     implementation("com.google.mlkit:translate:17.0.3")
-    implementation("com.google.mlkit:language-id:17.0.5")
+    // language-id bumped 17.0.5 -> 17.0.6: same Maven release batch as
+    // translate's 16KB-alignment fix above (both last-updated together
+    // per Google's Maven metadata) - very likely the equivalent fix for
+    // this artifact's own native lib, though not independently ELF-
+    // confirmed the way translate's was. See docs/specs/engines-upgrade-plan.md.
+    implementation("com.google.mlkit:language-id:17.0.6")
 
     // Camera OCR translate (docs/specs/fold5-adaptation.md "Camera OCR
     // translate" section). CameraX for the capture UI - this app had zero
