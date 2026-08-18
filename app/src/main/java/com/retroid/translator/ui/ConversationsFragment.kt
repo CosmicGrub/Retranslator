@@ -1,5 +1,6 @@
 package com.retroid.translator.ui
 
+import android.animation.ValueAnimator
 import android.content.Intent
 import android.media.MediaPlayer
 import android.os.Bundle
@@ -189,6 +190,29 @@ class ConversationsFragment : Fragment() {
     private var largeScreenSideBySide = false
     private var layoutInitialized = false
 
+    // -----------------------------------------------------------------
+    // fold5-device-version branch: hinge-angle-driven live mirrored-pane
+    // geometry (docs/specs/engines-upgrade-plan.md "Angle-driven live
+    // geometry for the mirrored Conversations layout"). Previously,
+    // hingeAngleFlow() was collected purely to log a value nobody used
+    // (see observeFoldPosture's old comment) while applyMirroredGeometry
+    // hard-cut pane height/rotation on every FoldingFeature.bounds change,
+    // including the FLAT<->HALF_OPENED "same posture family" case that
+    // isn't a layout switch and so gets no crossfade either. postureFlow()
+    // remains the SOLE authority for which layout is active and where the
+    // hinge currently is - this only smooths the transition between two
+    // already-decided geometries, exactly the "animation polish, not
+    // correctness" boundary HingeAngleSensor's own doc comment draws.
+    // -----------------------------------------------------------------
+    private var geometryAnimator: ValueAnimator? = null
+    private var lastTopPaneHeight = -1
+    private var lastBottomPaneTop = -1
+    private var lastBottomPaneHeight = -1
+    private var lastHingeAngleDegrees: Float? = null
+    private var lastHingeAngleAtMs: Long = 0L
+    /** Degrees/second between the two most recent hinge-angle sensor emissions - used only to pick an animation duration (faster physical motion -&gt; shorter duration, so the UI doesn't visibly lag a fast fold/unfold), never to decide layout. */
+    private var hingeAngularVelocityDegPerSec: Float = 0f
+
     override fun onCreateView(inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?): View {
         // A plain mount point, not XML - which of the two real layouts gets
         // inflated into it is decided live by fold posture (see
@@ -228,14 +252,29 @@ class ConversationsFragment : Fragment() {
         }
         // Progressive-enhancement continuous hinge-angle signal (spec §2
         // "Transition polish"). Not used to decide layout (postureFlow alone
-        // is authoritative) - collected here purely so a real angle stream
-        // is observable in logcat as on-device verification that this
-        // device takes the live-sensor path rather than the no-sensor
-        // fallback (see HingeAngleSensor's doc for what "fallback" means).
+        // is authoritative) - see the "hinge-angle-driven live mirrored-pane
+        // geometry" field block above for what this now actually drives
+        // (previously just logged; fold5-device-version branch).
         viewLifecycleOwner.lifecycleScope.launch {
             viewLifecycleOwner.repeatOnLifecycle(Lifecycle.State.STARTED) {
                 foldPostureProvider.hingeAngleFlow().collect { degrees ->
-                    android.util.Log.d(TAG, "hinge angle: ${degrees}°")
+                    val now = android.os.SystemClock.elapsedRealtime()
+                    val prevAngle = lastHingeAngleDegrees
+                    val prevAtMs = lastHingeAngleAtMs
+                    if (prevAngle != null && prevAtMs > 0) {
+                        val dtSec = (now - prevAtMs) / 1000f
+                        // A near-zero dt would blow up the division into a
+                        // spurious huge velocity spike from sensor jitter
+                        // alone - skip updating velocity on those samples
+                        // rather than let one noisy pair distort the next
+                        // animation's duration.
+                        if (dtSec > 0.01f) {
+                            hingeAngularVelocityDegPerSec = kotlin.math.abs(degrees - prevAngle) / dtSec
+                        }
+                    }
+                    lastHingeAngleDegrees = degrees
+                    lastHingeAngleAtMs = now
+                    android.util.Log.d(TAG, "hinge angle: ${degrees}° (${"%.1f".format(hingeAngularVelocityDegPerSec)}°/s)")
                 }
             }
         }
@@ -274,6 +313,16 @@ class ConversationsFragment : Fragment() {
         fallbackBinding = null
         mirroredBinding = null
         largeBinding = null
+
+        // Leaving (or freshly entering) the mirrored layout - forget any
+        // previously-applied geometry so the next applyMirroredGeometry call
+        // applies its first frame directly (no animating in from stale
+        // pane heights left over from a prior mirrored session).
+        geometryAnimator?.cancel()
+        geometryAnimator = null
+        lastTopPaneHeight = -1
+        lastBottomPaneTop = -1
+        lastBottomPaneHeight = -1
 
         when (kind) {
             LayoutKind.MIRRORED -> {
@@ -348,26 +397,102 @@ class ConversationsFragment : Fragment() {
         // previous frame's center. Leaving pivot untouched keeps the default
         // width/2,height/2 behavior, which Android recomputes correctly on
         // every subsequent layout pass as topPaneHeight changes.
-        mb.paneTop.root.layoutParams = (mb.paneTop.root.layoutParams as FrameLayout.LayoutParams).apply {
-            width = FrameLayout.LayoutParams.MATCH_PARENT
-            height = topPaneHeight
-            topMargin = 0
-        }
         mb.paneTop.root.rotation = 180f
-
-        mb.paneBottom.root.layoutParams = (mb.paneBottom.root.layoutParams as FrameLayout.LayoutParams).apply {
-            width = FrameLayout.LayoutParams.MATCH_PARENT
-            height = bottomPaneHeight
-            topMargin = bottomPaneTop
-        }
         mb.paneBottom.root.rotation = 0f
+
+        val firstApplicationThisSession = lastTopPaneHeight < 0
+        if (firstApplicationThisSession) {
+            // First frame in this mirrored session, firing at the same
+            // moment switchLayout's own container-alpha crossfade is
+            // already running - apply directly. Animating a height FROM an
+            // undefined prior state while the whole container is
+            // simultaneously fading in would be redundant, competing
+            // motion, not polish.
+            applyPaneLayoutParams(mb, topPaneHeight, bottomPaneTop, bottomPaneHeight)
+        } else if (topPaneHeight != lastTopPaneHeight || bottomPaneTop != lastBottomPaneTop || bottomPaneHeight != lastBottomPaneHeight) {
+            animateGeometryTransition(
+                mb,
+                fromTop = lastTopPaneHeight, toTop = topPaneHeight,
+                fromBottomTop = lastBottomPaneTop, toBottomTop = bottomPaneTop,
+                fromBottomHeight = lastBottomPaneHeight, toBottomHeight = bottomPaneHeight
+            )
+        }
+        // else: identical to what's already applied (e.g. a postureFlow
+        // re-emit with unchanged bounds) - nothing to animate.
+
+        lastTopPaneHeight = topPaneHeight
+        lastBottomPaneTop = bottomPaneTop
+        lastBottomPaneHeight = bottomPaneHeight
 
         android.util.Log.d(
             TAG,
             "mirrored geometry: hinge=${feature.bounds} occlusion=${feature.occlusionType} " +
                 "state=${feature.state} orientation=${feature.orientation} " +
-                "topPaneHeight=$topPaneHeight bottomPaneTop=$bottomPaneTop bottomPaneHeight=$bottomPaneHeight"
+                "topPaneHeight=$topPaneHeight bottomPaneTop=$bottomPaneTop bottomPaneHeight=$bottomPaneHeight " +
+                "animated=${!firstApplicationThisSession}"
         )
+    }
+
+    private fun applyPaneLayoutParams(mb: FragmentConversationsMirroredBinding, topHeight: Int, bottomTop: Int, bottomHeight: Int) {
+        mb.paneTop.root.layoutParams = (mb.paneTop.root.layoutParams as FrameLayout.LayoutParams).apply {
+            width = FrameLayout.LayoutParams.MATCH_PARENT
+            height = topHeight
+            topMargin = 0
+        }
+        mb.paneBottom.root.layoutParams = (mb.paneBottom.root.layoutParams as FrameLayout.LayoutParams).apply {
+            width = FrameLayout.LayoutParams.MATCH_PARENT
+            height = bottomHeight
+            topMargin = bottomTop
+        }
+    }
+
+    /**
+     * Smoothly interpolates the mirrored panes' height/topMargin from their
+     * last-applied values to the new target on every animation frame
+     * (Choreographer-driven via [ValueAnimator], the same 120Hz-safe
+     * mechanism [switchLayout]'s own crossfade already uses - spec §5's
+     * "don't fight the display with a fixed-rate postDelayed loop" note),
+     * instead of the hard cut this replaced.
+     *
+     * Duration is modulated by [hingeAngularVelocityDegPerSec] - real,
+     * on-device-verified hinge-angle sensor data (HingeAngleSensor,
+     * confirmed present and emitting on the actual Fold 5 target,
+     * RFCW80CK2RW) that was previously collected only to be logged and
+     * discarded. A fast physical fold/unfold gets a shorter duration so the
+     * UI doesn't visibly lag behind the hand moving it; a call that isn't
+     * from active motion (e.g. a FLAT<->HALF_OPENED bounds correction at a
+     * roughly stationary angle) gets the full default duration. Clamped to
+     * two fixed values either way (not a continuous function of velocity),
+     * deliberately conservative given real angle behavior during an actual
+     * physical fold sweep hasn't been characterized on this branch yet
+     * (see docs/specs/engines-upgrade-plan.md's own flag on this) - this
+     * degrades to the exact same fixed 200ms as before on any device where
+     * the sensor is absent (velocity simply stays 0), never depending on
+     * the sensor for correctness, only for feel.
+     */
+    private fun animateGeometryTransition(
+        mb: FragmentConversationsMirroredBinding,
+        fromTop: Int, toTop: Int,
+        fromBottomTop: Int, toBottomTop: Int,
+        fromBottomHeight: Int, toBottomHeight: Int
+    ) {
+        geometryAnimator?.cancel()
+        val fastMotionThresholdDegPerSec = 60f
+        val duration = if (hingeAngularVelocityDegPerSec >= fastMotionThresholdDegPerSec) 90L else 200L
+        val animator = ValueAnimator.ofFloat(0f, 1f).apply {
+            this.duration = duration
+            addUpdateListener { anim ->
+                val t = anim.animatedValue as Float
+                applyPaneLayoutParams(
+                    mb,
+                    topHeight = (fromTop + (toTop - fromTop) * t).toInt(),
+                    bottomTop = (fromBottomTop + (toBottomTop - fromBottomTop) * t).toInt(),
+                    bottomHeight = (fromBottomHeight + (toBottomHeight - fromBottomHeight) * t).toInt()
+                )
+            }
+        }
+        geometryAnimator = animator
+        animator.start()
     }
 
     // ---------------------------------------------------------------------
@@ -1021,6 +1146,8 @@ class ConversationsFragment : Fragment() {
         releaseContinuousEngines()
         player?.release()
         player = null
+        geometryAnimator?.cancel()
+        geometryAnimator = null
         contentContainer = null
         fallbackBinding = null
         mirroredBinding = null
