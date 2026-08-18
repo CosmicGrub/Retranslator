@@ -3,6 +3,7 @@ package com.retroid.translator
 import android.app.Application
 import com.retroid.translator.audio.MicPipeline
 import com.retroid.translator.engine.EspeakEngine
+import com.retroid.translator.engine.LlmAssistEngine
 import com.retroid.translator.engine.PiperTtsEngine
 import com.retroid.translator.engine.TtsRouter
 import com.retroid.translator.engine.VoskEngine
@@ -19,6 +20,9 @@ class TranslatorApp : Application() {
     val piper: PiperTtsEngine by lazy { PiperTtsEngine(this) }
     val vosk: VoskEngine by lazy { VoskEngine(this) }
     val mic: MicPipeline by lazy { MicPipeline() }
+
+    /** On-device "rudimentary AI" assistant - Translate tab's AI phrase helper. See LlmAssistEngine's doc comment. */
+    val llmAssist: LlmAssistEngine by lazy { LlmAssistEngine(this) }
 
     /** Every screen speaks through this - it picks Piper (natural) when downloaded, else eSpeak. */
     val tts: TtsRouter by lazy { TtsRouter(espeak, piper) }

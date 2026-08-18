@@ -182,6 +182,85 @@ object DownloadManager {
         }
     }
 
+    /**
+     * Downloads a single file as-is - no zip/tar extraction - for packs that
+     * ship as one flat file rather than an archive (the on-device AI
+     * assistant's `.task` model bundle, [com.retroid.translator.engine.LlmAssistEngine]).
+     * Same Wi-Fi-gated, temp-file-then-move, delete-on-failure discipline as
+     * [downloadAndUnzip]/[downloadAndExtractTarBz2] above - a partially
+     * downloaded model file must never be left where a caller's own
+     * "is this downloaded" check would read it as complete, the same real
+     * failure mode [downloadAndExtractTarBz2]'s own doc comment already
+     * describes hitting once for a Piper voice pack.
+     */
+    fun downloadFile(
+        context: Context,
+        url: String,
+        destFile: File,
+        requireWifi: Boolean = true,
+        onProgress: (percent: Int) -> Unit = {},
+        onDone: (success: Boolean, error: String?) -> Unit
+    ) {
+        if (requireWifi && !isOnWifi(context)) {
+            onDone(false, "Wi-Fi required for the first-time download")
+            return
+        }
+        executor.execute {
+            var tmp: File? = null
+            try {
+                tmp = File(context.cacheDir, "dl_${System.currentTimeMillis()}.tmp")
+                val conn = (URL(url).openConnection() as HttpURLConnection).apply {
+                    connectTimeout = 15_000
+                    readTimeout = 30_000
+                    instanceFollowRedirects = true
+                }
+                conn.connect()
+                if (conn.responseCode !in 200..299) {
+                    mainHandler.post { onDone(false, "Server returned ${conn.responseCode}") }
+                    return@execute
+                }
+                val total = conn.contentLength
+                var downloaded = 0L
+                conn.inputStream.use { input ->
+                    tmp.outputStream().use { output ->
+                        val buf = ByteArray(64 * 1024)
+                        var lastPct = -1
+                        while (true) {
+                            val n = input.read(buf)
+                            if (n < 0) break
+                            output.write(buf, 0, n)
+                            downloaded += n
+                            if (total > 0) {
+                                val pct = ((downloaded * 100) / total).toInt()
+                                if (pct != lastPct) {
+                                    lastPct = pct
+                                    mainHandler.post { onProgress(pct) }
+                                }
+                            }
+                        }
+                    }
+                }
+                conn.disconnect()
+                destFile.parentFile?.mkdirs()
+                if (destFile.exists()) destFile.delete()
+                if (!tmp.renameTo(destFile)) {
+                    // renameTo can fail across filesystem boundaries (cacheDir
+                    // vs filesDir are usually the same volume on Android, but
+                    // not guaranteed on every OEM/storage config) - fall back
+                    // to a real copy rather than silently losing the download.
+                    tmp.copyTo(destFile, overwrite = true)
+                }
+                mainHandler.post { onDone(true, null) }
+            } catch (e: Exception) {
+                Log.e(TAG, "Download failed for $url", e)
+                try { if (destFile.exists()) destFile.delete() } catch (e2: Exception) { /* ignore */ }
+                mainHandler.post { onDone(false, e.message ?: "Download failed") }
+            } finally {
+                tmp?.delete()
+            }
+        }
+    }
+
     fun deleteDir(dir: File) {
         if (dir.exists()) dir.deleteRecursively()
     }
