@@ -99,7 +99,7 @@ Robotic but unconditionally available — this is the fallback floor, not the qu
 | | |
 |---|---|
 | Wrapper | `app/src/main/java/com/retroid/translator/engine/PiperTtsEngine.kt` |
-| Runtime | sherpa-onnx **v1.13.4** (k2-fsa), vendored — no Maven Central artifact exists, hand-extracted from the GitHub release AAR (`libs/sherpa-onnx-classes.jar` + `jniLibs/arm64-v8a/lib{onnxruntime,sherpa-onnx-*}.so`) |
+| Runtime | sherpa-onnx **v1.13.5** (k2-fsa; bumped from v1.13.4 on the Fold5 edition, 2026-08-18 — see `docs/evidence/fold5-edition/sherpa-onnx-1.13.5-regression.md`), vendored — no Maven Central artifact exists, hand-extracted from the GitHub release AAR (`libs/sherpa-onnx-classes.jar` + `jniLibs/arm64-v8a/lib{onnxruntime,sherpa-onnx-*}.so`) |
 | License | Apache-2.0 (sherpa-onnx; unaffected by Piper's Oct-2025 GPL-3.0 relicense since sherpa-onnx only reads Piper's `.onnx` weights as data) |
 | Catalog | `app/src/main/java/com/retroid/translator/engine/PiperVoiceCatalog.kt` |
 

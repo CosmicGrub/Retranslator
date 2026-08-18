@@ -177,11 +177,18 @@ dependencies {
     // downloaded Piper VITS voice models for natural-sounding speech. There is
     // no official Maven Central artifact, so this vendors the same two pieces
     // the upstream release AAR (github.com/k2-fsa/sherpa-onnx/releases, tag
-    // v1.13.4, sherpa-onnx-1.13.4.aar) contains for our one target ABI: the
+    // v1.13.5, sherpa-onnx-1.13.5.aar) contains for our one target ABI: the
     // compiled Kotlin/Java API classes (libs/sherpa-onnx-classes.jar) and the
     // arm64-v8a native libs (jniLibs/arm64-v8a/lib{onnxruntime,sherpa-onnx-*}.so)
     // extracted from that AAR, mirroring how libttsespeak.so is already vendored
-    // rather than pulling in the other 3 unused ABIs.
+    // rather than pulling in the other 3 unused ABIs. Fold5 edition bumped
+    // from v1.13.4 -> v1.13.5 (2026-08-18, fold5-quality-tier1-2 branch) for
+    // a use-after-free fix in async TTS callbacks and a Piper VITS phoneme
+    // pipeline correctness fix - see docs/evidence/fold5-edition/
+    // sherpa-onnx-1.13.5-regression.md for the re-vendor + 4-language
+    // regression evidence. OfflineTts.generate(text, sid, speed)'s signature
+    // is unchanged (confirmed via javap against both jars), so no
+    // PiperTtsEngine.kt changes were needed.
     implementation(files("libs/sherpa-onnx-classes.jar"))
 
     // Piper voice packs are distributed as .tar.bz2 (not .zip like the Vosk

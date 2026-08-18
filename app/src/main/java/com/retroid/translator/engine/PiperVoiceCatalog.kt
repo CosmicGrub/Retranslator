@@ -30,7 +30,7 @@ data class PiperVoiceInfo(
     val gender: VoiceGender,
     val voiceId: String,       // e.g. "en_US-ljspeech-medium" - also the on-disk storage key
     val displayName: String,
-    val quality: String,       // "medium" | "low" | "high"
+    val quality: String,       // "medium" | "low" | "high" | "x_low"
     val url: String,
     val approxSizeMiB: Int,
     val license: String,
@@ -96,6 +96,32 @@ object PiperVoiceCatalog {
             "fr", VoiceGender.MALE, "fr_FR-gilles-low", "French - gilles", "low",
             "$RELEASE_BASE/vits-piper-fr_FR-gilles-low.tar.bz2", 65,
             "CC0", "https://www.kaggle.com/datasets/bryanpark/french-single-speaker-speech-dataset"
+        ),
+        // --- Italian ---
+        // engines-upgrade-plan.md Tier 2 pilot addition (2026-08-18, Fold5
+        // edition): single-gender entry, same "no acceptable-license pair
+        // exists yet for this language" shape as fr_FR-gilles above. Dataset
+        // is M-AILABS' Italian split - LibriVox (public-domain audio) read
+        // from Project Gutenberg (public-domain text), BSD-style redistribution
+        // terms, independently verified via the dataset's own README (the
+        // M-AILABS site itself was unreachable this session - DNS failure,
+        // not a license concern). M-AILABS' one documented per-language
+        // carve-out is Ukrainian ("for machine learning purposes only") -
+        // Italian carries no such restriction. Real archive downloaded and
+        // inspected directly (not assumed): 26,496,614 bytes, onnx model
+        // 20,578,720 bytes (comfortably above PiperTtsEngine's 10MB
+        // truncated-download floor), tokens.txt non-empty, all four required
+        // espeak-ng-data files present (phontab/phonindex/phondata/
+        // intonations) - see docs/evidence/fold5-edition/
+        // italian-voice-verification.md. Only "x_low" quality exists for
+        // this speaker upstream (no medium/high tier) - smaller and lower
+        // fidelity than this catalog's other entries, disclosed via
+        // [PiperVoiceInfo.quality] same as any other entry.
+        PiperVoiceInfo(
+            "it", VoiceGender.MALE, "it_IT-riccardo-x_low", "Italian - riccardo", "x_low",
+            "$RELEASE_BASE/vits-piper-it_IT-riccardo-x_low.tar.bz2", 26,
+            "Public domain / BSD-style redistribution (M-AILABS dataset: LibriVox + Project Gutenberg)",
+            "https://github.com/imdatceleste/m-ailabs-dataset/blob/master/README.md"
         ),
     )
 
