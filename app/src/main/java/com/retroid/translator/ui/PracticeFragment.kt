@@ -3,12 +3,16 @@ package com.retroid.translator.ui
 import android.animation.ValueAnimator
 import android.content.Context
 import android.content.SharedPreferences
+import android.graphics.Color
 import android.media.MediaPlayer
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
 import android.text.Editable
+import android.text.SpannableStringBuilder
+import android.text.Spanned
 import android.text.TextWatcher
+import android.text.style.ForegroundColorSpan
 import android.util.Log
 import android.view.Gravity
 import android.view.LayoutInflater
@@ -30,6 +34,8 @@ import androidx.fragment.app.Fragment
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import androidx.window.layout.FoldingFeature
 import com.google.android.material.textfield.TextInputEditText
 import com.google.mlkit.nl.translate.TranslateLanguage
@@ -37,6 +43,7 @@ import com.retroid.translator.MainActivity
 import com.retroid.translator.R
 import com.retroid.translator.audio.MicPipeline
 import com.retroid.translator.audio.RecordingsStore
+import com.retroid.translator.engine.VoskResultParsing
 import com.retroid.translator.databinding.FragmentPracticeBinding
 import com.retroid.translator.databinding.FragmentPracticeCoverDrillCarouselBinding
 import com.retroid.translator.databinding.FragmentPracticeCoverDrillDeckBinding
@@ -579,6 +586,7 @@ class PracticeFragment : Fragment(), FoldAwareLayoutHost {
         recordingTargetPhrase = phraseText.trim()
         micStatusText = "Recording… tap Stop when done"
         statusSetter(micStatusText)
+        hidePronunciationFeedback()
         refreshAllContent()
         app.mic.start(
             recognizer = null,
@@ -599,6 +607,7 @@ class PracticeFragment : Fragment(), FoldAwareLayoutHost {
                         sessionLastAttemptByPhrase[key] = file
                     }
                     refreshRecordingsCache()
+                    runPronunciationFeedback(file)
                     onSaved?.invoke()
                     refreshAllContent()
                 }
@@ -611,6 +620,102 @@ class PracticeFragment : Fragment(), FoldAwareLayoutHost {
                 }
             }
         )
+    }
+
+    // -------------------------------------------------------------------
+    // fold5-device-version branch: pronunciation feedback from Vosk's
+    // per-word decode confidence (docs/specs/engines-upgrade-plan.md
+    // "Practice-tab pronunciation feedback from Vosk per-word confidence").
+    // This is a heuristic/statistical signal, NOT phonetic analysis against
+    // a native speaker - it measures how confident Vosk's recognizer was
+    // decoding each word, which correlates with but isn't the same thing as
+    // pronunciation clarity (background noise, unusual phrasing, or an
+    // out-of-vocabulary word can all lower it too). The UI states this
+    // plainly rather than implying more than it is, matching this project's
+    // house style elsewhere (e.g. the dual-recognizer accuracy caveats in
+    // docs/specs/fold5-adaptation.md §4).
+    //
+    // Runs as a POST-recording decode over the just-saved WAV file, on a
+    // background dispatcher - deliberately NOT wired into the live
+    // app.mic.start(recognizer = ...) call the recording itself uses just
+    // above, since MicPipeline.start() auto-stops capture on the FIRST
+    // Vosk-detected utterance boundary whenever given a non-null recognizer
+    // (see MicPipeline.kt's `if (isFinal) { ...; break }`). That's the
+    // correct, established behavior for Translate/Conversations' tap-to-talk
+    // flows, but would silently truncate Practice recordings at the first
+    // natural pause - a real regression to an existing, working feature
+    // this pass must not risk. Decoding the saved file separately, after
+    // the fact, gets the same per-word confidence data with zero risk to
+    // the recording itself.
+    // -------------------------------------------------------------------
+
+    /**
+     * Requires a Vosk model for [selectedLanguageCode] to already be loaded
+     * ([com.retroid.translator.engine.VoskEngine.loadedLangCode]) -
+     * deliberately NOT blocking recording start on an async model load,
+     * since "record my attempt" must never feel slower because of this
+     * bonus feature. If no model is loaded yet, this recording gets no
+     * feedback and a background load is kicked off so the NEXT attempt is
+     * more likely to - an honest "best effort" degradation, not a silent
+     * one.
+     */
+    private fun runPronunciationFeedback(file: File) {
+        val app = mainActivity?.app ?: return
+        val code = selectedLanguageCode
+        if (app.vosk.loadedLangCode != code) {
+            if (app.vosk.isModelDownloaded(code)) {
+                app.vosk.loadModelAsync(code) { _, _ -> /* primes it for the next attempt, not this one */ }
+            }
+            return
+        }
+        val recognizer = app.vosk.newRecognizer() ?: return
+        recognizer.setWords(true)
+        viewLifecycleOwner.lifecycleScope.launch {
+            val words = withContext(Dispatchers.IO) {
+                try {
+                    val bytes = file.readBytes()
+                    if (bytes.size <= WAV_HEADER_BYTES) return@withContext emptyList()
+                    val pcm = bytes.copyOfRange(WAV_HEADER_BYTES, bytes.size)
+                    recognizer.acceptWaveForm(pcm, pcm.size)
+                    VoskResultParsing.extractPerWordConf(recognizer.finalResult ?: "")
+                } catch (e: Exception) {
+                    Log.e(TAG, "Pronunciation feedback decode failed", e)
+                    emptyList()
+                } finally {
+                    try { recognizer.close() } catch (e: Exception) { /* ignore */ }
+                }
+            }
+            if (contentContainer == null) return@launch
+            renderPronunciationFeedback(words)
+        }
+    }
+
+    private fun hidePronunciationFeedback() {
+        defaultBinding?.textPronunciationFeedback?.apply { visibility = View.GONE; text = "" }
+    }
+
+    private fun renderPronunciationFeedback(words: List<VoskResultParsing.WordConfidence>) {
+        val tv = defaultBinding?.textPronunciationFeedback ?: return
+        if (words.isEmpty()) {
+            tv.visibility = View.GONE
+            tv.text = ""
+            return
+        }
+        val builder = SpannableStringBuilder()
+        for ((i, w) in words.withIndex()) {
+            if (i > 0) builder.append(" ")
+            val start = builder.length
+            builder.append(w.word)
+            val color = when {
+                w.conf >= 0.8 -> Color.parseColor("#4CAF50") // clear
+                w.conf >= 0.5 -> Color.parseColor("#FF9800") // uncertain
+                else -> Color.parseColor("#F44336") // least clear
+            }
+            builder.setSpan(ForegroundColorSpan(color), start, builder.length, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
+        }
+        builder.append("\nPronunciation check — Vosk recognizer confidence per word, not native-speaker accuracy. Red = least clear.")
+        tv.text = builder
+        tv.visibility = View.VISIBLE
     }
 
     private fun addPhraseToQueue(text: String) {
@@ -1508,6 +1613,8 @@ class PracticeFragment : Fragment(), FoldAwareLayoutHost {
 
     companion object {
         private const val TAG = "PracticeFragment"
+        /** [com.retroid.translator.audio.WavFileWriter] always writes a standard 44-byte PCM header before raw sample data. */
+        private const val WAV_HEADER_BYTES = 44
         private const val CAROUSEL_SWIPE_THRESHOLD_PX = 90f
         private const val LOOP_PAUSE_MS = 900L
         private const val FEED_SETTLE_DELAY_MS = 150L

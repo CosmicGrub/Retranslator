@@ -114,6 +114,22 @@
             android:textStyle="italic"
             android:layout_marginTop="6dp" />
 
+        <!--
+          fold5-device-version branch: pronunciation feedback from Vosk's
+          per-word decode confidence (docs/specs/engines-upgrade-plan.md).
+          Separate view from textPracticeStatus above so it persists after
+          the "Recording..." status clears, instead of being overwritten by
+          it. Empty/gone until a recognizer-backed recording actually
+          produces per-word data - see PracticeFragment.onFinalRaw.
+        -->
+        <TextView
+            android:id="@+id/textPronunciationFeedback"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="4dp"
+            android:textSize="13sp"
+            android:visibility="gone" />
+
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"

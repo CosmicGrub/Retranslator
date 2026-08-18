@@ -50,6 +50,50 @@ object VoskResultParsing {
         }
     }
 
+    /**
+     * One decoded word's confidence, for the fold5-device-version branch's
+     * Practice-tab pronunciation-feedback feature
+     * (docs/specs/fold5-adaptation.md's engines-upgrade-plan §"Practice-tab
+     * pronunciation feedback from Vosk per-word confidence"). This is a
+     * heuristic/statistical signal, not phonetic analysis against a native
+     * speaker - see [com.retroid.translator.ui.PracticeFragment]'s doc
+     * comment on the feature this feeds for the honest framing.
+     */
+    data class WordConfidence(val word: String, val conf: Double, val startSec: Double, val endSec: Double)
+
+    /**
+     * Per-word confidence breakdown, for surfacing which specific words a
+     * Vosk decode was least confident on (Practice-tab pronunciation
+     * feedback). Distinct from [extractWordConfStats], which collapses this
+     * same "result" array down to one averaged number for the dual-recognizer
+     * language-picking use case - this keeps the per-word breakdown instead.
+     * Empty list if the JSON has no per-word "conf"/"word" data (requires
+     * `recognizer.setWords(true)`, same requirement as [extractWordConfStats]).
+     */
+    fun extractPerWordConf(json: String): List<WordConfidence> {
+        return try {
+            val obj = JSONObject(json)
+            val resultArr = obj.optJSONArray("result") ?: return emptyList()
+            val out = mutableListOf<WordConfidence>()
+            for (i in 0 until resultArr.length()) {
+                val w = resultArr.optJSONObject(i) ?: continue
+                if (w.has("conf") && w.has("word")) {
+                    out.add(
+                        WordConfidence(
+                            word = w.optString("word", ""),
+                            conf = w.optDouble("conf", 0.0),
+                            startSec = w.optDouble("start", 0.0),
+                            endSec = w.optDouble("end", 0.0)
+                        )
+                    )
+                }
+            }
+            out
+        } catch (e: Exception) {
+            emptyList()
+        }
+    }
+
     data class Candidate(val langCode: String, val avgWordConf: Double?, val wordCount: Int)
 
     /**

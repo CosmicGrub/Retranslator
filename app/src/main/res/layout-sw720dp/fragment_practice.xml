@@ -143,6 +143,15 @@
                 android:textStyle="italic"
                 android:layout_marginTop="8dp" />
 
+            <!-- fold5-device-version branch: see fragment_practice.xml's matching view for the full rationale. -->
+            <TextView
+                android:id="@+id/textPronunciationFeedback"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="6dp"
+                android:textSize="13sp"
+                android:visibility="gone" />
+
         </LinearLayout>
     </ScrollView>
 

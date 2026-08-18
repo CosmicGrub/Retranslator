@@ -30,6 +30,17 @@ class MicPipeline {
     interface Listener {
         fun onPartial(text: String) {}
         fun onFinal(text: String) {}
+        /**
+         * Same finalized utterance as [onFinal], fired immediately alongside
+         * it, but given the raw Vosk result JSON instead of just the
+         * extracted "text" field. Default no-op - only a caller that needs
+         * more than plain text (e.g. Practice's per-word pronunciation-
+         * feedback feature, docs/specs/engines-upgrade-plan.md, via
+         * [com.retroid.translator.engine.VoskResultParsing.extractPerWordConf])
+         * needs to override this; every existing [onFinal]-only caller is
+         * unaffected.
+         */
+        fun onFinalRaw(json: String) {}
         fun onRecordingSaved(file: File, bytes: Long) {}
         fun onError(message: String) {}
         fun onListeningStarted() {}
@@ -151,10 +162,11 @@ class MicPipeline {
                             false
                         }
                         if (isFinal) {
-                            val text = extractField(safeResult { recognizer.result }, "text")
+                            val json = safeResult { recognizer.result }
+                            val text = extractField(json, "text")
                             if (text.isNotBlank()) {
                                 gotFinal = true
-                                mainHandler.post { listener.onFinal(text) }
+                                mainHandler.post { listener.onFinal(text); listener.onFinalRaw(json) }
                                 break
                             }
                             // Empty final (pure silence) - keep listening until timeout.
@@ -168,9 +180,10 @@ class MicPipeline {
                 }
 
                 if (!gotFinal && recognizer != null) {
-                    val text = extractField(safeResult { recognizer.finalResult }, "text")
+                    val json = safeResult { recognizer.finalResult }
+                    val text = extractField(json, "text")
                     if (text.isNotBlank()) {
-                        mainHandler.post { listener.onFinal(text) }
+                        mainHandler.post { listener.onFinal(text); listener.onFinalRaw(json) }
                     } else {
                         mainHandler.post { listener.onError("Didn't catch that — try again") }
                     }
