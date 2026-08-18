@@ -1,4 +1,15 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="app_name">Retranslator</string>
+    <!-- Fold5 edition (docs/specs/fold5-adaptation.md's dated Fold5-edition
+         section): distinct launcher/toolbar label so this build is visually
+         identifiable next to the universal build's "Retranslator" when both
+         are installed side-by-side (distinct applicationId, see
+         app/build.gradle.kts). Every existing reference to this string
+         (AndroidManifest.xml's android:label, MainActivity's toolbar title,
+         activity_main.xml's toolbar title, ContinuousListeningService's
+         persistent notification) was checked before this rename - all read
+         it via @string/app_name / R.string.app_name, so this single value
+         change updates all of them consistently, nothing hardcoded a
+         literal "Retranslator" string elsewhere that this would drift from. -->
+    <string name="app_name">Retranslator Fold5</string>
 </resources>

@@ -9,10 +9,19 @@ android {
 
     defaultConfig {
         applicationId = "com.retroid.translator"
+        // Fold5 edition (docs/specs/fold5-adaptation.md's dated Fold5-edition
+        // section): a distinct applicationId/versionName so this build
+        // installs ALONGSIDE the universal (non-suffixed) build rather than
+        // overwriting it on the same device - lets the two be compared
+        // side-by-side on the real Galaxy Z Fold 5 (serial RFCW80CK2RW) this
+        // edition is tuned for. The Tab S9 FE edition uses its own distinct
+        // suffix in its own worktree/branch for the same reason.
+        applicationIdSuffix = ".fold5"
         minSdk = 28
         targetSdk = 34
         versionCode = 1
         versionName = "1.0"
+        versionNameSuffix = "-fold5-edition"
 
         // Target device (Retroid Pocket 2+) is arm64-v8a only; restricting the
         // ABI keeps the bundled native libs (espeak-ng, Vosk/JNA) from bloating

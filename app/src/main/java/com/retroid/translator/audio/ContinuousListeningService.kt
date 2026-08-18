@@ -179,7 +179,11 @@ class ContinuousListeningService : Service() {
             PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
         )
         return NotificationCompat.Builder(this, CHANNEL_ID)
-            .setContentTitle("Retranslator")
+            // Was a hardcoded "Retranslator" literal; switched to the real
+            // app_name resource so the Fold5 edition's persistent
+            // notification reads "Retranslator Fold5" (see strings.xml's
+            // Fold5-edition comment) instead of silently staying generic.
+            .setContentTitle(getString(R.string.app_name))
             // Honest, literal description of what's happening in the
             // background right now - see class doc's privacy-transparency
             // rationale for choosing a foreground service over a silent

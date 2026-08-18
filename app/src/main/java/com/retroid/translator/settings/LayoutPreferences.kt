@@ -62,6 +62,45 @@ object LayoutPreferences {
     private const val PREFS_NAME = "layout_prefs"
     private const val KEY_AUTO_SWITCH_ON_FOLD = "auto_switch_on_fold"
     private const val KEY_FORCE_COMPACT_LAYOUT = "force_compact_layout"
+    private const val KEY_CONVERSATIONS_CONTINUOUS_USER_SET = "conversations_continuous_user_set"
+
+    /**
+     * Fold5 edition cold-launch default (docs/specs/fold5-adaptation.md's
+     * dated Fold5-edition section): before Translate's cover-screen variant
+     * preference has ever been explicitly written by the user, this device
+     * edition resolves it to "single_circle" instead of the generic
+     * [DEFAULT_VARIANT] - §6/§7 of that spec real-device-confirmed
+     * `single_circle` as this exact device's best cover-screen
+     * quick-translate experience (serial `RFCW80CK2RW`), so a first-time
+     * fold-closed cold launch lands there directly rather than squeezing the
+     * full book-portrait layout onto the narrow cover display. Deliberately
+     * narrow in scope: only consulted by [getVariant] for exactly
+     * (TRANSLATE, COVER) - see there. Not imported from
+     * `com.retroid.translator.ui.TranslateCoverVariant.SINGLE_CIRCLE` (whose
+     * value this must match) to avoid a `settings` -> `ui` reverse
+     * dependency in this otherwise tab-agnostic shared foundation file (see
+     * class doc above).
+     */
+    private const val FOLD5_TRANSLATE_COVER_DEFAULT_VARIANT = "single_circle"
+
+    /**
+     * Fold5 edition cold-launch default (docs/specs/fold5-adaptation.md's
+     * dated Fold5-edition section): whether Conversations' "Continuous
+     * listening" toggle (dual-recognizer auto-detect, spec §4) should be
+     * attempted automatically the first time the Conversations tab is shown
+     * on this device edition, before the user has ever explicitly touched
+     * the toggle themselves. Hardcoded true for this edition - the
+     * mechanism itself was real-device-verified working on this exact
+     * device (serial `RFCW80CK2RW`) per spec §4/§11. See
+     * [ConversationsFragment.maybeApplyFold5ContinuousDefault] for the
+     * actual trigger, which reuses [ConversationsFragment.startContinuousMode]
+     * completely unmodified (same mic-permission / Vosk-model-presence /
+     * mic-busy checks, same graceful Toast-and-revert-to-off on any of them
+     * failing) - this constant only decides whether that existing, already
+     * real-verified path is attempted automatically or only on an explicit
+     * tap.
+     */
+    const val CONVERSATIONS_CONTINUOUS_DEFAULT_ON = true
 
     private fun prefs(context: Context) =
         context.applicationContext.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
@@ -72,12 +111,46 @@ object LayoutPreferences {
     // Per-tab, per-posture layout variant selection
     // -------------------------------------------------------------------
 
-    /** The variant ID currently configured for [tab]'s [mode] layout. [DEFAULT_VARIANT] until the user picks something else. */
-    fun getVariant(context: Context, tab: SettingsTab, mode: ScreenMode): String =
-        prefs(context).getString(variantKey(tab, mode), DEFAULT_VARIANT) ?: DEFAULT_VARIANT
+    /**
+     * The variant ID currently configured for [tab]'s [mode] layout.
+     * [DEFAULT_VARIANT] until the user picks something else - EXCEPT for
+     * (TRANSLATE, COVER) on this Fold5 edition, which resolves to
+     * [FOLD5_TRANSLATE_COVER_DEFAULT_VARIANT] instead until the user picks
+     * something else (see that constant's doc). The `stored != null` check
+     * (rather than `stored != DEFAULT_VARIANT`) is deliberate: a user who
+     * explicitly re-picks "Default" through the Settings picker persists the
+     * literal string [DEFAULT_VARIANT] and must see that honored, not
+     * silently overridden back to the Fold5 default - only a preference
+     * that was truly never written falls through to it.
+     */
+    fun getVariant(context: Context, tab: SettingsTab, mode: ScreenMode): String {
+        val stored = prefs(context).getString(variantKey(tab, mode), null)
+        if (stored != null) return stored
+        if (tab == SettingsTab.TRANSLATE && mode == ScreenMode.COVER) return FOLD5_TRANSLATE_COVER_DEFAULT_VARIANT
+        return DEFAULT_VARIANT
+    }
 
     fun setVariant(context: Context, tab: SettingsTab, mode: ScreenMode, variantId: String) {
         prefs(context).edit().putString(variantKey(tab, mode), variantId).apply()
+    }
+
+    // -------------------------------------------------------------------
+    // Conversations continuous-listening cold-launch default (Fold5 edition)
+    // -------------------------------------------------------------------
+
+    /**
+     * True once the user has explicitly interacted with Conversations'
+     * "Continuous listening" toggle themselves (tapped it on OR off) -
+     * see [CONVERSATIONS_CONTINUOUS_DEFAULT_ON]'s doc. Once true,
+     * [ConversationsFragment.maybeApplyFold5ContinuousDefault] never
+     * auto-applies the default again for this install, so the user's own
+     * choice - including explicitly turning it back off - always wins.
+     */
+    fun hasUserSetConversationsContinuous(context: Context): Boolean =
+        prefs(context).getBoolean(KEY_CONVERSATIONS_CONTINUOUS_USER_SET, false)
+
+    fun markConversationsContinuousUserSet(context: Context) {
+        prefs(context).edit().putBoolean(KEY_CONVERSATIONS_CONTINUOUS_USER_SET, true).apply()
     }
 
     // -------------------------------------------------------------------

@@ -43,6 +43,7 @@ import com.retroid.translator.engine.VoskModelCatalog
 import com.retroid.translator.fold.FoldPosture
 import com.retroid.translator.fold.FoldPostureProvider
 import com.retroid.translator.fold.FoldState
+import com.retroid.translator.settings.LayoutPreferences
 import com.google.mlkit.nl.translate.TranslateLanguage
 import kotlinx.coroutines.launch
 import java.io.File
@@ -213,6 +214,39 @@ class ConversationsFragment : Fragment() {
         genderIsMale = VoicePreferences.getGender(requireContext()) == VoiceGender.MALE
         largeScreenSideBySide = resources.getBoolean(R.bool.conversations_side_by_side)
         observeFoldPosture()
+        maybeApplyFold5ContinuousDefault()
+    }
+
+    /**
+     * Fold5 edition cold-launch default (docs/specs/fold5-adaptation.md's
+     * dated Fold5-edition section, [LayoutPreferences.CONVERSATIONS_CONTINUOUS_DEFAULT_ON]'s
+     * doc) - "dual-recognizer auto-detect ON by default". Attempts
+     * [startContinuousMode] automatically the first time this tab is shown,
+     * so a first-time cold launch on this device lands directly in
+     * continuous auto-detect rather than requiring the user to discover and
+     * flip the toggle manually. This calls the exact same function the
+     * toggle's own tap handler calls - every real check inside it (mic
+     * permission, Vosk-model presence for [langACode]/[langBCode], mic
+     * already busy) and its existing graceful Toast-and-revert-to-off
+     * behavior on any of them failing are completely unmodified, so this
+     * adds no new failure path, only a new automatic trigger for the
+     * existing one. It is safe to call before any of the three layouts have
+     * bound ([applyContinuousUiState]/[setStatus] both null-check every
+     * binding already).
+     *
+     * Gated solely on [LayoutPreferences.hasUserSetConversationsContinuous]
+     * - once the user explicitly taps the toggle themselves, on this or any
+     * later visit, that preference is recorded (see
+     * [onContinuousToggleRequested]) and this function no-ops forever after
+     * for this install, so the user's own choice - including explicitly
+     * turning it back off - always wins and is never silently re-applied.
+     */
+    private fun maybeApplyFold5ContinuousDefault() {
+        if (!LayoutPreferences.CONVERSATIONS_CONTINUOUS_DEFAULT_ON) return
+        if (LayoutPreferences.hasUserSetConversationsContinuous(requireContext())) return
+        if (continuousEnabled || continuousLoading) return
+        Log.i(TAG, "fold5 edition: attempting cold-launch default-on for continuous listening (dual-recognizer auto-detect)")
+        startContinuousMode()
     }
 
     // ---------------------------------------------------------------------
@@ -761,6 +795,13 @@ class ConversationsFragment : Fragment() {
     }
 
     private fun onContinuousToggleRequested(wantOn: Boolean) {
+        // Fold5 edition (see maybeApplyFold5ContinuousDefault's doc): a real
+        // explicit tap on the toggle, regardless of outcome below, is what
+        // "the user has set this themselves" means - recorded unconditionally
+        // here, the single choke point all five real toggle click listeners
+        // (fallback/mirrored-top/mirrored-bottom/large-left/large-right) go
+        // through, so the cold-launch default is never re-applied after this.
+        LayoutPreferences.markConversationsContinuousUserSet(requireContext())
         if (wantOn == continuousEnabled || continuousLoading) {
             applyContinuousUiState() // snap any stray toggle tap back in sync
             return
