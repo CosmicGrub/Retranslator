@@ -62,6 +62,7 @@ object LayoutPreferences {
     private const val PREFS_NAME = "layout_prefs"
     private const val KEY_AUTO_SWITCH_ON_FOLD = "auto_switch_on_fold"
     private const val KEY_FORCE_COMPACT_LAYOUT = "force_compact_layout"
+    private const val KEY_DEVICE_DEFAULTS_SEEDED = "device_defaults_seeded"
 
     private fun prefs(context: Context) =
         context.applicationContext.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
@@ -114,5 +115,27 @@ object LayoutPreferences {
 
     fun setForceCompactLayout(context: Context, enabled: Boolean) {
         prefs(context).edit().putBoolean(KEY_FORCE_COMPACT_LAYOUT, enabled).apply()
+    }
+
+    // -------------------------------------------------------------------
+    // Device-tuned default seeding (fold5-device-version branch)
+    // -------------------------------------------------------------------
+
+    /**
+     * One-time marker for [com.retroid.translator.MainActivity]'s
+     * device-specific first-launch variant seeding (this branch pre-selects
+     * this device's best-evidenced cover-screen variant per tab instead of
+     * leaving every tab on [DEFAULT_VARIANT] until the user separately
+     * discovers Settings has better options). Deliberately generic here -
+     * this file stays free of any hardcoded variant ID or device assumption,
+     * matching its own "no shared enum, each tab owns its ids" design; the
+     * actual Fold-5-specific choices live in `MainActivity`, the natural
+     * per-branch customization point, not here.
+     */
+    fun areDeviceDefaultsSeeded(context: Context): Boolean =
+        prefs(context).getBoolean(KEY_DEVICE_DEFAULTS_SEEDED, false)
+
+    fun markDeviceDefaultsSeeded(context: Context) {
+        prefs(context).edit().putBoolean(KEY_DEVICE_DEFAULTS_SEEDED, true).apply()
     }
 }

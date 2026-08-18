@@ -45,7 +45,7 @@
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:layout_marginTop="10dp"
-                    android:text="Download all remaining packs (Wi-Fi)" />
+                    android:text="Download all remaining packs (Wi-Fi or cellular)" />
 
                 <Button
                     android:id="@+id/btnCancelBulkDownload"

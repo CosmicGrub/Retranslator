@@ -22,7 +22,7 @@ object TranslationEngine {
     }
 
     fun downloadModel(code: String, requireWifi: Boolean, onDone: (Boolean, String?) -> Unit) {
-        val conditions = if (requireWifi) DownloadConditions.Builder().requireWifi().build() else DownloadConditions.Builder().build()
+        val conditions = if (requireWifi && !DownloadManager.ALLOW_CELLULAR_DOWNLOADS) DownloadConditions.Builder().requireWifi().build() else DownloadConditions.Builder().build()
         val model = TranslateRemoteModel.Builder(code).build()
         RemoteModelManager.getInstance().download(model, conditions)
             .addOnSuccessListener { onDone(true, null) }
@@ -84,6 +84,13 @@ object TranslationEngine {
      * network at all - it calls `onError` with a clear, actionable message
      * instead, so every call site's existing error handling (all of which
      * already surfaces `onError`'s message to the user) shows it verbatim.
+     *
+     * fold5-device-version branch: [DownloadManager.ALLOW_CELLULAR_DOWNLOADS]
+     * is `true` here, so this whole Wi-Fi gate (and the `requireWifi()`
+     * conditions below) is bypassed - a missing model downloads over
+     * cellular too. See that constant's doc comment for why this is scoped
+     * to this branch specifically and why it doesn't reopen the bug this
+     * method was originally written to fix.
      */
     fun translate(
         context: Context,
@@ -116,7 +123,7 @@ object TranslationEngine {
         onResult: (String) -> Unit,
         onError: (String) -> Unit
     ) {
-        if (!bothReady && !DownloadManager.isOnWifi(context)) {
+        if (!bothReady && !DownloadManager.ALLOW_CELLULAR_DOWNLOADS && !DownloadManager.isOnWifi(context)) {
             onError(
                 "Translation pack not downloaded yet. Connect to Wi-Fi, then translate " +
                     "again to download it - after that this language pair works fully offline."
@@ -128,7 +135,7 @@ object TranslationEngine {
             .setTargetLanguage(targetCode)
             .build()
         val translator: Translator = Translation.getClient(options)
-        val conditions = DownloadConditions.Builder().requireWifi().build()
+        val conditions = if (DownloadManager.ALLOW_CELLULAR_DOWNLOADS) DownloadConditions.Builder().build() else DownloadConditions.Builder().requireWifi().build()
         translator.downloadModelIfNeeded(conditions)
             .addOnSuccessListener {
                 translator.translate(text)

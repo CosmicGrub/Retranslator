@@ -806,8 +806,8 @@ class PracticeFragment : Fragment(), FoldAwareLayoutHost {
             naturalVoiceStatusText = "Natural voice (${info.displayName}) downloaded — reference pronunciation uses it automatically."
             defaultBinding?.btnDownloadNaturalVoicePractice?.text = "Re-download natural voice"
         } else {
-            naturalVoiceStatusText = "Natural voice available: ${info.displayName} (~${info.approxSizeMiB}MB, Wi-Fi, ${info.license}). Using eSpeak (robotic) until downloaded."
-            defaultBinding?.btnDownloadNaturalVoicePractice?.text = "Download natural voice (Wi-Fi)"
+            naturalVoiceStatusText = "Natural voice available: ${info.displayName} (~${info.approxSizeMiB}MB, Wi-Fi or cellular, ${info.license}). Using eSpeak (robotic) until downloaded."
+            defaultBinding?.btnDownloadNaturalVoicePractice?.text = "Download natural voice (Wi-Fi or cellular)"
         }
         defaultBinding?.textNaturalVoiceStatusPractice?.text = naturalVoiceStatusText
     }
@@ -816,7 +816,7 @@ class PracticeFragment : Fragment(), FoldAwareLayoutHost {
         val app = mainActivity?.app ?: return
         val code = selectedLanguageCode
         val gender = selectedGender()
-        naturalVoiceStatusText = "Downloading natural voice (Wi-Fi required)…"
+        naturalVoiceStatusText = "Downloading natural voice (Wi-Fi or cellular)…"
         defaultBinding?.textNaturalVoiceStatusPractice?.text = naturalVoiceStatusText
         app.tts.downloadNaturalVoice(
             requireContext(), code, gender,

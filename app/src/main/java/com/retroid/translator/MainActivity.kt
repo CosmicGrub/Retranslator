@@ -36,8 +36,11 @@ import com.retroid.translator.settings.ScreenMode
 import com.retroid.translator.settings.SettingsHubFragment
 import com.retroid.translator.settings.SettingsTab
 import com.retroid.translator.ui.ConversationsFragment
+import com.retroid.translator.ui.LearnCoverVariant
 import com.retroid.translator.ui.LearnFragment
+import com.retroid.translator.ui.PracticeCoverVariant
 import com.retroid.translator.ui.PracticeFragment
+import com.retroid.translator.ui.TranslateCoverVariant
 import com.retroid.translator.ui.TranslateFragment
 import kotlinx.coroutines.launch
 
@@ -142,6 +145,41 @@ class MainActivity : AppCompatActivity() {
 
         observeFoldAutoSwitch()
         checkBulkPackDownloadPrompt()
+        seedFold5LayoutDefaultsIfNeeded()
+    }
+
+    /**
+     * fold5-device-version branch: this build targets the Galaxy Z Fold 5
+     * specifically, so instead of leaving every tab's cover-screen layout on
+     * [LayoutPreferences.DEFAULT_VARIANT] until the user separately
+     * discovers Settings has better options, this seeds each tab's
+     * best-evidenced Fold 5 cover variant on first launch only:
+     * - Translate -> [TranslateCoverVariant.SINGLE_CIRCLE] - exercised live,
+     *   repeatedly, on real Fold 5 hardware this session (continuous
+     *   listening, tap-to-reassign verification), the tab's own flagship
+     *   cover experience per its description.
+     * - Practice -> [PracticeCoverVariant.DRILL_CAROUSEL] - spot-checked
+     *   rendering correctly on real Fold 5 hardware via force-compact
+     *   (docs/specs/fold5-adaptation.md §7).
+     * - Learn -> [LearnCoverVariant.LISTEN_CHOOSE] - same real-device
+     *   spot-check as above.
+     * Flex-Mode variants are deliberately left at [LayoutPreferences.DEFAULT_VARIANT] -
+     * real per-tab evidence on this device exists for these three Cover
+     * picks specifically, not for a Flex-Mode default, and Cover (folded
+     * closed) is this device's single most defining posture, unlike the
+     * rarer tabletop/Flex posture.
+     *
+     * Guarded by [LayoutPreferences.areDeviceDefaultsSeeded] so this only
+     * ever runs once per install - a user who later picks something else
+     * (including Default) through Settings keeps that choice permanently;
+     * this never re-forces itself on a later launch.
+     */
+    private fun seedFold5LayoutDefaultsIfNeeded() {
+        if (LayoutPreferences.areDeviceDefaultsSeeded(this)) return
+        LayoutPreferences.setVariant(this, SettingsTab.TRANSLATE, ScreenMode.COVER, TranslateCoverVariant.SINGLE_CIRCLE)
+        LayoutPreferences.setVariant(this, SettingsTab.PRACTICE, ScreenMode.COVER, PracticeCoverVariant.DRILL_CAROUSEL)
+        LayoutPreferences.setVariant(this, SettingsTab.LEARN, ScreenMode.COVER, LearnCoverVariant.LISTEN_CHOOSE)
+        LayoutPreferences.markDeviceDefaultsSeeded(this)
     }
 
     override fun onCreateOptionsMenu(menu: Menu): Boolean {

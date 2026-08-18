@@ -26,6 +26,31 @@ object DownloadManager {
     private val executor = Executors.newSingleThreadExecutor()
     private val mainHandler = Handler(Looper.getMainLooper())
 
+    /**
+     * fold5-device-version branch: this build targets the Galaxy Z Fold 5, a
+     * phone with its own cellular plan (unlike the Wi-Fi-only default every
+     * other branch of this app enforces for good reason - see c1e4a9e "fix
+     * silent cellular-download gating bug" for why that default exists and
+     * is enforced for real, not just requested). Set to `true` here, per
+     * explicit instruction for this device-specific branch only, so
+     * translation and every pack download may use cellular data.
+     *
+     * This does not reopen the bug c1e4a9e fixed: every download here is
+     * still exclusively user-initiated (tapping Translate, or an explicit
+     * Download/Manage-packs button) - this single flag only relaxes which
+     * network type those already-explicit actions may use. Nothing happens
+     * automatically or silently that wasn't already going to happen; the
+     * user still sees the same download-progress UI either way, just
+     * without a Wi-Fi requirement blocking it first. A single source of
+     * truth here (rather than flipping `requireWifi = true` at each of the
+     * ~7 call sites across this file, [com.retroid.translator.engine.TranslationEngine],
+     * [com.retroid.translator.engine.PiperTtsEngine],
+     * [com.retroid.translator.packs.BulkDownloadCoordinator], and
+     * [com.retroid.translator.ui.TranslateFragment]) keeps this branch's
+     * actual policy auditable in one place.
+     */
+    const val ALLOW_CELLULAR_DOWNLOADS = true
+
     fun isOnWifi(context: Context): Boolean {
         val cm = context.getSystemService(Context.CONNECTIVITY_SERVICE) as? ConnectivityManager ?: return false
         val network = cm.activeNetwork ?: return false
@@ -130,7 +155,7 @@ object DownloadManager {
         onDone: (success: Boolean, error: String?) -> Unit,
         extract: (File) -> Unit
     ) {
-        if (requireWifi && !isOnWifi(context)) {
+        if (requireWifi && !ALLOW_CELLULAR_DOWNLOADS && !isOnWifi(context)) {
             onDone(false, "Wi-Fi required for the first-time download")
             return
         }

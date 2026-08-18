@@ -945,8 +945,8 @@ class TranslateFragment : Fragment(), FoldAwareLayoutHost {
                 val tgtOk = downloaded.contains(targetCode)
                 modelStatusText = when {
                     srcOk && tgtOk -> "Both translation packs downloaded — works fully offline, no network needed."
-                    srcOk || tgtOk -> "One translation pack downloaded, one still needed — tap Download (needs Wi-Fi)."
-                    else -> "Translation packs not downloaded yet — tap Download once on Wi-Fi, then it's offline."
+                    srcOk || tgtOk -> "One translation pack downloaded, one still needed — tap Download (Wi-Fi or cellular)."
+                    else -> "Translation packs not downloaded yet — tap Download once (Wi-Fi or cellular), then it's offline."
                 }
                 defaultBinding?.textModelStatus?.text = modelStatusText
             }
@@ -960,7 +960,7 @@ class TranslateFragment : Fragment(), FoldAwareLayoutHost {
     private fun downloadTranslateModels() {
         val src = sourceCode
         val tgt = targetCode
-        modelStatusText = "Downloading translation packs (Wi-Fi required)..."
+        modelStatusText = "Downloading translation packs (Wi-Fi or cellular)..."
         defaultBinding?.textModelStatus?.text = modelStatusText
         TranslationEngine.downloadModel(src, requireWifi = true) { okSrc, errSrc ->
             if (contentContainer == null) return@downloadModel
@@ -992,7 +992,7 @@ class TranslateFragment : Fragment(), FoldAwareLayoutHost {
         sttStatusText = if (app.vosk.isModelDownloaded(code)) {
             "Voice-input pack for ${info.displayName} downloaded — mic works fully offline."
         } else {
-            "Voice-input pack for ${info.displayName} not downloaded (~${info.approxSizeMiB}MB, Wi-Fi)."
+            "Voice-input pack for ${info.displayName} not downloaded (~${info.approxSizeMiB}MB, Wi-Fi or cellular)."
         }
         defaultBinding?.textSttStatus?.text = sttStatusText
     }
@@ -1001,7 +1001,7 @@ class TranslateFragment : Fragment(), FoldAwareLayoutHost {
         val app = mainActivity?.app ?: return
         val code = sourceCode
         val info = VoskModelCatalog.forLanguage(code) ?: return
-        sttStatusText = "Downloading voice-input pack (Wi-Fi required)..."
+        sttStatusText = "Downloading voice-input pack (Wi-Fi or cellular)..."
         defaultBinding?.textSttStatus?.text = sttStatusText
         DownloadManager.downloadAndUnzip(
             requireContext(), info.url, app.vosk.modelRootDir(code), requireWifi = true,
@@ -1037,9 +1037,9 @@ class TranslateFragment : Fragment(), FoldAwareLayoutHost {
             defaultBinding?.textNaturalVoiceStatus?.text = naturalVoiceStatusText
             defaultBinding?.btnDownloadNaturalVoice?.text = "Re-download natural voice"
         } else {
-            naturalVoiceStatusText = "Natural voice available: ${info.displayName} (~${info.approxSizeMiB}MB, Wi-Fi, ${info.license}). Falls back to eSpeak (robotic) until downloaded."
+            naturalVoiceStatusText = "Natural voice available: ${info.displayName} (~${info.approxSizeMiB}MB, Wi-Fi or cellular, ${info.license}). Falls back to eSpeak (robotic) until downloaded."
             defaultBinding?.textNaturalVoiceStatus?.text = naturalVoiceStatusText
-            defaultBinding?.btnDownloadNaturalVoice?.text = "Download natural voice (Wi-Fi)"
+            defaultBinding?.btnDownloadNaturalVoice?.text = "Download natural voice (Wi-Fi or cellular)"
         }
     }
 
@@ -1047,7 +1047,7 @@ class TranslateFragment : Fragment(), FoldAwareLayoutHost {
         val app = mainActivity?.app ?: return
         val code = targetCode
         val gender = selectedGender()
-        naturalVoiceStatusText = "Downloading natural voice (Wi-Fi required)..."
+        naturalVoiceStatusText = "Downloading natural voice (Wi-Fi or cellular)..."
         defaultBinding?.textNaturalVoiceStatus?.text = naturalVoiceStatusText
         app.tts.downloadNaturalVoice(
             requireContext(), code, gender,

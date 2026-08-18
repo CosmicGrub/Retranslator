@@ -99,9 +99,9 @@ class ManagePacksFragment : Fragment() {
         val remaining = all.size - downloaded
         val remainingSizeMiB = all.filter { !PackStatus.isDownloaded(app, it, downloadedTranslationCodes) }.sumOf { it.approxSizeMiB }
         binding.textPacksSummary.text =
-            "$downloaded of ${all.size} packs downloaded. $remaining remaining (~${remainingSizeMiB}MB, Wi-Fi)."
+            "$downloaded of ${all.size} packs downloaded. $remaining remaining (~${remainingSizeMiB}MB, Wi-Fi or cellular)."
         binding.btnDownloadAllRemaining.isEnabled = remaining > 0 && bulkCoordinator == null
-        binding.btnDownloadAllRemaining.text = if (remaining == 0) "All packs downloaded" else "Download all remaining packs (Wi-Fi)"
+        binding.btnDownloadAllRemaining.text = if (remaining == 0) "All packs downloaded" else "Download all remaining packs (Wi-Fi or cellular)"
 
         renderSection(binding.listTranslation, PackCategory.TRANSLATION)
         renderSection(binding.listVoiceInput, PackCategory.VOICE_INPUT)
