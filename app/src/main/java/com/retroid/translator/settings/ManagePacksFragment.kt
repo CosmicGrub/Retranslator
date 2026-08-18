@@ -13,6 +13,7 @@ import androidx.cardview.widget.CardView
 import androidx.fragment.app.Fragment
 import com.retroid.translator.MainActivity
 import com.retroid.translator.databinding.FragmentManagePacksBinding
+import com.retroid.translator.engine.DownloadManager
 import com.retroid.translator.engine.TranslationEngine
 import com.retroid.translator.packs.BulkDownloadCoordinator
 import com.retroid.translator.packs.LanguagePackPreferences
@@ -65,7 +66,33 @@ class ManagePacksFragment : Fragment() {
         binding.btnDownloadAllRemaining.setOnClickListener { startBulkDownload() }
         binding.btnCancelBulkDownload.setOnClickListener { bulkCoordinator?.cancel() }
         binding.btnCheckForUpdates.setOnClickListener { checkForUpdates() }
+        setupCellularToggle()
         refresh()
+    }
+
+    /**
+     * fold5-device-version branch: real, persisted, user-adjustable setting
+     * (docs/specs/engines-upgrade-plan.md) - see [DownloadManager.allowCellularDownloads]'s
+     * doc comment for the full rationale. Deliberately the only place in the
+     * app that mentions network type at all; every download button
+     * elsewhere just says "Download".
+     */
+    private fun setupCellularToggle() {
+        val ctx = context ?: return
+        val allowed = DownloadManager.allowCellularDownloads(ctx)
+        binding.switchAllowCellular.isChecked = allowed
+        binding.textCellularSubtitle.text = cellularSubtitleText(allowed)
+        binding.switchAllowCellular.setOnCheckedChangeListener { _, isChecked ->
+            val c = context ?: return@setOnCheckedChangeListener
+            DownloadManager.setAllowCellularDownloads(c, isChecked)
+            binding.textCellularSubtitle.text = cellularSubtitleText(isChecked)
+        }
+    }
+
+    private fun cellularSubtitleText(allowed: Boolean): String = if (allowed) {
+        "Translation, voice-input, and natural-voice packs may download over cellular data, not just Wi-Fi."
+    } else {
+        "Downloads require Wi-Fi, same as every other device this app runs on."
     }
 
     override fun onResume() {
@@ -99,9 +126,9 @@ class ManagePacksFragment : Fragment() {
         val remaining = all.size - downloaded
         val remainingSizeMiB = all.filter { !PackStatus.isDownloaded(app, it, downloadedTranslationCodes) }.sumOf { it.approxSizeMiB }
         binding.textPacksSummary.text =
-            "$downloaded of ${all.size} packs downloaded. $remaining remaining (~${remainingSizeMiB}MB, Wi-Fi or cellular)."
+            "$downloaded of ${all.size} packs downloaded. $remaining remaining (~${remainingSizeMiB}MB)."
         binding.btnDownloadAllRemaining.isEnabled = remaining > 0 && bulkCoordinator == null
-        binding.btnDownloadAllRemaining.text = if (remaining == 0) "All packs downloaded" else "Download all remaining packs (Wi-Fi or cellular)"
+        binding.btnDownloadAllRemaining.text = if (remaining == 0) "All packs downloaded" else "Download all remaining packs"
 
         renderSection(binding.listTranslation, PackCategory.TRANSLATION)
         renderSection(binding.listVoiceInput, PackCategory.VOICE_INPUT)

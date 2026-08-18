@@ -33,6 +33,50 @@
                 android:orientation="vertical"
                 android:padding="16dp">
 
+                <!--
+                  fold5-device-version branch: cellular-data toggle lives
+                  here, not as inline text on every download button
+                  throughout the main app (Translate/Practice/Camera OCR) -
+                  this is the one place that governs what "Download" means
+                  network-wise everywhere else in the app.
+                -->
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal"
+                    android:paddingBottom="8dp">
+
+                    <LinearLayout
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:orientation="vertical">
+
+                        <TextView
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:text="Use cellular data"
+                            android:textSize="15sp" />
+
+                        <TextView
+                            android:id="@+id/textCellularSubtitle"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:paddingTop="2dp"
+                            android:textSize="12sp"
+                            android:alpha="0.7" />
+                    </LinearLayout>
+
+                    <com.google.android.material.switchmaterial.SwitchMaterial
+                        android:id="@+id/switchAllowCellular"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_gravity="center_vertical"
+                        android:contentDescription="Use cellular data: allow translation, voice-input, and natural-voice pack downloads over cellular, not just Wi-Fi" />
+                </LinearLayout>
+
+                <View style="@style/SettingsHubDivider" android:layout_marginBottom="10dp" />
+
                 <TextView
                     android:id="@+id/textPacksSummary"
                     android:layout_width="match_parent"
@@ -45,7 +89,7 @@
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:layout_marginTop="10dp"
-                    android:text="Download all remaining packs (Wi-Fi or cellular)" />
+                    android:text="Download all remaining packs" />
 
                 <Button
                     android:id="@+id/btnCancelBulkDownload"

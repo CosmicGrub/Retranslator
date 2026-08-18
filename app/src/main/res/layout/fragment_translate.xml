@@ -71,7 +71,7 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_marginTop="4dp"
-            android:text="Download translation pack (Wi-Fi or cellular)" />
+            android:text="Download translation pack" />
 
         <View
             android:layout_width="match_parent"
@@ -92,7 +92,7 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_marginTop="4dp"
-            android:text="Download voice-input pack (Wi-Fi or cellular)" />
+            android:text="Download voice-input pack" />
 
         <View
             android:layout_width="match_parent"
@@ -143,7 +143,7 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_marginTop="4dp"
-            android:text="Download natural voice (Wi-Fi or cellular)" />
+            android:text="Download natural voice" />
 
         <!-- Input -->
         <com.google.android.material.textfield.TextInputLayout

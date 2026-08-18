@@ -61,7 +61,7 @@
                 style="@style/Widget.MaterialComponents.Button.OutlinedButton"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="Download (Wi-Fi or cellular)"
+                android:text="Download"
                 android:textColor="#FFFFFF"
                 android:visibility="gone" />
         </LinearLayout>

@@ -137,7 +137,7 @@ class CameraCaptureActivity : AppCompatActivity() {
                 textOcrStatus.text = "${script.displayName} text-recognition pack not downloaded yet."
                 btnDownloadScript.visibility = View.VISIBLE
                 btnDownloadScript.isEnabled = true
-                btnDownloadScript.text = "Download (Wi-Fi or cellular)"
+                btnDownloadScript.text = "Download"
                 btnCapture.isEnabled = false
             }
         }
@@ -146,7 +146,7 @@ class CameraCaptureActivity : AppCompatActivity() {
     private fun downloadSelectedScript() {
         val script = selectedScript
         btnDownloadScript.isEnabled = false
-        textOcrStatus.text = "Downloading ${script.displayName} pack (Wi-Fi or cellular)..."
+        textOcrStatus.text = "Downloading ${script.displayName} pack..."
         OcrEngine.downloadScript(
             this, script,
             onProgress = { pct ->

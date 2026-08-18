@@ -70,7 +70,7 @@ class BulkDownloadCoordinator(private val context: Context, private val app: Tra
     fun downloadSingle(item: PackDescriptor, onProgress: (Int) -> Unit, onDone: (Boolean, String?) -> Unit) {
         when (item) {
             is PackDescriptor.Translation ->
-                TranslationEngine.downloadModel(item.mlKitCode, requireWifi = true) { ok, err -> onDone(ok, err) }
+                TranslationEngine.downloadModel(context, item.mlKitCode, requireWifi = true) { ok, err -> onDone(ok, err) }
             is PackDescriptor.VoiceInput ->
                 DownloadManager.downloadAndUnzip(
                     context, item.info.url, app.vosk.modelRootDir(item.info.mlKitCode), requireWifi = true,
