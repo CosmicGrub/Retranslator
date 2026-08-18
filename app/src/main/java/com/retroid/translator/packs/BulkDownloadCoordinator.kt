@@ -2,7 +2,6 @@ package com.retroid.translator.packs
 
 import android.content.Context
 import android.util.Log
-import com.retroid.translator.BuildConfig
 import com.retroid.translator.TranslatorApp
 import com.retroid.translator.engine.DownloadManager
 import com.retroid.translator.engine.TranslationEngine
@@ -69,10 +68,12 @@ class BulkDownloadCoordinator(private val context: Context, private val app: Tra
 
     /** Downloads exactly one pack, regardless of category. Public so "Manage language packs"' individual per-row Download button can reuse the same dispatch logic instead of duplicating it. */
     fun downloadSingle(item: PackDescriptor, onProgress: (Int) -> Unit, onDone: (Boolean, String?) -> Unit) {
-        // Fold5 edition: BuildConfig.ALLOW_CELLULAR_DOWNLOADS is true only on
-        // this branch - see TranslationEngine.kt's doc comment. Universal
-        // build and Tab S9 FE edition keep the real Wi-Fi requirement.
-        val requireWifi = !BuildConfig.ALLOW_CELLULAR_DOWNLOADS
+        // Fold5 edition: user-adjustable Settings toggle (Settings -> Manage
+        // language packs), not a fixed build-time constant - see
+        // LanguagePackPreferences.allowCellularDownloads's doc comment.
+        // Universal build and Tab S9 FE edition keep the real Wi-Fi
+        // requirement (this preference/field doesn't exist there).
+        val requireWifi = !LanguagePackPreferences.allowCellularDownloads(context)
         when (item) {
             is PackDescriptor.Translation ->
                 TranslationEngine.downloadModel(item.mlKitCode, requireWifi = requireWifi) { ok, err -> onDone(ok, err) }

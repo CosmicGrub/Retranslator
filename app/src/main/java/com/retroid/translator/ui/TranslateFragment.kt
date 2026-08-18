@@ -3,7 +3,7 @@ package com.retroid.translator.ui
 import android.app.Activity
 import android.app.AlertDialog
 import android.content.Context
-import com.retroid.translator.BuildConfig
+import com.retroid.translator.packs.LanguagePackPreferences
 import android.content.Intent
 import android.content.SharedPreferences
 import android.os.Bundle
@@ -938,6 +938,15 @@ class TranslateFragment : Fragment(), FoldAwareLayoutHost {
     }
 
     private fun refreshModelStatus() {
+        // Fold5 edition: real Settings toggle (Settings -> Manage language
+        // packs), not hardcoded - see downloadTranslateModels() below and
+        // LanguagePackPreferences.allowCellularDownloads's doc comment.
+        // Drives both the status text below and btnDownloadModels' own
+        // label, since that label is otherwise a static XML string that
+        // would keep claiming "(Wi-Fi)" even after the toggle is flipped.
+        val allowCellular = context?.let { LanguagePackPreferences.allowCellularDownloads(it) } ?: false
+        defaultBinding?.btnDownloadModels?.text = if (allowCellular) "Download translation pack"
+            else "Download translation pack (Wi-Fi)"
         RemoteModelManager.getInstance().getDownloadedModels(TranslateRemoteModel::class.java)
             .addOnSuccessListener { models ->
                 if (contentContainer == null) return@addOnSuccessListener
@@ -946,8 +955,10 @@ class TranslateFragment : Fragment(), FoldAwareLayoutHost {
                 val tgtOk = downloaded.contains(targetCode)
                 modelStatusText = when {
                     srcOk && tgtOk -> "Both translation packs downloaded — works fully offline, no network needed."
-                    srcOk || tgtOk -> "One translation pack downloaded, one still needed — tap Download (needs Wi-Fi)."
-                    else -> "Translation packs not downloaded yet — tap Download once on Wi-Fi, then it's offline."
+                    srcOk || tgtOk -> if (allowCellular) "One translation pack downloaded, one still needed — tap Download."
+                        else "One translation pack downloaded, one still needed — tap Download (needs Wi-Fi)."
+                    else -> if (allowCellular) "Translation packs not downloaded yet — tap Download once, then it's offline."
+                        else "Translation packs not downloaded yet — tap Download once on Wi-Fi, then it's offline."
                 }
                 defaultBinding?.textModelStatus?.text = modelStatusText
             }
@@ -961,11 +972,11 @@ class TranslateFragment : Fragment(), FoldAwareLayoutHost {
     private fun downloadTranslateModels() {
         val src = sourceCode
         val tgt = targetCode
-        // Fold5 edition: BuildConfig.ALLOW_CELLULAR_DOWNLOADS is true only on
-        // this branch (see app/build.gradle.kts + TranslationEngine.kt's doc
-        // comment) - the universal build and Tab S9 FE edition keep the real
-        // Wi-Fi requirement unchanged.
-        val requireWifi = !BuildConfig.ALLOW_CELLULAR_DOWNLOADS
+        // Fold5 edition: real user setting under Settings -> Manage language
+        // packs (see LanguagePackPreferences.allowCellularDownloads) - the
+        // universal build and Tab S9 FE edition keep the real Wi-Fi
+        // requirement unchanged.
+        val requireWifi = !LanguagePackPreferences.allowCellularDownloads(requireContext())
         modelStatusText = if (requireWifi) "Downloading translation packs (Wi-Fi required)..."
             else "Downloading translation packs..."
         defaultBinding?.textModelStatus?.text = modelStatusText
@@ -996,9 +1007,15 @@ class TranslateFragment : Fragment(), FoldAwareLayoutHost {
             return
         }
         defaultBinding?.btnDownloadStt?.visibility = View.VISIBLE
+        // Fold5 edition: same real-Settings-toggle reasoning as
+        // refreshModelStatus() above - overrides btnDownloadStt's static
+        // XML "(Wi-Fi)" label so it reflects the actual current setting.
+        val allowCellularStt = LanguagePackPreferences.allowCellularDownloads(requireContext())
+        defaultBinding?.btnDownloadStt?.text = if (allowCellularStt) "Download voice-input pack"
+            else "Download voice-input pack (Wi-Fi)"
         sttStatusText = if (app.vosk.isModelDownloaded(code)) {
             "Voice-input pack for ${info.displayName} downloaded — mic works fully offline."
-        } else if (BuildConfig.ALLOW_CELLULAR_DOWNLOADS) {
+        } else if (LanguagePackPreferences.allowCellularDownloads(requireContext())) {
             "Voice-input pack for ${info.displayName} not downloaded (~${info.approxSizeMiB}MB)."
         } else {
             "Voice-input pack for ${info.displayName} not downloaded (~${info.approxSizeMiB}MB, Wi-Fi)."
@@ -1011,8 +1028,8 @@ class TranslateFragment : Fragment(), FoldAwareLayoutHost {
         val code = sourceCode
         val info = VoskModelCatalog.forLanguage(code) ?: return
         // Fold5 edition: see downloadTranslateModels() above for the same
-        // BuildConfig.ALLOW_CELLULAR_DOWNLOADS reasoning.
-        val requireWifi = !BuildConfig.ALLOW_CELLULAR_DOWNLOADS
+        // real-Settings-toggle reasoning.
+        val requireWifi = !LanguagePackPreferences.allowCellularDownloads(requireContext())
         sttStatusText = if (requireWifi) "Downloading voice-input pack (Wi-Fi required)..."
             else "Downloading voice-input pack..."
         defaultBinding?.textSttStatus?.text = sttStatusText

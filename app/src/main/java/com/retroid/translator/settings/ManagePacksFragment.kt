@@ -65,7 +65,38 @@ class ManagePacksFragment : Fragment() {
         binding.btnDownloadAllRemaining.setOnClickListener { startBulkDownload() }
         binding.btnCancelBulkDownload.setOnClickListener { bulkCoordinator?.cancel() }
         binding.btnCheckForUpdates.setOnClickListener { checkForUpdates() }
+        setUpCellularToggle()
         refresh()
+    }
+
+    /**
+     * Fold5 edition only (docs/specs/fold5-adaptation.md §13/§14, explicit
+     * user request): the real, user-adjustable "allow cellular data"
+     * setting, deliberately placed here - Settings -> Manage language packs
+     * - and nowhere on the Translate tab or any other forefront screen.
+     * Backed by [LanguagePackPreferences.allowCellularDownloads]; every real
+     * download/translate call site already reads that same preference
+     * (see TranslationEngine.kt, TranslateFragment.kt, PiperTtsEngine.kt,
+     * BulkDownloadCoordinator.kt), so flipping this switch takes effect
+     * immediately on the next download/translate, no restart needed.
+     */
+    private fun setUpCellularToggle() {
+        val ctx = context ?: return
+        binding.cardCellularToggle.visibility = View.VISIBLE
+        // setChecked below would otherwise re-fire this listener with the
+        // exact value it was just set to - harmless (writes the same value
+        // back) but worth avoiding the redundant SharedPreferences write.
+        binding.switchAllowCellular.setOnCheckedChangeListener(null)
+        binding.switchAllowCellular.isChecked = LanguagePackPreferences.allowCellularDownloads(ctx)
+        binding.switchAllowCellular.setOnCheckedChangeListener { _, isChecked ->
+            LanguagePackPreferences.setAllowCellularDownloads(ctx, isChecked)
+            binding.textCellularToggleSubtitle.text = if (isChecked) {
+                "Translation, voice-input, and natural-voice downloads may use cellular data, not just Wi-Fi."
+            } else {
+                "Translation, voice-input, and natural-voice downloads require Wi-Fi, same as the universal build."
+            }
+            renderAll()
+        }
     }
 
     override fun onResume() {
@@ -94,14 +125,21 @@ class ManagePacksFragment : Fragment() {
 
     private fun renderAll() {
         val app = mainActivity()?.app ?: return
+        val ctx = context ?: return
         val all = PackInventory.all()
         val downloaded = all.count { PackStatus.isDownloaded(app, it, downloadedTranslationCodes) }
         val remaining = all.size - downloaded
         val remainingSizeMiB = all.filter { !PackStatus.isDownloaded(app, it, downloadedTranslationCodes) }.sumOf { it.approxSizeMiB }
+        // Fold5 edition: reflects the real Settings toggle above, instead of
+        // unconditionally claiming "Wi-Fi" like the universal build (where
+        // it's always true, since that build has no cellular option at all).
+        val networkNote = if (LanguagePackPreferences.allowCellularDownloads(ctx)) "" else ", Wi-Fi"
         binding.textPacksSummary.text =
-            "$downloaded of ${all.size} packs downloaded. $remaining remaining (~${remainingSizeMiB}MB, Wi-Fi)."
+            "$downloaded of ${all.size} packs downloaded. $remaining remaining (~${remainingSizeMiB}MB$networkNote)."
         binding.btnDownloadAllRemaining.isEnabled = remaining > 0 && bulkCoordinator == null
-        binding.btnDownloadAllRemaining.text = if (remaining == 0) "All packs downloaded" else "Download all remaining packs (Wi-Fi)"
+        binding.btnDownloadAllRemaining.text = if (remaining == 0) "All packs downloaded"
+            else if (networkNote.isEmpty()) "Download all remaining packs"
+            else "Download all remaining packs (Wi-Fi)"
 
         renderSection(binding.listTranslation, PackCategory.TRANSLATION)
         renderSection(binding.listVoiceInput, PackCategory.VOICE_INPUT)

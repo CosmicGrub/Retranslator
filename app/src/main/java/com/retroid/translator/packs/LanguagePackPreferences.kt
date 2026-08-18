@@ -1,6 +1,7 @@
 package com.retroid.translator.packs
 
 import android.content.Context
+import com.retroid.translator.BuildConfig
 
 /**
  * Persisted state for the auto-download-all-packs flow
@@ -15,6 +16,7 @@ object LanguagePackPreferences {
     private const val KEY_HAS_PROMPTED_BULK_DOWNLOAD = "has_prompted_bulk_download"
     private const val KEY_BULK_DOWNLOAD_COMPLETED = "bulk_download_completed"
     private const val KEY_LAST_UPDATE_CHECK_AT = "last_update_check_at"
+    private const val KEY_ALLOW_CELLULAR_DOWNLOADS = "allow_cellular_downloads"
 
     private fun prefs(context: Context) =
         context.applicationContext.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
@@ -41,5 +43,27 @@ object LanguagePackPreferences {
 
     fun setLastUpdateCheckAt(context: Context, epochMs: Long) {
         prefs(context).edit().putLong(KEY_LAST_UPDATE_CHECK_AT, epochMs).apply()
+    }
+
+    /**
+     * Fold5 edition only, explicit user request: whether translation packs,
+     * voice-input packs, natural-voice packs, and runtime translate-
+     * triggered downloads may use cellular data, not just Wi-Fi. Every real
+     * call site that used to hardcode `requireWifi = true` now reads
+     * `!allowCellularDownloads(context)` instead (see TranslationEngine.kt,
+     * TranslateFragment.kt, PiperTtsEngine.kt, BulkDownloadCoordinator.kt) -
+     * this is the single source of truth for that decision, deliberately a
+     * real user-adjustable Settings toggle (Settings -> Manage language
+     * packs) rather than a fixed build-time constant, so the device owner
+     * can change their mind without a rebuild. Defaults to
+     * [BuildConfig.ALLOW_CELLULAR_DOWNLOADS] (true on this edition's build,
+     * matching what the user originally asked for) until first explicitly
+     * changed here - after that, the user's own choice always wins.
+     */
+    fun allowCellularDownloads(context: Context): Boolean =
+        prefs(context).getBoolean(KEY_ALLOW_CELLULAR_DOWNLOADS, BuildConfig.ALLOW_CELLULAR_DOWNLOADS)
+
+    fun setAllowCellularDownloads(context: Context, value: Boolean) {
+        prefs(context).edit().putBoolean(KEY_ALLOW_CELLULAR_DOWNLOADS, value).apply()
     }
 }
