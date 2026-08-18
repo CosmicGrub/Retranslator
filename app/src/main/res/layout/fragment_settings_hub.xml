@@ -10,6 +10,21 @@
         android:paddingTop="8dp"
         android:paddingBottom="8dp">
 
+        <!--
+          tab-s9fe-device-version branch: this build targets the Galaxy Tab
+          S9 FE specifically, a device with no hinge and no FoldingFeature at
+          all (docs/specs/galaxy-tab-s9fe-adaptation.md §3: "this tablet has
+          no hinge... None of that was ported"). The four rows below - the
+          per-tab Cover/Flex-Mode variant pickers and the fold auto-
+          switch/force-compact toggle - are structurally inert on this
+          device: COVER mode requires physically folding closed, FLEX mode
+          requires a real tabletop FoldingFeature posture, and neither can
+          ever occur on hardware with no hinge to begin with. Rather than
+          leave a user free to navigate into four settings screens that can
+          never have any visible effect on this build, they're hidden here.
+          Nothing in SettingsHubFragment.kt needed to change - a gone view's
+          click listener simply never fires.
+        -->
         <TextView
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
@@ -19,11 +34,13 @@
             android:paddingBottom="8dp"
             android:text="Per-tab layout, cover screen and Flex Mode (tabletop)"
             android:textSize="13sp"
-            android:textStyle="italic" />
+            android:textStyle="italic"
+            android:visibility="gone" />
 
         <LinearLayout
             android:id="@+id/rowTranslateLayout"
-            style="@style/SettingsHubRow">
+            style="@style/SettingsHubRow"
+            android:visibility="gone">
             <TextView
                 style="@style/SettingsHubRowTitle"
                 android:text="Translate layout" />
@@ -32,11 +49,12 @@
                 android:text="Cover-screen and Flex Mode layout for the Translate tab" />
         </LinearLayout>
 
-        <View style="@style/SettingsHubDivider" />
+        <View style="@style/SettingsHubDivider" android:visibility="gone" />
 
         <LinearLayout
             android:id="@+id/rowPracticeLayout"
-            style="@style/SettingsHubRow">
+            style="@style/SettingsHubRow"
+            android:visibility="gone">
             <TextView
                 style="@style/SettingsHubRowTitle"
                 android:text="Practice layout" />
@@ -45,11 +63,12 @@
                 android:text="Cover-screen and Flex Mode layout for the Practice tab" />
         </LinearLayout>
 
-        <View style="@style/SettingsHubDivider" />
+        <View style="@style/SettingsHubDivider" android:visibility="gone" />
 
         <LinearLayout
             android:id="@+id/rowLearnLayout"
-            style="@style/SettingsHubRow">
+            style="@style/SettingsHubRow"
+            android:visibility="gone">
             <TextView
                 style="@style/SettingsHubRowTitle"
                 android:text="Learn layout" />
@@ -58,11 +77,12 @@
                 android:text="Cover-screen and Flex Mode layout for the Learn tab" />
         </LinearLayout>
 
-        <View style="@style/SettingsHubDivider" />
+        <View style="@style/SettingsHubDivider" android:visibility="gone" />
 
         <LinearLayout
             android:id="@+id/rowFoldBehavior"
-            style="@style/SettingsHubRow">
+            style="@style/SettingsHubRow"
+            android:visibility="gone">
             <TextView
                 style="@style/SettingsHubRowTitle"
                 android:text="Fold behavior" />
@@ -71,7 +91,7 @@
                 android:text="Auto-switch on fold, and a manual compact-layout toggle" />
         </LinearLayout>
 
-        <View style="@style/SettingsHubDivider" />
+        <View style="@style/SettingsHubDivider" android:visibility="gone" />
 
         <TextView
             android:layout_width="match_parent"
