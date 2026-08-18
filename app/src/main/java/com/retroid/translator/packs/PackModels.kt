@@ -3,6 +3,7 @@ package com.retroid.translator.packs
 import com.retroid.translator.engine.LanguageCatalog
 import com.retroid.translator.engine.PiperVoiceCatalog
 import com.retroid.translator.engine.PiperVoiceInfo
+import com.retroid.translator.engine.VoskAccuracyTierCatalog
 import com.retroid.translator.engine.VoskModelCatalog
 import com.retroid.translator.engine.VoskModelInfo
 
@@ -66,6 +67,12 @@ object PackInventory {
     fun all(): List<PackDescriptor> =
         LanguageCatalog.codes.map { PackDescriptor.Translation(it) } +
             VoskModelCatalog.MODELS.map { PackDescriptor.VoiceInput(it) } +
+            // Opt-in higher-accuracy Vosk tiers (docs/specs/engines-upgrade-plan.md's
+            // Tier 3 "English Vosk lgraph model as an opt-in accuracy tier") -
+            // each tier's `model` reuses VoskModelInfo's exact shape, so it
+            // rides the same VoiceInput download/delete/status code below
+            // unchanged; see VoskAccuracyTierCatalog's doc comment for why.
+            VoskAccuracyTierCatalog.TIERS.map { PackDescriptor.VoiceInput(it.model) } +
             PiperVoiceCatalog.VOICES.map { PackDescriptor.NaturalVoice(it) }
 
     fun totalApproxSizeMiB(): Int = all().sumOf { it.approxSizeMiB }

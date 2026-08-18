@@ -14,12 +14,14 @@ import androidx.fragment.app.Fragment
 import com.retroid.translator.MainActivity
 import com.retroid.translator.databinding.FragmentManagePacksBinding
 import com.retroid.translator.engine.TranslationEngine
+import com.retroid.translator.engine.VoskAccuracyTierCatalog
 import com.retroid.translator.packs.BulkDownloadCoordinator
 import com.retroid.translator.packs.LanguagePackPreferences
 import com.retroid.translator.packs.PackCategory
 import com.retroid.translator.packs.PackDescriptor
 import com.retroid.translator.packs.PackInventory
 import com.retroid.translator.packs.PackStatus
+import com.retroid.translator.packs.VoskAccuracyPreferences
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -147,9 +149,23 @@ class ManagePacksFragment : Fragment() {
             layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
         }
         val title = TextView(requireContext()).apply { text = item.displayName; textSize = 15f }
+        // Opt-in higher-accuracy Vosk tiers (docs/specs/engines-upgrade-plan.md's
+        // Tier 3) are ordinary VoiceInput packs (see PackInventory.all()'s
+        // doc comment) whose id is a distinct storage key (e.g. "en-lgraph"),
+        // not a real language code - VoskAccuracyTierCatalog.byStorageKey
+        // detects that here so this one row can also carry accuracy-note
+        // subtitle text and a real activate/deactivate control, without any
+        // other pack type or this function's basic shape needing to change.
+        val tier = (item as? PackDescriptor.VoiceInput)?.let { VoskAccuracyTierCatalog.byStorageKey(it.id) }
         val subtitle = TextView(requireContext()).apply {
             textSize = 12f
-            text = if (downloaded) "Downloaded" else "Not downloaded (~${item.approxSizeMiB}MB)"
+            text = buildString {
+                append(if (downloaded) "Downloaded" else "Not downloaded (~${item.approxSizeMiB}MB)")
+                if (tier != null) append(" — ${tier.accuracyNote}")
+                if (tier != null && downloaded && VoskAccuracyPreferences.isHigherAccuracyChosen(requireContext(), tier.baseMlKitCode)) {
+                    append(" [ACTIVE for ${tier.baseMlKitCode} speech recognition]")
+                }
+            }
         }
         textCol.addView(title)
         textCol.addView(subtitle)
@@ -160,6 +176,24 @@ class ManagePacksFragment : Fragment() {
             if (downloaded) deleteSingle(item, subtitle, btn) else downloadPack(item, subtitle, btn)
         }
         row.addView(textCol)
+        if (tier != null && downloaded) {
+            val ctx = requireContext()
+            val active = VoskAccuracyPreferences.isHigherAccuracyChosen(ctx, tier.baseMlKitCode)
+            val useBtn = Button(ctx).apply {
+                text = if (active) "Use standard" else "Use this"
+            }
+            useBtn.setOnClickListener {
+                VoskAccuracyPreferences.setHigherAccuracyChosen(ctx, tier.baseMlKitCode, !active)
+                Toast.makeText(
+                    ctx,
+                    if (!active) "Now using ${item.displayName} for ${tier.baseMlKitCode} speech recognition"
+                    else "Reverted to the standard ${tier.baseMlKitCode} pack for speech recognition",
+                    Toast.LENGTH_SHORT
+                ).show()
+                refresh()
+            }
+            row.addView(useBtn)
+        }
         row.addView(btn)
         card.addView(row)
         return card
