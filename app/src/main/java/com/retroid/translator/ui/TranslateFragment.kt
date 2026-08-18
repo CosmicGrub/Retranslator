@@ -103,8 +103,8 @@ private enum class CircleState { PROMPT, RECORDING, TRANSLATING, RESULT }
  * into it is decided live by [renderActiveLayout], driven by two independent
  * signals:
  *  - **Flex Mode**: this Fragment's own [FoldPostureProvider] subscription
- *    (same pattern `ConversationsFragment`/`FoldBehaviorFragment` already
- *    use) - [FoldPosture.isMirroredTabletop] selects the user's configured
+ *    (same pattern `ConversationsFragment` already uses) -
+ *    [FoldPosture.isMirroredTabletop] selects the user's configured
  *    [ScreenMode.FLEX] variant.
  *  - **Cover screen**: [FoldAwareLayoutHost] ([applyCoverLayout]/[applyDefaultLayout]),
  *    pushed by `MainActivity`'s existing fold-close heuristic and the Fold
@@ -343,7 +343,7 @@ class TranslateFragment : Fragment(), FoldAwareLayoutHost {
 
     // ---------------------------------------------------------------------
     // Flex Mode - this Fragment's own FoldPostureProvider subscription,
-    // same pattern as ConversationsFragment/FoldBehaviorFragment.
+    // same pattern as ConversationsFragment.
     // ---------------------------------------------------------------------
 
     private fun observeFoldPosture() {

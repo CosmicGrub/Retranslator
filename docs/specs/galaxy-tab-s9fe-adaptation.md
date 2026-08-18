@@ -177,3 +177,94 @@ Relative to `7b5fa4e` (`galaxy-tab-s9fe-adaptation`'s branch point):
 - A camera-based live-translation-overlay mode — not requested for this pass, same as `fold5-adaptation.md`'s own camera note.
 - Completing the full ~3.7GB bulk download to 100% — deliberately not run to completion, per the task's own guidance (§7).
 - Investigating "Vellum Studio"'s Wi-Fi-sync feature or its interaction with this session's ADB tooling further — flagged transparently (§7) as something outside this task's scope to diagnose or fix.
+
+## 9. Edition build (2026-08-18, branch `tabs9fe-device-edition`)
+
+Status: **built and verified on the real target device**, same hardware as §1 (serial `R52X101MB6W`). Branched from `main` at `227db22`, which already contains every gap-filling pass merged after this spec's original §1–§8 work (a11y sweep, translate Wi-Fi gating, test infra, code-health cleanup, Watch6 eSpeak) — none of that was redone here. This section's job was narrower and different in kind from §1–§8: turn the already-verified large-screen adaptation above into a genuinely *device-specific edition build* — its own installable identity, its confirmed-best cold-launch experience locked in with no residual delay, and real fold-only dead weight removed — not to add new device-adaptive features.
+
+### 9.1 Distinct identity
+
+`app/build.gradle.kts`'s `defaultConfig` gained:
+
+```kotlin
+applicationIdSuffix = ".tabs9fe"
+versionNameSuffix = "-tab-s9fe-edition"
+```
+
+Resulting APK identity, confirmed via `aapt dump badging` against the real built output (`app/build/outputs/apk/debug/app-debug.apk`), not assumed from the Gradle DSL:
+
+```
+package: name='com.retroid.translator.tabs9fe' versionCode='1' versionName='1.0-tab-s9fe-edition'
+```
+
+This installs alongside the universal `com.retroid.translator` build rather than overwriting it (Android treats a different `applicationId` as a different app entirely). `app_name`'s *value* (not its resource name, so every existing `@string/app_name` reference — the manifest label, `activity_main.xml`'s toolbar, `MainActivity.setActionBarTitle`'s use of it — kept working unmodified) changed from `"Retranslator"` to `"Retranslator: Tab S9 FE"`, confirmed rendering correctly in the real toolbar in every on-device screenshot in §9.4 below.
+
+### 9.2 Cold-launch defaults — mechanism traced, one real gap found and fixed
+
+Per this task's own instruction to check the real mechanism rather than assume: `TranslateFragment`/`PracticeFragment`/`LearnFragment` all follow the same pattern (`onCreateView` returns a bare `FrameLayout`; `onViewCreated` calls `renderActiveLayout()`/`renderPracticeActiveLayout()` **synchronously**, before subscribing to `FoldPostureProvider.postureFlow()` — each has its own explicit code comment: *"Render once immediately with what we know so far... so the screen is never blank waiting on the first FoldingFeature emission below"*). With no fold hardware, `currentPosture` stays at its default `FoldPosture.NO_FOLDING_FEATURE` and `coverForced`/force-compact reads `false` on a fresh install, so the very first synchronous render already resolves to `ActiveLayout.DEFAULT` — which inflates `R.layout.fragment_xxx`, which the OS's resource-qualifier system (§4) already substitutes with `layout-sw720dp/fragment_xxx.xml` **before any Kotlin runs at all**. Net result: Translate, Practice, and Learn (`learn_master_detail=true` on this qualifier) all land on their large-screen default on cold launch already, with no code change needed — confirmed, not assumed, by reading the actual `onViewCreated` ordering in all three files.
+
+`ConversationsFragment` was the one real exception, and this pass found and fixed it. Unlike the other three, its `onViewCreated` went straight to `observeFoldPosture()` with **no eager synchronous render first** — `largeScreenSideBySide` (`resources.getBoolean(R.bool.conversations_side_by_side)`) was already read synchronously, but nothing was done with it until the first `postureFlow()` emission arrived asynchronously from `WindowInfoTracker`, leaving `contentContainer` genuinely empty in the interim. Fixed by adding one line matching the sibling fragments' own established pattern:
+
+```kotlin
+// Render once immediately with what's already known synchronously
+// (largeScreenSideBySide)... instead of waiting on the first async
+// postureFlow emission below.
+switchLayout(if (largeScreenSideBySide) LayoutKind.LARGE else LayoutKind.FALLBACK)
+observeFoldPosture()
+```
+
+`switchLayout` already sets `layoutInitialized = true`, so the first real `postureFlow()` emission (still `NO_FOLDING_FEATURE` on this hardware) sees `desiredKind == activeKind` and correctly skips a redundant re-switch — no double-render, no flicker, same outcome the other three fragments already had. Real on-device evidence: navigating to the Conversations tab post-fix (§9.4 screenshot) shows the two-pane `LARGE` layout already rendered in the very first screenshot taken immediately after the tap, not a blank frame.
+
+The one task-brief example that does **not** describe this device's cold-launch mechanism: `course_dashboard` is one of Learn's **cover-screen** (folded-closed) variants (`LearnCoverVariant.COURSE_DASHBOARD`, only reachable via `coverForced`/`FoldAwareLayoutHost`) — it has nothing to do with the sw720dp large-screen default, and is unreachable on this hinge-less hardware regardless (nothing can ever force a cover posture here without the now-removed Fold-behavior toggle, see §9.3). Learn's actual large-screen cold-launch default is the master-detail `layout-sw720dp/fragment_learn.xml` path documented in §4, confirmed live below.
+
+### 9.3 Fold-behavior settings screen removed
+
+Reachability trace (grep across `app/src/main`, not just the one call site) before removing anything:
+
+- `SettingsHubFragment.kt`: `binding.rowFoldBehavior.setOnClickListener { openDestination(FoldBehaviorFragment(), "fold_behavior") }` — the only real navigation entry point.
+- `fragment_settings_hub.xml`: the `rowFoldBehavior` row XML — the only clickable surface leading there.
+- `TranslateFragment.kt`: two **doc-comment-only** mentions of `FoldBehaviorFragment` by name (describing a shared code pattern, not a dependency) — updated to remove the now-dangling name, zero behavior change.
+- Everywhere else (`MainActivity.kt`, `LayoutPreferences.kt`, `LearnFragment.kt`, `PracticeFragment.kt`): references to the generic "Fold behavior screen" *concept* (`LayoutPreferences.isForceCompactLayoutEnabled`/`isAutoSwitchOnFoldEnabled`) — this is the same shared cover/Flex settings-variant foundation §3 explicitly says stays untouched for when this device is a Fold 5; it was deliberately left alone. No test file, no manifest entry, and no `FragmentFoldBehaviorBinding` usage outside `FoldBehaviorFragment.kt` itself.
+
+Because the entry point was the only reachability path and `FragmentFoldBehaviorBinding` had no other consumer, `FoldBehaviorFragment.kt` and `fragment_fold_behavior.xml` were deleted outright (not just hidden) — real removal of real dead weight, not a stub. `SettingsHubFragment.kt`'s click-listener line and `fragment_settings_hub.xml`'s row block were removed together with it.
+
+`LayoutPreferences.isForceCompactLayoutEnabled`/`isAutoSwitchOnFoldEnabled` themselves were **not** touched or removed — they're still read by `MainActivity`'s fold-close heuristic and by Translate/Practice/Learn's `coverForced` initialization, which is real, shared, cross-device infrastructure this task was told not to touch. Practical effect on this specific device: with the settings UI gone and no physical hinge to ever trigger the auto-switch heuristic, `coverForced` now has no way to ever become `true` here — which only reinforces §9.2's cold-launch guarantee, it doesn't fight it.
+
+Real on-device verification (not just code reading): `./gradlew clean :app:assembleDebug` succeeded with the deletion in place (confirms nothing else failed to compile against the removed class), and a real navigation pass into Settings (§9.4) shows the row genuinely absent from both the screenshot and a `uiautomator dump` text scan of the live screen (zero occurrences of "Fold behavior" anywhere in the dumped hierarchy) — not merely "not rendered this run."
+
+### 9.4 Auto-download-all-packs prominence — reviewed, left as-is
+
+Read `BulkDownloadCoordinator.kt`, `LanguagePackPreferences.kt`, and `MainActivity.checkBulkPackDownloadPrompt`/`offerBulkDownloadPrompt` in full before making any decision (per this task's own instruction). Conclusion: **no change made, and none needed** — the system already merged into `main` (§6 above) already does exactly what this task's item 4 describes wanting: it fires a modal, `setCancelable(false)` confirmation dialog at first launch (immediately if Wi-Fi is already on, or via a one-shot `ConnectivityManager.NetworkCallback` the moment Wi-Fi first becomes available) with a real size estimate, and proceeds only on an explicit "Download" tap — "Not now" is equally one tap away and permanently dismisses the prompt (never re-nagged). This is already "surfaced early in first-run, not silently auto-triggered," already Wi-Fi-gated, and already requires explicit per-tap consent — the exact three properties item 4 asks for. Making it any more prominent (auto-focusing the affirmative button, re-prompting, defaulting to "on") would start trading away genuine consent for conversion, which the task explicitly prohibits weakening. Per the task's own explicit escape hatch ("if there's no clean way to do this without weakening the consent gate, skip this item and say so"), this item was **skipped**, and this paragraph is that disclosure. Verified live on-device: the prompt fired correctly on the first cold launch of this edition build (§9.5 screenshot 1), with the real device's actual remaining-pack total (`~3.7GB`) shown in the dialog text, matching §6's own numbers.
+
+### 9.5 Verification — real device, every claim above has evidence
+
+**Build**: `./gradlew clean :app:assembleDebug` → **BUILD SUCCESSFUL** (41 actionable tasks, 32s). Only the same pre-existing, inherited warnings as the base branch (`DownloadManager.kt` tar-entry deprecation, `LearnFragment.kt`/`ContinuousFlowProtoActivity.kt` deprecations/redundant-initializer, one `TranslateFragment.kt` duplicate-label warning) — no new warnings from this pass's own changes. `aapt dump badging` against the real output APK confirmed `package: name='com.retroid.translator.tabs9fe' ... versionName='1.0-tab-s9fe-edition'` (§9.1).
+
+**Device**: `adb devices -l` found `R52X101MB6W` connected on the first check (no retry needed this session); `RFCW80CK2RW` (the Fold 5, per the sibling worktree's own task) was also connected but untouched.
+
+**Install and package identity**: `adb -s R52X101MB6W install -r app-debug.apk` → `Success`. `pm list packages | grep retroid` before install returned nothing (the universal `com.retroid.translator` was not present on this physical device at all going into this pass); after install, returns exactly one package, `com.retroid.translator.tabs9fe` — confirming this edition installed as its own separate package and did not create, touch, or overwrite any universal-build install (there was none to touch; the suffix mechanism itself is confirmed correct by the badging dump in §9.1, which is the load-bearing evidence for "installs alongside" since no side-by-side install was actually exercised on this particular device).
+
+**Force-stop + cold launch**: `am force-stop` on both the suffixed and (nonexistent) universal package names, then `am start -n com.retroid.translator.tabs9fe/com.retroid.translator.MainActivity`, confirmed foregrounded via `dumpsys window | grep mCurrentFocus` → `com.retroid.translator.tabs9fe/com.retroid.translator.MainActivity`.
+
+**Cold-launch large-screen default, real screenshot evidence** (device in landscape, real 2304×1440 capture via `screencap`):
+- Screenshot 1 (immediately after cold launch): toolbar reads **"Retranslator: Tab S9 FE"**; behind the auto-download-prompt dialog (§9.4), the Translate tab is already showing its two-pane `layout-sw720dp` layout (left: language pickers/pack rows/gender radio, right: text input/Translate button) — confirming the large-screen default is live from the very first frame, dialog included.
+- Screenshot 2 (after dismissing the prompt with "Not now"): same two-pane Translate layout, unobstructed.
+- Screenshot 3–4 (Learn tab, then opening "Greetings" → "Basic Greetings" → Start): left pane shows the Units list, then the Lessons list keeping "Greetings" context, then **"Exercise 1/8: What you say to greet someone early in the day"** rendering in the right pane **while the left pane still reads "Basic Greetings / 8 exercises"** — genuine live master-detail behavior on real hardware, not a static mockup.
+- Screenshot 5 (Practice tab): two-pane layout, left = the recording workflow, right = "Past attempts" (empty on this fresh install, correctly so).
+- Screenshot 6 (Conversations tab, first navigation after the §9.2 fix): the `LARGE` two-pane side-by-side layout (header row + two upright panes, each with its own turn indicator/transcript/Tap-to-Speak/Continuous-listening) is already fully rendered in the screenshot taken immediately after the tap — the async-emission gap §9.2 fixed left no visible blank frame in this real capture.
+
+**Fold-behavior removal, real evidence**: Screenshot 7 (Settings hub) shows exactly 4 rows — Translate layout, Practice layout, Learn layout, Language packs — no Fold behavior row. A `uiautomator dump` of the live Settings screen was pulled and text-scanned (`grep -o 'text="[^"]*"'`): every row label present, zero occurrences of "Fold behavior" anywhere in the real on-screen hierarchy, not just absent from a static layout review.
+
+**No crash**: `pidof com.retroid.translator.tabs9fe` returned a stable PID (`18912`) across the entire navigation sequence above (Translate → Learn → unit → lesson → exercise → Practice → Conversations → Settings). `logcat -d --pid=<pid> *:E` for the whole session showed exactly one line, a benign pre-existing `ashmem: Pinning is deprecated since Android Q` warning unrelated to any change in this pass — no exception, no `FATAL EXCEPTION`, no missing-resource crash from the removed Settings row or the deleted Fragment.
+
+**Universal build**: confirmed untouched in the sense that matters (no file, resource, or install belonging to the non-suffixed `com.retroid.translator` package was created, modified, or removed by this pass) — but disclosed honestly: this specific physical device did not have the universal build installed at the start of this session, so "install alongside without overwriting" was verified structurally (distinct `applicationId` in the badging dump) rather than by an actual side-by-side install-and-diff on this device.
+
+### 9.6 Files changed
+
+Relative to this branch's point (`main` at `227db22`):
+
+**Modified**: `app/build.gradle.kts` (`applicationIdSuffix`/`versionNameSuffix`), `app/src/main/res/values/strings.xml` (`app_name` value only), `app/src/main/java/com/retroid/translator/ui/ConversationsFragment.kt` (one eager-render line in `onViewCreated`), `app/src/main/java/com/retroid/translator/settings/SettingsHubFragment.kt` (removed the Fold-behavior row's click listener), `app/src/main/res/layout/fragment_settings_hub.xml` (removed the Fold-behavior row), `app/src/main/java/com/retroid/translator/ui/TranslateFragment.kt` (two doc-comment references to the deleted class name, no behavior change).
+
+**Deleted**: `app/src/main/java/com/retroid/translator/settings/FoldBehaviorFragment.kt`, `app/src/main/res/layout/fragment_fold_behavior.xml`.
+
+**Untouched (verified by design, not just by omission)**: everything in `app/src/main/java/com/retroid/translator/fold/`, every `*LayoutVariants.kt`/`*LayoutSettingsFragment.kt`, `LayoutPreferences.kt` (the file itself, not its now-orphaned-of-one-UI-consumer force-compact/auto-switch keys), `BulkDownloadCoordinator.kt`/`LanguagePackPreferences.kt`/`PackModels.kt`/`PackStatus.kt` (read for §9.4, not modified), every `layout-sw720dp/*.xml` from §4-§8, `docs/specs/fold5-adaptation.md`, `docs/specs/engines-upgrade-plan.md`, and everything under `:wear`.

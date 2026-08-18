@@ -1,4 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="app_name">Retranslator</string>
+    <!-- Tab S9 FE edition build (docs/specs/galaxy-tab-s9fe-adaptation.md,
+         "Edition build" section): the value (not the resource name) is
+         changed so this installs distinguishably in the launcher alongside
+         the universal build - every @string/app_name reference (manifest
+         label, MainActivity's action-bar title, activity_main.xml's
+         toolbar) picks this up automatically, unchanged. -->
+    <string name="app_name">Retranslator: Tab S9 FE</string>
 </resources>

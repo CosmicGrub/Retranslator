@@ -14,6 +14,17 @@ android {
         versionCode = 1
         versionName = "1.0"
 
+        // Device-specific edition build (docs/specs/galaxy-tab-s9fe-adaptation.md,
+        // "Edition build" section) - this branch targets the Galaxy Tab S9 FE
+        // specifically (serial R52X101MB6W confirmed real hardware). The
+        // suffix makes this install as a SEPARATE app package alongside the
+        // universal com.retroid.translator build rather than overwriting it,
+        // so both can be installed side-by-side for comparison/testing. Kept
+        // isolated to this branch only - the universal build's defaultConfig
+        // (main branch) has no suffix.
+        applicationIdSuffix = ".tabs9fe"
+        versionNameSuffix = "-tab-s9fe-edition"
+
         // Target device (Retroid Pocket 2+) is arm64-v8a only; restricting the
         // ABI keeps the bundled native libs (espeak-ng, Vosk/JNA) from bloating
         // the APK with unused architectures.

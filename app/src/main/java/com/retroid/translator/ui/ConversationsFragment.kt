@@ -212,6 +212,17 @@ class ConversationsFragment : Fragment() {
         }
         genderIsMale = VoicePreferences.getGender(requireContext()) == VoiceGender.MALE
         largeScreenSideBySide = resources.getBoolean(R.bool.conversations_side_by_side)
+        // Tab S9 FE edition (docs/specs/galaxy-tab-s9fe-adaptation.md,
+        // "Edition build" section): render once immediately with what's
+        // already known synchronously (largeScreenSideBySide, resolved by
+        // the resource-qualifier system before any Kotlin ran - no real
+        // fold posture is possible on this hinge-less hardware) instead of
+        // waiting on the first async postureFlow emission below. Matches
+        // the exact same "never blank waiting on the first FoldingFeature
+        // emission" pattern TranslateFragment/PracticeFragment/LearnFragment
+        // already use - this Fragment was the one holdout still leaving
+        // contentContainer empty until the Flow's first emission arrived.
+        switchLayout(if (largeScreenSideBySide) LayoutKind.LARGE else LayoutKind.FALLBACK)
         observeFoldPosture()
     }
 

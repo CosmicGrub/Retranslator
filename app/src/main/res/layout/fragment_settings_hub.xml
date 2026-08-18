@@ -58,18 +58,14 @@
                 android:text="Cover-screen and Flex Mode layout for the Learn tab" />
         </LinearLayout>
 
-        <View style="@style/SettingsHubDivider" />
-
-        <LinearLayout
-            android:id="@+id/rowFoldBehavior"
-            style="@style/SettingsHubRow">
-            <TextView
-                style="@style/SettingsHubRowTitle"
-                android:text="Fold behavior" />
-            <TextView
-                style="@style/SettingsHubRowSubtitle"
-                android:text="Auto-switch on fold, and a manual compact-layout toggle" />
-        </LinearLayout>
+        <!-- Tab S9 FE edition (docs/specs/galaxy-tab-s9fe-adaptation.md,
+             "Edition build" section): the "Fold behavior" row (auto-switch-
+             on-fold / force-compact toggles) was removed here on purpose -
+             this device has no hinge, so those switches control behavior
+             that can never apply on this hardware. FoldBehaviorFragment.kt
+             and fragment_fold_behavior.xml were deleted along with this
+             entry point; see that spec section for the reachability trace
+             confirming nothing else referenced them. -->
 
         <View style="@style/SettingsHubDivider" />
 
