@@ -99,6 +99,22 @@ class OcrTestActivity : Activity() {
             // installed on this device (real ModuleInstallService bind seen in
             // logcat), so recognize() here should hit the same ready module.
             Triple("TEST_CHINESE", OcrScript.CHINESE, "火车站在哪里"),
+            // Japanese sample - docs/specs/engines-upgrade-plan.md's Tier 2
+            // real gotcha: this MUST mix in kana (ひらがな/カタカナ), not just
+            // kanji, since a kanji-only string is ambiguous with the Chinese
+            // recognizer (they share Han characters). "電車の駅はどこですか？"
+            // ("Where is the train station?") mixes kanji (電車, 駅) with
+            // hiragana (の, は, どこ, です, か) - unambiguously Japanese.
+            Triple("TEST_JAPANESE", OcrScript.JAPANESE, "電車の駅はどこですか？"),
+            // Korean sample (Hangul) - "기차역이 어디에 있어요?" ("Where is the
+            // train station?").
+            Triple("TEST_KOREAN", OcrScript.KOREAN, "기차역이 어디에 있어요?"),
+            // Devanagari sample (Hindi) - "ट्रेन स्टेशन कहाँ है?" ("Where is
+            // the train station?"). Devanagari is a SCRIPT shared by several
+            // languages - OcrScript.DEVANAGARI.translateLangCode fixes this
+            // to Hindi ("hi") for the translation step below, per the plan's
+            // recommendation (already in the Vosk catalog).
+            Triple("TEST_DEVANAGARI", OcrScript.DEVANAGARI, "ट्रेन स्टेशन कहाँ है?"),
         )
         for ((label, script, text) in samples) {
             appendLog("--- $label ($script): rendering \"$text\" to a real on-device Bitmap ---")
@@ -111,8 +127,8 @@ class OcrTestActivity : Activity() {
                     if (recognized.isBlank()) {
                         appendLog("$label: FAILED - empty OCR result on a rendered real-text bitmap")
                     } else {
-                        val srcCode = if (script == OcrScript.CHINESE) "zh" else "en"
-                        val tgtCode = if (script == OcrScript.CHINESE) "en" else "es"
+                        val srcCode = script.translateLangCode
+                        val tgtCode = if (script == OcrScript.LATIN) "es" else "en"
                         appendLog("$label: feeding recognized text into the real TranslationEngine ($srcCode -> $tgtCode)...")
                         TranslationEngine.translate(this@OcrTestActivity, srcCode, tgtCode, recognized,
                             onResult = { translated -> appendLog("$label TRANSLATION RESULT ($srcCode->$tgtCode): \"$translated\"") },
