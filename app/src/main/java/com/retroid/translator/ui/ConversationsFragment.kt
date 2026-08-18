@@ -34,12 +34,14 @@ import com.retroid.translator.audio.MicPipeline
 import com.retroid.translator.audio.RecordingsStore
 import com.retroid.translator.conversation.ContinuousConversationController
 import com.retroid.translator.conversation.TranscriptEntry
+import com.retroid.translator.engine.DeviceCapabilities
 import com.retroid.translator.engine.LanguageCatalog
 import com.retroid.translator.engine.TranslationEngine
 import com.retroid.translator.engine.VoiceGender
 import com.retroid.translator.engine.VoicePreferences
 import com.retroid.translator.engine.VoskEngine
 import com.retroid.translator.engine.VoskModelCatalog
+import com.retroid.translator.TranslatorApp
 import com.retroid.translator.fold.FoldPosture
 import com.retroid.translator.fold.FoldPostureProvider
 import com.retroid.translator.fold.FoldState
@@ -865,7 +867,43 @@ class ConversationsFragment : Fragment() {
                 startContinuousListeningService()
                 mainActivity?.app?.mic?.startContinuousListening(controller.micListener)
                 setStatus("Listening… (auto-detects ${LanguageCatalog.displayNameFor(a)} / ${LanguageCatalog.displayNameFor(b)})")
+                mainActivity?.app?.let { prewarmThirdLanguageIfHighRam(it, a, b) }
             }
+        }
+    }
+
+    /**
+     * Tier 3 "device-tiered Vosk resident-model cap"
+     * (docs/specs/engines-upgrade-plan.md) - on real high-RAM devices/builds
+     * only ([DeviceCapabilities.isHighRamDevice], a real
+     * `ActivityManager.MemoryInfo` check, not a device-model match),
+     * opportunistically pre-warms a 3rd, already-downloaded language
+     * (distinct from [langA]/[langB]) into [TranslatorApp.vosk] - the single
+     * shared engine Translate/Practice/Learn's own mic flows use - so that
+     * switching to one of those tabs mid-conversation finds its language
+     * already resident instead of needing a fresh model load. Purely
+     * additive and best-effort: if none of `app.vosk`'s already-downloaded
+     * languages qualify (none downloaded, or the only ones downloaded are
+     * langA/langB themselves), this is a silent no-op - the user did nothing
+     * to explicitly request this specific background action, so it never
+     * surfaces a Toast/error the way an explicit "load this model" action
+     * would. This is real, additional Vosk-model residency alongside
+     * Conversations' own two dedicated dual-recognizer instances
+     * (engineA/engineB, created above) - not a replacement for them or a
+     * change to how they work.
+     */
+    private fun prewarmThirdLanguageIfHighRam(app: TranslatorApp, langA: String, langB: String) {
+        if (!DeviceCapabilities.isHighRamDevice(requireContext())) return
+        val candidate = VoskModelCatalog.MODELS
+            .map { it.mlKitCode }
+            .firstOrNull { it != langA && it != langB && app.vosk.isModelDownloaded(it) }
+        if (candidate == null) {
+            Log.i(TAG, "high-RAM device: no 3rd already-downloaded language available to pre-warm (besides $langA/$langB)")
+            return
+        }
+        Log.i(TAG, "high-RAM device: pre-warming a 3rd resident Vosk model ($candidate) into app.vosk alongside this session's own $langA/$langB dual-recognizer instances")
+        app.vosk.prewarmAsync(candidate) { success, error ->
+            Log.i(TAG, "prewarm($candidate) result: success=$success error=$error resident=${app.vosk.residentLangCodes()}")
         }
     }
 

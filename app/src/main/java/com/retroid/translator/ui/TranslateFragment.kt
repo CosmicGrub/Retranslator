@@ -63,6 +63,7 @@ import com.retroid.translator.fold.FoldPosture
 import com.retroid.translator.fold.FoldPostureProvider
 import com.retroid.translator.fold.FoldState
 import com.retroid.translator.ocr.CameraCaptureActivity
+import com.retroid.translator.packs.VoskAccuracyPreferences
 import com.retroid.translator.settings.FoldAwareLayoutHost
 import com.retroid.translator.settings.LayoutPreferences
 import com.retroid.translator.settings.ScreenMode
@@ -737,13 +738,18 @@ class TranslateFragment : Fragment(), FoldAwareLayoutHost {
             toast("No offline voice-input model for ${LanguageCatalog.displayNameFor(speakCode)}", long = true)
             return
         }
-        if (!app.vosk.isModelDownloaded(speakCode)) {
+        // Opt-in higher-accuracy tier (docs/specs/engines-upgrade-plan.md's
+        // Tier 3) - resolves to the standard pack's own key unless the user
+        // explicitly chose a tier AND it's genuinely downloaded, so this is a
+        // no-op for every language/user that hasn't opted in.
+        val storageKey = VoskAccuracyPreferences.resolveStorageKey(requireContext(), app.vosk, speakCode)
+        if (!app.vosk.isModelDownloaded(storageKey)) {
             toast("Download the voice-input pack for ${LanguageCatalog.displayNameFor(speakCode)} on the main Translate screen first", long = true)
             return
         }
         statusSetter?.invoke("Loading voice-input model...")
         refreshAllContent()
-        app.vosk.loadModelAsync(speakCode) { success, error ->
+        app.vosk.loadModelAsync(storageKey) { success, error ->
             if (contentContainer == null) return@loadModelAsync
             if (!success) {
                 statusSetter?.invoke("")
@@ -1434,7 +1440,9 @@ class TranslateFragment : Fragment(), FoldAwareLayoutHost {
             b.toggleCircleContinuous.isChecked = false
             return
         }
-        if (!app.vosk.isModelDownloaded(sourceCode)) {
+        // Opt-in higher-accuracy tier - see beginMicCapture's identical comment above.
+        val storageKey = VoskAccuracyPreferences.resolveStorageKey(requireContext(), app.vosk, sourceCode)
+        if (!app.vosk.isModelDownloaded(storageKey)) {
             toast("Download the voice-input pack for ${LanguageCatalog.displayNameFor(sourceCode)} on the main Translate screen first", long = true)
             b.toggleCircleContinuous.isChecked = false
             return
@@ -1446,7 +1454,7 @@ class TranslateFragment : Fragment(), FoldAwareLayoutHost {
         }
         singleCircleContinuousLoading = true
         b.textCircleContent.text = "Loading model…"
-        app.vosk.loadModelAsync(sourceCode) { success, error ->
+        app.vosk.loadModelAsync(storageKey) { success, error ->
             if (contentContainer == null) return@loadModelAsync
             singleCircleContinuousLoading = false
             val current = coverSingleCircleBinding

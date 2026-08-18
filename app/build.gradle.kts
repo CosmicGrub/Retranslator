@@ -147,21 +147,26 @@ dependencies {
     // majority of real camera-OCR use.
     implementation("com.google.mlkit:text-recognition:16.0.1")
 
-    // One additional, on-demand non-Latin script pack - Chinese - using the
-    // UNBUNDLED Play-services variant instead, specifically because it DOES
-    // have genuine on-demand-download semantics (unlike the bundled
-    // artifacts above), which lets this feature's "script pack not
-    // downloaded yet" edge case be real rather than hypothetical. This is a
-    // real, different download mechanism from RemoteModelManager -
+    // Additional on-demand non-Latin script packs, all using the UNBUNDLED
+    // Play-services variant, specifically because it DOES have genuine
+    // on-demand-download semantics (unlike the bundled artifacts above),
+    // which lets this feature's "script pack not downloaded yet" edge case
+    // be real rather than hypothetical. This is a real, different download
+    // mechanism from RemoteModelManager -
     // com.google.android.gms.common.moduleinstall.ModuleInstallClient - not
     // a re-skin of the existing pattern; see OcrEngine.kt's doc comment for
-    // why. Japanese/Korean/Devanagari packs are NOT added this pass: they'd
-    // mirror this exact same ModuleInstallClient code path per-script, but
-    // no real Japanese/Korean/Devanagari text sample was available this
-    // session to verify them end-to-end on-device, and this project's house
-    // style doesn't ship an unverified code path just because it would
-    // compile - see the spec's Camera OCR section for the full reasoning.
+    // why. Japanese/Korean/Devanagari (docs/specs/engines-upgrade-plan.md's
+    // Tier 2 "Add Japanese/Korean/Devanagari OCR script packs") were added
+    // in a later pass than Chinese, once real mixed kana+kanji / Hangul /
+    // Devanagari sample text and real on-device verification were available
+    // - see OcrEngine.kt's doc comment and OcrTestActivity for that
+    // evidence. All four scripts share the identical 16.0.1 version
+    // (confirmed via dl.google.com's real Maven group-index at the time
+    // each was added, not assumed).
     implementation("com.google.android.gms:play-services-mlkit-text-recognition-chinese:16.0.1")
+    implementation("com.google.android.gms:play-services-mlkit-text-recognition-japanese:16.0.1")
+    implementation("com.google.android.gms:play-services-mlkit-text-recognition-korean:16.0.1")
+    implementation("com.google.android.gms:play-services-mlkit-text-recognition-devanagari:16.0.1")
     implementation("com.google.android.gms:play-services-base:18.5.0")
 
     // Vosk - fully offline, open-source (Apache-2.0) on-device speech-to-text.
