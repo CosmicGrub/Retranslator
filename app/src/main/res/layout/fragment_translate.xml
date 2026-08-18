@@ -254,5 +254,73 @@
             android:textSize="12sp"
             android:textStyle="italic" />
 
+        <View
+            android:layout_width="match_parent"
+            android:layout_height="1dp"
+            android:layout_marginVertical="10dp"
+            android:background="#22000000" />
+
+        <!-- AI phrase helper (docs/specs/fold5-adaptation.md's dated
+             "On-device AI assistant" section) - an optional, on-device-LLM
+             pass over the translation above. Scoped to this DEFAULT layout
+             only, same deliberate scope decision already made and
+             documented for btnCamera just above (this tab's primary,
+             most-used layout; the other 7 cover/Flex variants are narrow
+             widgets with an already-full gesture/button set). -->
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="AI phrase helper (on-device, offline)"
+            android:textSize="12sp"
+            android:textStyle="bold" />
+
+        <TextView
+            android:id="@+id/textLlmStatus"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:textSize="12sp"
+            android:layout_marginTop="4dp"
+            android:text="Checking AI assistant status..." />
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:layout_marginTop="4dp">
+
+            <Button
+                android:id="@+id/btnDownloadLlm"
+                style="@style/Widget.MaterialComponents.Button.OutlinedButton"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Download AI assistant (~1.1GB)" />
+
+            <Button
+                android:id="@+id/btnAiInsight"
+                style="@style/Widget.MaterialComponents.Button.OutlinedButton"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="8dp"
+                android:text="Get AI insight" />
+        </LinearLayout>
+
+        <androidx.cardview.widget.CardView
+            android:id="@+id/cardLlmResult"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="6dp"
+            android:visibility="gone"
+            app:cardElevation="2dp"
+            app:cardCornerRadius="8dp">
+
+            <TextView
+                android:id="@+id/textLlmResult"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:padding="12dp"
+                android:textSize="14sp"
+                android:text="" />
+        </androidx.cardview.widget.CardView>
+
     </LinearLayout>
 </ScrollView>

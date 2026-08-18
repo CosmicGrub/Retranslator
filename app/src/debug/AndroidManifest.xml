@@ -92,6 +92,21 @@
             android:exported="true"
             android:label="Piper Regression Test (debug)" />
 
+        <!-- Throwaway debug entry point for the Translate tab's on-device AI
+             phrase helper (docs/specs/fold5-adaptation.md's dated "On-device
+             AI assistant" section) - see LlmAssistTestActivity's own class
+             doc for exactly why this exists alongside the real UI flow. Same
+             exported=true rationale as the other prototype activities above
+             (Android 16 blocks `adb shell am start` of a non-exported
+             activity even in a debuggable app). Not linked from any nav
+             flow, off the launcher. Debug-build-only (see this file's own
+             top-of-file comment) - this activity does not exist at all in a
+             release build. -->
+        <activity
+            android:name=".prototype.LlmAssistTestActivity"
+            android:exported="true"
+            android:label="LLM Assist Engine Test (debug)" />
+
     </application>
 
 </manifest>

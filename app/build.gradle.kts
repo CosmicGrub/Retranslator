@@ -197,6 +197,26 @@ dependencies {
     // (Apache-2.0, Maven Central) is the standard, well-known library for this.
     implementation("org.apache.commons:commons-compress:1.26.1")
 
+    // On-device "rudimentary AI" assistant (docs/specs/fold5-adaptation.md's
+    // dated "On-device AI assistant" section has the full feasibility
+    // investigation and citations). Google's MediaPipe LLM Inference API -
+    // Apache-2.0, fully on-device, no API key, no cloud call (confirmed via
+    // this artifact's own POM: only androidx.annotation/guava/protobuf-
+    // javalite as transitive deps, nothing network/cloud-shaped). Real,
+    // current latest version confirmed directly against Google's Maven
+    // group-index (dl.google.com/android/maven2/com/google/mediapipe/
+    // tasks-genai/maven-metadata.xml -> 0.10.35, lastUpdated 2026-04-27) -
+    // NOT the 0.10.27 various docs pages/search results still cite, the
+    // same "checked against Google's Maven metadata rather than assumed"
+    // discipline this file already applies to translate/language-id above.
+    // Google's own docs mark this API "maintenance-only", pointing new work
+    // at LiteRT-LM - but tasks-genai is still fully functional, still the
+    // documented/supported Kotlin surface (LlmInference.createFromOptions /
+    // generateResponse), and accepts the same .litertlm model files
+    // LiteRT-LM's own newer conversions ship as, so there is no real
+    // functionality gap for what this app needs from it.
+    implementation("com.google.mediapipe:tasks-genai:0.10.35")
+
     // Plain-JVM unit tests (src/test) - JUnit 4 only, no Robolectric/Espresso.
     // Scope: pure-Kotlin logic with no Android-framework dependency (see
     // docs/ENGINES.md's testing-infrastructure note for what's covered).

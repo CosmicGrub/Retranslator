@@ -53,6 +53,7 @@ import com.retroid.translator.databinding.ViewTranslateBroadcastRowBinding
 import com.retroid.translator.databinding.ViewTranslateTranscriptBubbleBinding
 import com.retroid.translator.engine.DownloadManager
 import com.retroid.translator.engine.LanguageCatalog
+import com.retroid.translator.engine.LlmAssistEngine
 import com.retroid.translator.engine.TranslationEngine
 import com.retroid.translator.engine.VoiceGender
 import com.retroid.translator.engine.VoicePreferences
@@ -141,11 +142,15 @@ class TranslateFragment : Fragment(), FoldAwareLayoutHost {
 
     private var lastInputText = ""
     private var lastResultText = ""
+    /** The exact source text [lastResultText] was translated from - captured in [translateWith], independent of whatever [lastInputText]/editInput holds by the time a later action (e.g. AI phrase helper) reads it back, since a user can keep editing the input box after translating. */
+    private var lastTranslatedSourceText = ""
     private var detectedLanguageText = ""
     private var micStatusText = ""
     private var modelStatusText = "Checking translation pack status..."
     private var sttStatusText = "Checking voice-input pack status..."
     private var naturalVoiceStatusText = ""
+    private var llmStatusText = "Checking AI assistant status..."
+    private var llmResultText = ""
     private var circleState = CircleState.PROMPT
 
     /**
@@ -665,6 +670,11 @@ class TranslateFragment : Fragment(), FoldAwareLayoutHost {
             onResult = onResult@{ translated ->
                 if (contentContainer == null) return@onResult
                 lastResultText = translated
+                lastTranslatedSourceText = text
+                // A fresh translation invalidates any AI insight shown for the
+                // previous one - clear it rather than leaving a stale AI
+                // response next to a now-different translation.
+                llmResultText = ""
                 circleState = CircleState.RESULT
                 refreshAllContent()
                 refreshModelStatus()
@@ -920,11 +930,14 @@ class TranslateFragment : Fragment(), FoldAwareLayoutHost {
         }
         b.btnCamera.setOnClickListener { launchCameraCapture() }
         b.btnSpeak.setOnClickListener { speakLastResult() }
+        b.btnDownloadLlm.setOnClickListener { downloadLlmModel() }
+        b.btnAiInsight.setOnClickListener { getAiInsight() }
         if (lastInputText.isNotEmpty()) b.editInput.setText(lastInputText)
 
         refreshModelStatus()
         refreshSttStatus()
         refreshNaturalVoiceStatus()
+        refreshLlmStatus()
     }
 
     private fun refreshDefaultContent(b: FragmentTranslateBinding) {
@@ -935,6 +948,9 @@ class TranslateFragment : Fragment(), FoldAwareLayoutHost {
         b.textModelStatus.text = modelStatusText
         b.textSttStatus.text = sttStatusText
         b.textNaturalVoiceStatus.text = naturalVoiceStatusText
+        b.textLlmStatus.text = llmStatusText
+        b.textLlmResult.text = llmResultText
+        b.cardLlmResult.visibility = if (llmResultText.isBlank()) View.GONE else View.VISIBLE
     }
 
     private fun refreshModelStatus() {
@@ -1092,6 +1108,122 @@ class TranslateFragment : Fragment(), FoldAwareLayoutHost {
             if (success) toast("Natural voice downloaded. Used automatically from now on.")
             else toast("Download failed: $error", long = true)
             refreshNaturalVoiceStatus()
+        }
+    }
+
+    // =======================================================================
+    // AI phrase helper (docs/specs/fold5-adaptation.md's dated "On-device AI
+    // assistant" section) - an optional, on-device-LLM pass over the
+    // Default layout's current translation result: a more natural/idiomatic
+    // phrasing suggestion plus a short grammar/usage note. Same explicit
+    // per-tap consent gate as every other download in this app
+    // (downloadTranslateModels/downloadSttModel/downloadNaturalVoice just
+    // above) - the model never downloads or loads itself; every step is a
+    // real, separate user tap.
+    // =======================================================================
+
+    private fun refreshLlmStatus() {
+        val app = mainActivity?.app ?: return
+        llmStatusText = if (app.llmAssist.isModelDownloaded()) {
+            "AI assistant downloaded (~${LlmAssistEngine.APPROX_SIZE_MIB}MB, ${LlmAssistEngine.MODEL_DISPLAY_NAME}) — runs fully offline, no network needed."
+        } else if (BuildConfig.ALLOW_CELLULAR_DOWNLOADS) {
+            "AI assistant not downloaded (~${LlmAssistEngine.APPROX_SIZE_MIB}MB, ${LlmAssistEngine.MODEL_DISPLAY_NAME})."
+        } else {
+            "AI assistant not downloaded (~${LlmAssistEngine.APPROX_SIZE_MIB}MB, Wi-Fi, ${LlmAssistEngine.MODEL_DISPLAY_NAME})."
+        }
+        defaultBinding?.textLlmStatus?.text = llmStatusText
+        defaultBinding?.btnDownloadLlm?.text =
+            if (app.llmAssist.isModelDownloaded()) "Re-download AI assistant" else "Download AI assistant (~${LlmAssistEngine.APPROX_SIZE_MIB}MB)"
+    }
+
+    private fun downloadLlmModel() {
+        val app = mainActivity?.app ?: return
+        val requireWifi = !BuildConfig.ALLOW_CELLULAR_DOWNLOADS
+        llmStatusText = if (requireWifi) "Downloading AI assistant (Wi-Fi required)..." else "Downloading AI assistant..."
+        defaultBinding?.textLlmStatus?.text = llmStatusText
+        app.llmAssist.downloadModel(
+            requireContext(),
+            onProgress = { pct ->
+                if (contentContainer != null) {
+                    llmStatusText = "Downloading AI assistant... $pct%"
+                    defaultBinding?.textLlmStatus?.text = llmStatusText
+                }
+            }
+        ) onDownloadDone@{ success, error ->
+            if (contentContainer == null) return@onDownloadDone
+            if (success) toast("AI assistant downloaded. Works offline from now on.")
+            else toast("Download failed: $error", long = true)
+            refreshLlmStatus()
+        }
+    }
+
+    /**
+     * Builds the one prompt this feature ever sends: a bounded ask for (1) a
+     * more natural/idiomatic phrasing of the translation, if the literal one
+     * sounds stiff, and (2) one short grammar/usage note - matching the
+     * task's own description of this feature exactly. Always asked/answered
+     * in English regardless of source/target language, deliberately: a
+     * 0.6B-parameter model's generation quality is real but limited (see
+     * the spec's honest gap on this), and asking it to reliably write fluent
+     * prose *in the target language itself* is a materially harder ask than
+     * having it comment, in English, about a translation - the same reason
+     * this feature was picked over an open-ended multi-turn AI conversation
+     * partner for this model size.
+     */
+    private fun buildAiInsightPrompt(srcCode: String, tgtCode: String, sourceText: String, translatedText: String): String {
+        val srcName = LanguageCatalog.displayNameFor(srcCode)
+        val tgtName = LanguageCatalog.displayNameFor(tgtCode)
+        return "You are a translation assistant. A user translated this text from $srcName to $tgtName:\n\n" +
+            "Source ($srcName): \"$sourceText\"\n" +
+            "Translation ($tgtName): \"$translatedText\"\n\n" +
+            "In English, in 2-3 short sentences and under 80 words total: " +
+            "(1) say whether the translation sounds natural, and if not, suggest a more natural phrasing in $tgtName; " +
+            "(2) give one brief, useful grammar or usage note about it."
+    }
+
+    private fun getAiInsight() {
+        val app = mainActivity?.app ?: return
+        if (lastResultText.isBlank() || lastResultText == "Translating...") {
+            toast("Translate something first")
+            return
+        }
+        if (!app.llmAssist.isModelDownloaded()) {
+            toast("Download the AI assistant (~${LlmAssistEngine.APPROX_SIZE_MIB}MB) first", long = true)
+            return
+        }
+        val srcCode = sourceCode
+        val tgtCode = targetCode
+        val sourceText = lastTranslatedSourceText
+        val translatedText = lastResultText
+        llmResultText = ""
+        llmStatusText = "Loading AI assistant..."
+        refreshAllContent()
+        app.llmAssist.loadAsync loadDone@{ loaded, loadError ->
+            if (contentContainer == null) return@loadDone
+            if (!loaded) {
+                llmStatusText = "Couldn't load AI assistant: $loadError"
+                defaultBinding?.textLlmStatus?.text = llmStatusText
+                toast(llmStatusText, long = true)
+                return@loadDone
+            }
+            llmStatusText = "Thinking..."
+            defaultBinding?.textLlmStatus?.text = llmStatusText
+            val prompt = buildAiInsightPrompt(srcCode, tgtCode, sourceText, translatedText)
+            app.llmAssist.generate(
+                prompt,
+                onResult = onGenResult@{ text ->
+                    if (contentContainer == null) return@onGenResult
+                    llmResultText = text
+                    llmStatusText = "AI assistant ready (on-device, offline)."
+                    refreshAllContent()
+                },
+                onError = onGenError@{ err ->
+                    if (contentContainer == null) return@onGenError
+                    llmStatusText = "AI assistant error: $err"
+                    defaultBinding?.textLlmStatus?.text = llmStatusText
+                    toast(llmStatusText, long = true)
+                }
+            )
         }
     }
 
