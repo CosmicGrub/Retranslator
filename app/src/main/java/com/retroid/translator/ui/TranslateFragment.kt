@@ -3,6 +3,7 @@ package com.retroid.translator.ui
 import android.app.Activity
 import android.app.AlertDialog
 import android.content.Context
+import com.retroid.translator.BuildConfig
 import android.content.Intent
 import android.content.SharedPreferences
 import android.os.Bundle
@@ -940,16 +941,22 @@ class TranslateFragment : Fragment(), FoldAwareLayoutHost {
     private fun downloadTranslateModels() {
         val src = sourceCode
         val tgt = targetCode
-        modelStatusText = "Downloading translation packs (Wi-Fi required)..."
+        // Fold5 edition: BuildConfig.ALLOW_CELLULAR_DOWNLOADS is true only on
+        // this branch (see app/build.gradle.kts + TranslationEngine.kt's doc
+        // comment) - the universal build and Tab S9 FE edition keep the real
+        // Wi-Fi requirement unchanged.
+        val requireWifi = !BuildConfig.ALLOW_CELLULAR_DOWNLOADS
+        modelStatusText = if (requireWifi) "Downloading translation packs (Wi-Fi required)..."
+            else "Downloading translation packs..."
         defaultBinding?.textModelStatus?.text = modelStatusText
-        TranslationEngine.downloadModel(src, requireWifi = true) { okSrc, errSrc ->
+        TranslationEngine.downloadModel(src, requireWifi = requireWifi) { okSrc, errSrc ->
             if (contentContainer == null) return@downloadModel
             if (!okSrc) {
                 toast("Download failed: $errSrc", long = true)
                 refreshModelStatus()
                 return@downloadModel
             }
-            TranslationEngine.downloadModel(tgt, requireWifi = true) { okTgt, errTgt ->
+            TranslationEngine.downloadModel(tgt, requireWifi = requireWifi) { okTgt, errTgt ->
                 if (contentContainer == null) return@downloadModel
                 if (okTgt) toast("Translation packs downloaded. Offline from now on.")
                 else toast("Download failed: $errTgt", long = true)
@@ -971,6 +978,8 @@ class TranslateFragment : Fragment(), FoldAwareLayoutHost {
         defaultBinding?.btnDownloadStt?.visibility = View.VISIBLE
         sttStatusText = if (app.vosk.isModelDownloaded(code)) {
             "Voice-input pack for ${info.displayName} downloaded — mic works fully offline."
+        } else if (BuildConfig.ALLOW_CELLULAR_DOWNLOADS) {
+            "Voice-input pack for ${info.displayName} not downloaded (~${info.approxSizeMiB}MB)."
         } else {
             "Voice-input pack for ${info.displayName} not downloaded (~${info.approxSizeMiB}MB, Wi-Fi)."
         }
@@ -981,10 +990,14 @@ class TranslateFragment : Fragment(), FoldAwareLayoutHost {
         val app = mainActivity?.app ?: return
         val code = sourceCode
         val info = VoskModelCatalog.forLanguage(code) ?: return
-        sttStatusText = "Downloading voice-input pack (Wi-Fi required)..."
+        // Fold5 edition: see downloadTranslateModels() above for the same
+        // BuildConfig.ALLOW_CELLULAR_DOWNLOADS reasoning.
+        val requireWifi = !BuildConfig.ALLOW_CELLULAR_DOWNLOADS
+        sttStatusText = if (requireWifi) "Downloading voice-input pack (Wi-Fi required)..."
+            else "Downloading voice-input pack..."
         defaultBinding?.textSttStatus?.text = sttStatusText
         DownloadManager.downloadAndUnzip(
-            requireContext(), info.url, app.vosk.modelRootDir(code), requireWifi = true,
+            requireContext(), info.url, app.vosk.modelRootDir(code), requireWifi = requireWifi,
             onProgress = { pct ->
                 if (contentContainer != null) {
                     sttStatusText = "Downloading voice-input pack... $pct%"

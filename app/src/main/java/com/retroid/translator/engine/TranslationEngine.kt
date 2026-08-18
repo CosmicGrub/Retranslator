@@ -1,6 +1,7 @@
 package com.retroid.translator.engine
 
 import android.content.Context
+import com.retroid.translator.BuildConfig
 import com.google.mlkit.common.model.DownloadConditions
 import com.google.mlkit.common.model.RemoteModelManager
 import com.google.mlkit.nl.translate.TranslateRemoteModel
@@ -84,6 +85,16 @@ object TranslationEngine {
      * network at all - it calls `onError` with a clear, actionable message
      * instead, so every call site's existing error handling (all of which
      * already surfaces `onError`'s message to the user) shows it verbatim.
+     *
+     * Fold5 edition only (`BuildConfig.ALLOW_CELLULAR_DOWNLOADS`, set true
+     * only in this branch's app/build.gradle.kts, explicit user request for
+     * this device specifically): when true, the Wi-Fi requirement above is
+     * lifted entirely - a missing model downloads over whatever network is
+     * available, cellular included. The universal build and the Tab S9 FE
+     * edition don't define this field as true, so `BuildConfig.
+     * ALLOW_CELLULAR_DOWNLOADS` is `false` there and this method's behavior
+     * is byte-for-byte the original Wi-Fi-gated fix - nothing about the
+     * shared mechanism changed, only this one build's policy.
      */
     fun translate(
         context: Context,
@@ -116,7 +127,7 @@ object TranslationEngine {
         onResult: (String) -> Unit,
         onError: (String) -> Unit
     ) {
-        if (!bothReady && !DownloadManager.isOnWifi(context)) {
+        if (!bothReady && !DownloadManager.isOnWifi(context) && !BuildConfig.ALLOW_CELLULAR_DOWNLOADS) {
             onError(
                 "Translation pack not downloaded yet. Connect to Wi-Fi, then translate " +
                     "again to download it - after that this language pair works fully offline."
@@ -128,7 +139,10 @@ object TranslationEngine {
             .setTargetLanguage(targetCode)
             .build()
         val translator: Translator = Translation.getClient(options)
-        val conditions = DownloadConditions.Builder().requireWifi().build()
+        val conditions = if (BuildConfig.ALLOW_CELLULAR_DOWNLOADS)
+            DownloadConditions.Builder().build()
+        else
+            DownloadConditions.Builder().requireWifi().build()
         translator.downloadModelIfNeeded(conditions)
             .addOnSuccessListener {
                 translator.translate(text)

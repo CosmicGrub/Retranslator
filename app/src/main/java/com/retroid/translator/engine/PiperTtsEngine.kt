@@ -1,6 +1,7 @@
 package com.retroid.translator.engine
 
 import android.content.Context
+import com.retroid.translator.BuildConfig
 import android.media.AudioAttributes
 import android.media.AudioFormat
 import android.media.AudioTrack
@@ -126,7 +127,9 @@ class PiperTtsEngine(context: Context) {
         onDone: (success: Boolean, error: String?) -> Unit
     ) {
         DownloadManager.downloadAndExtractTarBz2(
-            context, info.url, voiceRootDir(info), requireWifi = true,
+            // Fold5 edition: BuildConfig.ALLOW_CELLULAR_DOWNLOADS is true
+            // only on this branch - see TranslationEngine.kt's doc comment.
+            context, info.url, voiceRootDir(info), requireWifi = !BuildConfig.ALLOW_CELLULAR_DOWNLOADS,
             onProgress = onProgress
         ) { success, error ->
             if (success && loadedVoiceId == info.voiceId) {

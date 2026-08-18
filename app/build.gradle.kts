@@ -29,6 +29,18 @@ android {
         ndk {
             abiFilters += listOf("arm64-v8a")
         }
+
+        // Fold5 edition, explicit user request (this device only - the
+        // universal build and the Tab S9 FE edition both keep the real
+        // Wi-Fi-gating fix from docs/ENGINES.md's Translation-engines "Known
+        // limits/gaps" #1 unchanged): this device's owner wants translation
+        // packs, voice-input packs, and runtime translate-triggered
+        // downloads to be allowed over cellular data, not just Wi-Fi. See
+        // engine/TranslationEngine.kt's translate()/attemptTranslate() doc
+        // comment for exactly what this does and doesn't relax - the
+        // per-tap consent + informative-error behavior are unchanged, only
+        // the network-type restriction is lifted, and only on this build.
+        buildConfigField("boolean", "ALLOW_CELLULAR_DOWNLOADS", "true")
     }
 
     packaging {
@@ -60,6 +72,9 @@ android {
 
     buildFeatures {
         viewBinding = true
+        // Needed for the ALLOW_CELLULAR_DOWNLOADS buildConfigField above -
+        // AGP 8+ defaults this off per module.
+        buildConfig = true
     }
 }
 

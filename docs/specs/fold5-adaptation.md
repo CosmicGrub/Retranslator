@@ -545,6 +545,42 @@ All three real-device checks above (identity, both cold-launch defaults, Fold-be
 - **Flex-Mode (tabletop) rendering of the new `single_circle`-as-cover-default change was not separately re-exercised** - this pass changed the `(TRANSLATE, COVER)` fallback only, not `ScreenMode.FLEX`, and Flex-Mode variant rendering in general remains the pre-existing, already-disclosed gap from §6/§7 (requires a real physical hinge-angle transition this agent cannot reliably force via `adb shell cmd device_state` on this device, per those sections' own notes).
 - **No attempt was made to verify the identity/default changes on the universal (non-`fold5`) build's own behavior** beyond confirming it still installs, launches its version info correctly, and is unaffected - which is the actual requirement (distinct `applicationId` means the two builds' `SharedPreferences`, and therefore every default discussed above, are already fully isolated from each other by Android's own per-package storage sandboxing; no code-level guard was needed or added to keep them separate).
 
+## 13. Cellular data allowed for translation/downloads on this edition only (2026-08-18, `fold5-device-edition` branch, explicit user request)
+
+**What this is, and what it explicitly is not.** This device's owner explicitly asked for this specific edition build to allow translation-pack downloads, voice-input-pack downloads, natural-voice (Piper) downloads, and runtime translate-triggered downloads over cellular data, not just Wi-Fi. This is a deliberate, device-scoped *relaxation* of the real Wi-Fi-gating fix documented in `docs/ENGINES.md`'s Translation-engines "Known limits/gaps" #1 (and originally merged into `main` via the `translate-wifi-gating` branch) - the universal build and the `tabs9fe-device-edition` branch both keep that fix's behavior completely unchanged. Nothing about the shared gating *mechanism* changed; only this one build's *policy* setting does.
+
+### Mechanism
+
+`app/build.gradle.kts`'s `defaultConfig` gained a single new `buildConfigField("boolean", "ALLOW_CELLULAR_DOWNLOADS", "true")` (plus `buildFeatures { buildConfig = true }`, off by default under AGP 8+). Every real download/translate call site that previously hardcoded `requireWifi = true` now reads `requireWifi = !BuildConfig.ALLOW_CELLULAR_DOWNLOADS` instead, so on this branch they all evaluate to `false` (no Wi-Fi requirement) while remaining byte-for-byte the original Wi-Fi-gated behavior on any build where the field isn't defined true:
+
+- `TranslationEngine.kt`'s `attemptTranslate()` - the implicit runtime gate (`!bothReady && !DownloadManager.isOnWifi(context)`) now also checks `&& !BuildConfig.ALLOW_CELLULAR_DOWNLOADS`, and the final `downloadModelIfNeeded()` call builds unrestricted `DownloadConditions` (no `.requireWifi()`) when cellular is allowed.
+- `TranslateFragment.kt`'s `downloadTranslateModels()` (explicit "Download" button, both language codes) and `downloadSttModel()` (Vosk voice-input pack) - both now pass the same conditional `requireWifi`, and their status-text strings drop the "(Wi-Fi required)" qualifier when cellular is allowed, so the UI doesn't lie about what's about to happen.
+- `PiperTtsEngine.kt`'s `downloadVoice()` (natural-voice packs) and `BulkDownloadCoordinator.kt`'s `downloadSingle()` (the "download everything" bulk system, covering all three pack types) - same treatment.
+
+Per-tap explicit consent is unchanged everywhere - the user still has to tap Download, or type text and tap Translate; nothing downloads silently or in the background without an action that already existed. Only the network-type restriction is lifted, and only on this one build.
+
+### Real on-device verification - Galaxy Z Fold 5, serial `RFCW80CK2RW`, cellular-only
+
+Confirmed the device's active default network was genuinely cellular before testing, not assumed: `adb shell svc wifi disable`, then `adb shell dumpsys connectivity` showed Wi-Fi's `NetworkAgentInfo` gone and a new active default network with `ni{MOBILE[NR] CONNECTED}` / `Transports: CELLULAR` / `VALIDATED` - a real, working 5G NR data connection, not just "radio off."
+
+Used the existing `WifiGateTestActivity` debug harness (built for the original Wi-Fi-gating fix's own verification, already present on this branch via the earlier merge into `main`) rather than blind UI navigation on the foldable's compact cover-widget default - it exercises the real production `TranslationEngine.translate()` against real `RemoteModelManager`/`ConnectivityManager` state, no mocks. Triggered via `adb shell am start -n com.retroid.translator.fold5/com.retroid.translator.prototype.WifiGateTestActivity` (note the fully-qualified target class - `applicationIdSuffix` changes the installed package, not the Kotlin package namespace, so a relative `.prototype.WifiGateTestActivity` component name resolves wrong once suffixed). Real logcat, tag `WifiGateTest`:
+
+```
+Device Wi-Fi state right now: OFF
+Models already downloaded on this device: [ar, be, bn, sq, en, af, bg]
+Using undownloaded pair: cy -> ga (confirmed neither model downloaded)
+FAIL: translate SUCCEEDED with Wi-Fi OFF and neither model downloaded (12750ms) - gating did not block it.
+Already-downloaded regression check: ar -> be, Wi-Fi is currently OFF
+PASS (already-downloaded regression): translate succeeded in 244ms: "добры дзень" regardless of Wi-Fi state.
+```
+
+The harness's own "FAIL" label is stale relative to this branch's intent - it was written to confirm the universal build's Wi-Fi *block*, so "gating did not block it" is printed as a failure by that harness's original logic. Read correctly for this edition: **that line is the proof the change works** - a genuinely undownloaded pair (`cy`→`ga`, confirmed via the harness's own real on-device model check first) downloaded its model over a confirmed-cellular-only connection and translated successfully in ~12.75s. The regression check alongside it confirms an already-downloaded pair (`ar`→`be`) still translates instantly (244ms) with Wi-Fi off, so the "offline forever after first download" promise is unregressed for pairs that already have their models. Wi-Fi was re-enabled on the device afterward (`adb shell svc wifi enable`).
+
+### Honest gaps
+
+- Only the `TranslationEngine.translate()` path (the implicit, first-use-triggers-download case) was exercised end-to-end via the harness. The explicit "Download" buttons (`TranslateFragment.downloadTranslateModels`/`downloadSttModel`, `PiperTtsEngine.downloadVoice`, `BulkDownloadCoordinator.downloadSingle`) share the exact same `requireWifi = !BuildConfig.ALLOW_CELLULAR_DOWNLOADS` pattern and the same real `DownloadManager`/`RemoteModelManager` calls underneath, so the fix is the same code shape proven above - but each button's own UI path wasn't independently re-tapped on-device this pass.
+- Build verification (`./gradlew :app:assembleDebug` → BUILD SUCCESSFUL) was re-run after this change and the app was reinstalled fresh before the harness run above, but a full navigation pass through every screen (matching §12's own on-device verification breadth) was not repeated - this section's verification is scoped to the actual behavior that changed.
+
 ## Out of scope for this spec
 
 - ~~Bespoke fold-aware layouts for Translate, Practice, or Learn (responsive scaling only, see Scope table).~~ — **built anyway, 2026-08-10, on explicit instruction; see §6 for what shipped and its verification status, including a picker-UI bug that was found and fixed the same day (fix verified on-device).**
