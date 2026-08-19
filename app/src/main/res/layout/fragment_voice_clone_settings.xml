@@ -1,0 +1,179 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:padding="16dp">
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:textSize="13sp"
+            android:text="Clone your own voice from a short recording, then use it to hear translated or practiced phrases spoken in your own accent and inflection - not a robotic or generic voice." />
+
+        <!-- ==================== NOT YET SET UP ==================== -->
+        <androidx.cardview.widget.CardView
+            android:id="@+id/cardNotSetUp"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="16dp"
+            app:cardElevation="2dp"
+            app:cardCornerRadius="10dp">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:padding="16dp">
+
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:textSize="15sp"
+                    android:textStyle="bold"
+                    android:text="Not set up yet" />
+
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="4dp"
+                    android:textSize="13sp"
+                    android:alpha="0.8"
+                    android:text="Takes about 2 minutes: read 3 short sentences aloud, then a real preview of your cloned voice before anything is saved." />
+
+                <Button
+                    android:id="@+id/btnStartOnboarding"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="12dp"
+                    android:text="Set up voice cloning" />
+            </LinearLayout>
+        </androidx.cardview.widget.CardView>
+
+        <!-- ==================== SET UP ==================== -->
+        <androidx.cardview.widget.CardView
+            android:id="@+id/cardEnabledToggle"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="16dp"
+            app:cardElevation="2dp"
+            app:cardCornerRadius="10dp">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:gravity="center_vertical"
+                android:padding="16dp">
+
+                <LinearLayout
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:orientation="vertical">
+
+                    <TextView
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:textSize="15sp"
+                        android:text="Voice cloning enabled" />
+
+                    <TextView
+                        android:id="@+id/textEnabledSubtitle"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:textSize="12sp"
+                        android:alpha="0.75"
+                        android:layout_marginTop="2dp"
+                        android:text="Offers a &quot;Hear in my voice&quot; option on the Practice tab." />
+                </LinearLayout>
+
+                <com.google.android.material.switchmaterial.SwitchMaterial
+                    android:id="@+id/switchVoiceCloneEnabled"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="12dp"
+                    android:contentDescription="Enable voice cloning" />
+            </LinearLayout>
+        </androidx.cardview.widget.CardView>
+
+        <TextView
+            android:id="@+id/textProfileInfo"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="10dp"
+            android:textSize="12sp"
+            android:alpha="0.75" />
+
+        <TextView
+            android:id="@+id/textModelStatus"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="10dp"
+            android:textSize="13sp" />
+
+        <Button
+            android:id="@+id/btnDeleteModel"
+            style="@style/Widget.MaterialComponents.Button.OutlinedButton"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="6dp"
+            android:text="Delete downloaded model (free up space)" />
+
+        <View style="@style/SettingsHubDivider" android:layout_marginVertical="16dp" />
+
+        <Button
+            android:id="@+id/btnPreviewVoice"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="▶ Preview a sample phrase in my voice" />
+
+        <TextView
+            android:id="@+id/textPreviewStatusSettings"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:gravity="center"
+            android:textSize="12sp"
+            android:textStyle="italic"
+            android:layout_marginTop="4dp" />
+
+        <Button
+            android:id="@+id/btnRerecord"
+            style="@style/Widget.MaterialComponents.Button.OutlinedButton"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="10dp"
+            android:text="🎙 Re-record my voice" />
+
+        <View style="@style/SettingsHubDivider" android:layout_marginVertical="16dp" />
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:textSize="14sp"
+            android:textStyle="bold"
+            android:text="Quality by language" />
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="4dp"
+            android:textSize="12sp"
+            android:alpha="0.8"
+            android:text="The cloning model was trained on Chinese and English speech only. It can still attempt other languages using the same phonetic engine eSpeak already uses, but voice fidelity there is real, honestly unverified territory." />
+
+        <LinearLayout
+            android:id="@+id/listLanguageCoverage"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:layout_marginTop="8dp"
+            android:paddingBottom="32dp" />
+
+    </LinearLayout>
+</ScrollView>

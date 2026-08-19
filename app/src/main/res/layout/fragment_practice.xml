@@ -91,6 +91,23 @@
             android:text="Download natural voice (Wi-Fi)" />
 
         <Button
+            android:id="@+id/btnHearInMyVoice"
+            style="@style/Widget.MaterialComponents.Button.OutlinedButton"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="6dp"
+            android:text="🗣 Hear in my voice"
+            android:visibility="gone" />
+
+        <TextView
+            android:id="@+id/textVoiceCloneStatus"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:textSize="12sp"
+            android:layout_marginTop="4dp"
+            android:visibility="gone" />
+
+        <Button
             android:id="@+id/btnRecordAttempt"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"

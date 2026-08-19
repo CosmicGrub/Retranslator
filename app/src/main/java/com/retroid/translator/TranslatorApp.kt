@@ -6,6 +6,7 @@ import com.retroid.translator.engine.EspeakEngine
 import com.retroid.translator.engine.LlmAssistEngine
 import com.retroid.translator.engine.PiperTtsEngine
 import com.retroid.translator.engine.TtsRouter
+import com.retroid.translator.engine.VoiceCloneEngine
 import com.retroid.translator.engine.VoskEngine
 import com.retroid.translator.learn.LearnProgressStore
 
@@ -23,6 +24,9 @@ class TranslatorApp : Application() {
 
     /** On-device "rudimentary AI" assistant - Translate tab's AI phrase helper. See LlmAssistEngine's doc comment. */
     val llmAssist: LlmAssistEngine by lazy { LlmAssistEngine(this) }
+
+    /** Zero-shot voice cloning ("hear translations in my own voice") - see VoiceCloneEngine's doc comment for the real feasibility investigation. */
+    val voiceClone: VoiceCloneEngine by lazy { VoiceCloneEngine(this) }
 
     /** Every screen speaks through this - it picks Piper (natural) when downloaded, else eSpeak. */
     val tts: TtsRouter by lazy { TtsRouter(espeak, piper) }

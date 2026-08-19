@@ -41,6 +41,7 @@ class SettingsHubFragment : Fragment() {
         binding.rowLearnLayout.setOnClickListener { openDestination(LearnLayoutSettingsFragment(), "learn_layout") }
         binding.rowFoldBehavior.setOnClickListener { openDestination(FoldBehaviorFragment(), "fold_behavior") }
         binding.rowLanguagePacks.setOnClickListener { openDestination(ManagePacksFragment(), "language_packs") }
+        binding.rowVoiceCloning.setOnClickListener { openDestination(VoiceCloneSettingsFragment(), "voice_cloning") }
     }
 
     override fun onResume() {
