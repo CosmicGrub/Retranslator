@@ -1,0 +1,317 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Voice cloning onboarding - a dedicated modal (DialogFragment, full-screen)
+  walking the user through: intro -> record 3 short guided sentences (with
+  real, on-device audio-quality feedback per take, reusing WaveformReader) ->
+  choose which take becomes the active reference clip -> build the voice
+  profile (download the model if needed, then a real synthesized preview) ->
+  done. See VoiceCloneOnboardingFragment.kt for the step state machine this
+  single layout's cards are shown/hidden against.
+-->
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:fillViewport="true">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:padding="20dp">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center_vertical"
+            android:layout_marginBottom="12dp">
+
+            <TextView
+                android:id="@+id/textStepIndicator"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:textSize="13sp"
+                android:textStyle="bold"
+                android:alpha="0.75"
+                android:text="Set up voice cloning" />
+
+            <Button
+                android:id="@+id/btnOnboardingClose"
+                style="@style/Widget.MaterialComponents.Button.TextButton"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="✕ Close" />
+        </LinearLayout>
+
+        <!-- ============================ INTRO ============================ -->
+        <LinearLayout
+            android:id="@+id/cardIntro"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical">
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:textSize="20sp"
+                android:textStyle="bold"
+                android:text="Hear translations in your own voice" />
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="10dp"
+                android:textSize="14sp"
+                android:text="This clones your voice from a few short recordings, then uses it to speak NEW words and phrases you never actually said - so you can hear your own accent and inflection carry into words you're translating or practicing, not just a robotic or generic voice." />
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="10dp"
+                android:textSize="13sp"
+                android:alpha="0.8"
+                android:text="You'll read 3 short sentences aloud. Everything - the recordings, the trained voice, the model that does the cloning - stays on this device. Nothing is uploaded anywhere." />
+
+            <TextView
+                android:id="@+id/textIntroModelNote"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="10dp"
+                android:textSize="12sp"
+                android:alpha="0.75" />
+
+            <Button
+                android:id="@+id/btnOnboardingBegin"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="18dp"
+                android:text="Begin" />
+        </LinearLayout>
+
+        <!-- ============================ RECORD ============================ -->
+        <LinearLayout
+            android:id="@+id/cardRecord"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:visibility="gone">
+
+            <TextView
+                android:id="@+id/textPromptCounter"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:textSize="13sp"
+                android:textStyle="bold"
+                android:text="Sentence 1 of 3" />
+
+            <androidx.cardview.widget.CardView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="10dp"
+                app:cardElevation="1dp"
+                app:cardCornerRadius="10dp">
+
+                <TextView
+                    android:id="@+id/textPromptSentence"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:padding="18dp"
+                    android:textSize="18sp"
+                    android:gravity="center" />
+            </androidx.cardview.widget.CardView>
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp"
+                android:textSize="12sp"
+                android:alpha="0.75"
+                android:text="Read it naturally, at your normal pace, in a quiet spot." />
+
+            <Button
+                android:id="@+id/btnRecordPrompt"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="14dp"
+                android:text="🎙 Record" />
+
+            <TextView
+                android:id="@+id/textRecordStatus"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:gravity="center"
+                android:textSize="12sp"
+                android:textStyle="italic"
+                android:layout_marginTop="6dp" />
+
+            <TextView
+                android:id="@+id/textQualityFeedback"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="6dp"
+                android:textSize="13sp"
+                android:visibility="gone" />
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:layout_marginTop="12dp">
+
+                <Button
+                    android:id="@+id/btnRetryTake"
+                    style="@style/Widget.MaterialComponents.Button.OutlinedButton"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:layout_marginEnd="6dp"
+                    android:text="Try again"
+                    android:visibility="gone" />
+
+                <Button
+                    android:id="@+id/btnAcceptTake"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:layout_marginStart="6dp"
+                    android:text="Keep this take"
+                    android:enabled="false" />
+            </LinearLayout>
+        </LinearLayout>
+
+        <!-- ============================ CHOOSE ============================ -->
+        <LinearLayout
+            android:id="@+id/cardChoose"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:visibility="gone">
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:textSize="16sp"
+                android:textStyle="bold"
+                android:text="Choose your reference clip" />
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="4dp"
+                android:textSize="12sp"
+                android:alpha="0.75"
+                android:text="Listen back and pick the cleanest take - this is what the cloning model will use. The best-quality take is pre-selected." />
+
+            <LinearLayout
+                android:id="@+id/listTakes"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:layout_marginTop="10dp" />
+
+            <Button
+                android:id="@+id/btnChooseContinue"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="14dp"
+                android:text="Continue" />
+        </LinearLayout>
+
+        <!-- ============================ BUILD ============================ -->
+        <LinearLayout
+            android:id="@+id/cardBuild"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:visibility="gone">
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:textSize="16sp"
+                android:textStyle="bold"
+                android:text="Building your voice profile" />
+
+            <TextView
+                android:id="@+id/textBuildStatus"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp"
+                android:textSize="13sp" />
+
+            <ProgressBar
+                android:id="@+id/progressBuild"
+                style="?android:attr/progressBarStyleHorizontal"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp"
+                android:max="100"
+                android:visibility="gone" />
+
+            <Button
+                android:id="@+id/btnBuildDownload"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="10dp"
+                android:text="Download voice-cloning model" />
+
+            <Button
+                android:id="@+id/btnPreview"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="10dp"
+                android:text="▶ Preview a sample phrase in my voice"
+                android:enabled="false" />
+
+            <TextView
+                android:id="@+id/textPreviewStatus"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:gravity="center"
+                android:textSize="12sp"
+                android:textStyle="italic"
+                android:layout_marginTop="6dp" />
+
+            <Button
+                android:id="@+id/btnBuildContinue"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="14dp"
+                android:text="Continue"
+                android:enabled="false" />
+        </LinearLayout>
+
+        <!-- ============================ DONE ============================ -->
+        <LinearLayout
+            android:id="@+id/cardDone"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:visibility="gone">
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:textSize="20sp"
+                android:textStyle="bold"
+                android:text="Voice profile ready" />
+
+            <TextView
+                android:id="@+id/textDoneSummary"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="10dp"
+                android:textSize="14sp" />
+
+            <Button
+                android:id="@+id/btnFinish"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="18dp"
+                android:text="Finish" />
+        </LinearLayout>
+
+    </LinearLayout>
+</ScrollView>
