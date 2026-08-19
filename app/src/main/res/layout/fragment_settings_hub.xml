@@ -97,5 +97,29 @@
 
         <View style="@style/SettingsHubDivider" />
 
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:paddingStart="16dp"
+            android:paddingEnd="16dp"
+            android:paddingTop="16dp"
+            android:paddingBottom="8dp"
+            android:text="Voice"
+            android:textSize="13sp"
+            android:textStyle="italic" />
+
+        <LinearLayout
+            android:id="@+id/rowVoiceCloning"
+            style="@style/SettingsHubRow">
+            <TextView
+                style="@style/SettingsHubRowTitle"
+                android:text="Voice cloning" />
+            <TextView
+                style="@style/SettingsHubRowSubtitle"
+                android:text="Hear translations and practice phrases spoken in your own voice" />
+        </LinearLayout>
+
+        <View style="@style/SettingsHubDivider" />
+
     </LinearLayout>
 </ScrollView>

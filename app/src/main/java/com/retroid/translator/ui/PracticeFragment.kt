@@ -62,6 +62,9 @@ import com.retroid.translator.settings.FoldAwareLayoutHost
 import com.retroid.translator.settings.LayoutPreferences
 import com.retroid.translator.settings.ScreenMode
 import com.retroid.translator.settings.SettingsTab
+import com.retroid.translator.settings.VoiceClonePreferences
+import com.retroid.translator.voiceclone.VoiceCloneLanguageCoverage
+import com.retroid.translator.voiceclone.VoiceProfileStore
 import kotlinx.coroutines.launch
 import java.io.File
 import java.text.SimpleDateFormat
@@ -181,6 +184,7 @@ class PracticeFragment : Fragment(), FoldAwareLayoutHost {
     private val feedSettleRunnable = Runnable { snapPhraseFeedToNearestCard() }
 
     private lateinit var recordingsStore: RecordingsStore
+    private lateinit var voiceProfileStore: VoiceProfileStore
     private var player: MediaPlayer? = null
 
     private val mainActivity get() = activity as? MainActivity
@@ -191,6 +195,7 @@ class PracticeFragment : Fragment(), FoldAwareLayoutHost {
     private var currentFeature: FoldingFeature? = null
     private var coverForced = false
     private var currentActive: PracticeActiveLayout? = null
+    private var voiceClonePrefsListener: SharedPreferences.OnSharedPreferenceChangeListener? = null
 
     // ---------------------------------------------------------------------
     // View plumbing - exactly one of these 8 is non-null at a time.
@@ -216,6 +221,7 @@ class PracticeFragment : Fragment(), FoldAwareLayoutHost {
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
         recordingsStore = RecordingsStore(requireContext(), "practice")
+        voiceProfileStore = VoiceProfileStore(requireContext())
         languageCodes = LanguageCatalog.codes
         selectedLanguageCode = languageCodes.indexOf(TranslateLanguage.ENGLISH).let { if (it >= 0) languageCodes[it] else languageCodes[0] }
         genderMale = VoicePreferences.getGender(requireContext()) == VoiceGender.MALE
@@ -223,6 +229,7 @@ class PracticeFragment : Fragment(), FoldAwareLayoutHost {
         refreshRecordingsCache()
 
         registerLayoutPrefsListener()
+        registerVoiceClonePrefsListener()
         // Render once immediately with what we know so far (book-portrait/
         // default, or cover if force-compact is already on) so the screen is
         // never blank waiting on the first FoldingFeature emission below.
@@ -288,6 +295,31 @@ class PracticeFragment : Fragment(), FoldAwareLayoutHost {
         requireContext().applicationContext.getSharedPreferences(LAYOUT_PREFS_FILE_NAME, Context.MODE_PRIVATE)
             .unregisterOnSharedPreferenceChangeListener(listener)
         layoutPrefsListener = null
+    }
+
+    /**
+     * Same technique as [registerLayoutPrefsListener] immediately above,
+     * applied to voice-clone's "enabled" toggle - flipping it in Settings ->
+     * Voice cloning while this tab is already resumed (not navigated away
+     * from and back to) still picks up live, rather than requiring a
+     * re-navigation to notice.
+     */
+    private fun registerVoiceClonePrefsListener() {
+        val prefs = requireContext().applicationContext.getSharedPreferences(VOICE_CLONE_PREFS_FILE_NAME, Context.MODE_PRIVATE)
+        val listener = SharedPreferences.OnSharedPreferenceChangeListener { _, key ->
+            if (key == VOICE_CLONE_KEY_ENABLED) {
+                defaultBinding?.let { refreshVoiceCloneStatus(it) }
+            }
+        }
+        voiceClonePrefsListener = listener
+        prefs.registerOnSharedPreferenceChangeListener(listener)
+    }
+
+    private fun unregisterVoiceClonePrefsListener() {
+        val listener = voiceClonePrefsListener ?: return
+        requireContext().applicationContext.getSharedPreferences(VOICE_CLONE_PREFS_FILE_NAME, Context.MODE_PRIVATE)
+            .unregisterOnSharedPreferenceChangeListener(listener)
+        voiceClonePrefsListener = null
     }
 
     // ---------------------------------------------------------------------
@@ -524,6 +556,7 @@ class PracticeFragment : Fragment(), FoldAwareLayoutHost {
             override fun onItemSelected(p: AdapterView<*>?, v: View?, pos: Int, id: Long) {
                 selectedLanguageCode = languageCodes[spinner.selectedItemPosition]
                 refreshNaturalVoiceStatus()
+                defaultBinding?.let { refreshVoiceCloneStatus(it) }
             }
             override fun onNothingSelected(p: AdapterView<*>?) {}
         }
@@ -741,6 +774,7 @@ class PracticeFragment : Fragment(), FoldAwareLayoutHost {
 
         b.btnHearReference.setOnClickListener { hearReference(currentPhraseText) }
         b.btnDownloadNaturalVoicePractice.setOnClickListener { downloadNaturalVoice() }
+        b.btnHearInMyVoice.setOnClickListener { hearInMyVoice(b) }
         b.btnRecordAttempt.setOnClickListener {
             toggleRecordAttempt(currentPhraseText, { s ->
                 if (defaultBinding == null) return@toggleRecordAttempt
@@ -758,6 +792,75 @@ class PracticeFragment : Fragment(), FoldAwareLayoutHost {
         b.btnPlayAttempt.isEnabled = lastAttempt != null
         b.textNaturalVoiceStatusPractice.text = naturalVoiceStatusText
         refreshRecordingsListView(b.practiceRecordingsList)
+        // Re-checked on every refresh (not just once in bindDefault) so
+        // toggling Settings -> Voice cloning off/on and returning to this
+        // tab (onResume -> renderPracticeActiveLayout -> refreshAllContent)
+        // picks up the change without a fresh navigation into this tab.
+        refreshVoiceCloneStatus(b)
+    }
+
+    // ---------------------------------------------------------------------
+    // Voice cloning ("Hear in my voice") - only ever rendered on the
+    // "default" layout, same deliberate single-layout scope
+    // com.retroid.translator.engine.LlmAssistEngine's "AI phrase helper" and
+    // the Camera OCR entry button already established for a new, real
+    // feature that doesn't need to be re-built across all 8 Practice
+    // layouts to be genuinely useful. Gated on BOTH
+    // VoiceClonePreferences.isEnabled (the real Settings toggle - Settings
+    // -> Voice cloning) AND a real trained profile actually existing - never
+    // a dead/disabled button, it's simply hidden until both are true, and
+    // the Settings screen is the one place that starts onboarding.
+    // ---------------------------------------------------------------------
+
+    private fun refreshVoiceCloneStatus(b: FragmentPracticeBinding) {
+        val ctx = context ?: return
+        val available = VoiceClonePreferences.isEnabled(ctx) && voiceProfileStore.exists()
+        b.btnHearInMyVoice.visibility = if (available) View.VISIBLE else View.GONE
+        b.textVoiceCloneStatus.visibility = if (available) View.VISIBLE else View.GONE
+        if (!available) return
+        b.textVoiceCloneStatus.text = VoiceCloneLanguageCoverage.noteFor(selectedLanguageCode)
+    }
+
+    private fun hearInMyVoice(b: FragmentPracticeBinding) {
+        val app = mainActivity?.app ?: return
+        if (currentPhraseText.isBlank()) { toast("Type a word or phrase first"); return }
+        val profile = voiceProfileStore.load()
+        if (profile == null) { toast("No voice profile yet - set it up in Settings -> Voice cloning"); return }
+        val engine = app.voiceClone
+        if (!engine.isFullyDownloaded()) {
+            toast("Voice-cloning model isn't downloaded yet - finish setup in Settings -> Voice cloning", long = true)
+            return
+        }
+        b.btnHearInMyVoice.isEnabled = false
+        b.textVoiceCloneStatus.text = "Synthesizing in your voice…"
+        fun speakNow() {
+            engine.speak(
+                text = currentPhraseText,
+                referenceAudioFile = profile.audioFile,
+                referenceText = profile.referenceText,
+                onDone = {
+                    if (defaultBinding == null) return@speak
+                    b.btnHearInMyVoice.isEnabled = true
+                    refreshVoiceCloneStatus(b)
+                },
+                onError = { err ->
+                    if (defaultBinding == null) return@speak
+                    b.btnHearInMyVoice.isEnabled = true
+                    b.textVoiceCloneStatus.text = "Failed: $err"
+                }
+            )
+        }
+        if (engine.isLoaded) {
+            speakNow()
+        } else {
+            engine.loadAsync { ok, err ->
+                if (defaultBinding == null) return@loadAsync
+                if (ok) speakNow() else {
+                    b.btnHearInMyVoice.isEnabled = true
+                    b.textVoiceCloneStatus.text = "Failed to load voice-clone model: $err"
+                }
+            }
+        }
     }
 
     private fun refreshRecordingsListView(container: LinearLayout) {
@@ -1494,6 +1597,7 @@ class PracticeFragment : Fragment(), FoldAwareLayoutHost {
         player?.release()
         player = null
         unregisterLayoutPrefsListener()
+        unregisterVoiceClonePrefsListener()
         contentContainer = null
         defaultBinding = null
         drillDeckBinding = null
@@ -1522,5 +1626,12 @@ class PracticeFragment : Fragment(), FoldAwareLayoutHost {
         private const val LAYOUT_PREFS_FILE_NAME = "layout_prefs"
         private const val LAYOUT_KEY_COVER = "variant_practice_cover"
         private const val LAYOUT_KEY_FLEX = "variant_practice_flex"
+
+        // Mirrors VoiceClonePreferences' own private PREFS_NAME/KEY_ENABLED
+        // exactly (see registerVoiceClonePrefsListener's doc comment) -
+        // duplicated here deliberately, same technique as LAYOUT_PREFS_FILE_NAME
+        // above rather than exposing internals of that settings file.
+        private const val VOICE_CLONE_PREFS_FILE_NAME = "voice_clone_prefs"
+        private const val VOICE_CLONE_KEY_ENABLED = "enabled"
     }
 }
