@@ -166,6 +166,19 @@ dependencies {
     // (Apache-2.0, Maven Central) is the standard, well-known library for this.
     implementation("org.apache.commons:commons-compress:1.26.1")
 
+    // On-device LLM assist (Gemma 3 1B, docs/specs/engines-upgrade-plan.md) -
+    // MediaPipe's LLM Inference API, not the newer LiteRT-LM Kotlin API
+    // Google is migrating toward: LiteRT-LM's Android surface is marked
+    // @ExperimentalApi and its docs don't even state a minimum API level,
+    // where tasks-genai is a real, currently-shipping, precisely-versioned
+    // dependency with documented Android integration - "maintenance-only"
+    // still means supported today, and this app's own standing preference
+    // (see the lgraph tier's rejection of an obsolete-flagged Arabic model)
+    // is a real working feature over a better-on-paper but less-proven one.
+    // Pinned version, not "latest.release" - reproducible builds matter more
+    // here than always tracking HEAD of a maintenance-mode library.
+    implementation("com.google.mediapipe:tasks-genai:0.10.27")
+
     // Plain-JVM unit tests (src/test) - JUnit 4 only, no Robolectric/Espresso.
     // Scope: pure-Kotlin logic with no Android-framework dependency (see
     // docs/ENGINES.md's testing-infrastructure note for what's covered).

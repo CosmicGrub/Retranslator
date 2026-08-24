@@ -38,6 +38,7 @@ import com.google.mlkit.nl.translate.TranslateLanguage
 import com.google.mlkit.nl.translate.TranslateRemoteModel
 import com.retroid.translator.MainActivity
 import com.retroid.translator.R
+import com.retroid.translator.TranslatorApp
 import com.retroid.translator.audio.ContinuousListeningService
 import com.retroid.translator.audio.MicPipeline
 import com.retroid.translator.databinding.FragmentTranslateBinding
@@ -52,6 +53,7 @@ import com.retroid.translator.databinding.ViewTranslateBroadcastRowBinding
 import com.retroid.translator.databinding.ViewTranslateTranscriptBubbleBinding
 import com.retroid.translator.engine.DownloadManager
 import com.retroid.translator.engine.LanguageCatalog
+import com.retroid.translator.engine.LlmAssistEngine
 import com.retroid.translator.engine.TranslationEngine
 import com.retroid.translator.engine.VoiceGender
 import com.retroid.translator.engine.VoicePreferences
@@ -142,6 +144,7 @@ class TranslateFragment : Fragment(), FoldAwareLayoutHost {
     private var lastResultText = ""
     private var detectedLanguageText = ""
     private var micStatusText = ""
+    private var llmBusy = false
     private var modelStatusText = "Checking translation pack status..."
     private var sttStatusText = "Checking voice-input pack status..."
     private var naturalVoiceStatusText = ""
@@ -659,6 +662,7 @@ class TranslateFragment : Fragment(), FoldAwareLayoutHost {
 
     private fun translateWith(srcCode: String, tgtCode: String, text: String) {
         lastResultText = "Translating..."
+        hideLlmExplanation() // stale - tied to the PREVIOUS result (buildLlmExplainPrompt's doc comment)
         refreshAllContent()
         TranslationEngine.translate(requireContext(), srcCode, tgtCode, text,
             onResult = onResult@{ translated ->
@@ -710,6 +714,108 @@ class TranslateFragment : Fragment(), FoldAwareLayoutHost {
         val app = mainActivity?.app ?: return
         if (lastResultText.isBlank() || lastResultText == "Translating...") { toast("Nothing to speak yet"); return }
         app.tts.speak(lastResultText, targetCode, selectedGender(), onDone = {}, onError = { err -> if (isAdded) toast(err) })
+    }
+
+    // -------------------------------------------------------------------
+    // On-device AI assist (Gemma 3 1B, LlmAssistEngine) - one bounded
+    // "explain this translation" action, not a chat interface. See
+    // LlmAssistEngine's class doc for the load -> generate -> unload shape
+    // this deliberately uses instead of keeping the model resident.
+    // -------------------------------------------------------------------
+
+    private fun onLlmExplainClicked() {
+        val app = mainActivity?.app ?: return
+        if (llmBusy) return
+        if (lastInputText.isBlank() || lastResultText.isBlank() || lastResultText == "Translating...") {
+            toast("Translate something first")
+            return
+        }
+        if (!app.llmAssist.isModelDownloaded()) {
+            downloadLlmModelThenExplain(app)
+            return
+        }
+        runLlmExplain(app)
+    }
+
+    private fun downloadLlmModelThenExplain(app: TranslatorApp) {
+        llmBusy = true
+        setLlmStatus("Downloading on-device AI model (~${LlmAssistEngine.APPROX_SIZE_MIB}MB, one-time)... 0%")
+        DownloadManager.downloadPlainFile(
+            requireContext(), LlmAssistEngine.MODEL_URL, app.llmAssist.modelFile(), requireWifi = true,
+            onProgress = { pct -> if (contentContainer != null) setLlmStatus("Downloading on-device AI model... $pct%") }
+        ) { success, error ->
+            if (contentContainer == null) return@downloadPlainFile
+            if (!success) {
+                llmBusy = false
+                setLlmStatus("")
+                toast("Download failed: $error", long = true)
+                return@downloadPlainFile
+            }
+            runLlmExplain(app)
+        }
+    }
+
+    private fun runLlmExplain(app: TranslatorApp) {
+        llmBusy = true
+        setLlmStatus(if (app.llmAssist.isLoaded) "Thinking..." else "Loading on-device AI model...")
+        app.llmAssist.loadAsync { loaded, loadError ->
+            if (contentContainer == null) {
+                if (loaded) app.llmAssist.unload() // fragment gone before we could use it - don't leak a loaded model
+                return@loadAsync
+            }
+            if (!loaded) {
+                llmBusy = false
+                setLlmStatus("")
+                toast("Couldn't load on-device AI model: $loadError", long = true)
+                return@loadAsync
+            }
+            setLlmStatus("Thinking...")
+            val prompt = buildLlmExplainPrompt()
+            app.llmAssist.generate(prompt) { result, genError ->
+                app.llmAssist.unload() // load -> generate -> unload per LlmAssistEngine's doc comment
+                if (contentContainer == null) return@generate
+                llmBusy = false
+                setLlmStatus("")
+                if (result.isNullOrBlank()) {
+                    toast("On-device AI couldn't answer: ${genError ?: "empty response"}", long = true)
+                    return@generate
+                }
+                showLlmExplanation(result.trim())
+            }
+        }
+    }
+
+    /**
+     * Tightly bounded on purpose (class doc on LlmAssistEngine): one fixed
+     * template around the CURRENT translation pair, explicit instruction not
+     * to drift into open-ended chat, nothing from user free-text input
+     * beyond the two strings already on screen.
+     */
+    private fun buildLlmExplainPrompt(): String {
+        val srcLang = LanguageCatalog.displayNameFor(sourceCode)
+        val tgtLang = LanguageCatalog.displayNameFor(targetCode)
+        return "You are a concise language-learning assistant inside a translation app. " +
+            "In 2-3 short sentences, explain the translation below for a learner: note any " +
+            "idioms, grammar, or nuance worth knowing. Do not translate anything else, answer " +
+            "unrelated questions, or add extra commentary.\n\n" +
+            "$srcLang: \"$lastInputText\"\n$tgtLang: \"$lastResultText\""
+    }
+
+    private fun setLlmStatus(text: String) {
+        defaultBinding?.textLlmStatus?.apply {
+            this.text = text
+            visibility = if (text.isEmpty()) View.GONE else View.VISIBLE
+        }
+    }
+
+    private fun showLlmExplanation(text: String) {
+        val b = defaultBinding ?: return
+        b.textLlmExplanation.text = text
+        b.cardLlmExplanation.visibility = View.VISIBLE
+    }
+
+    private fun hideLlmExplanation() {
+        defaultBinding?.cardLlmExplanation?.visibility = View.GONE
     }
 
     /** Starts a mic capture unconditionally (caller decides start/stop semantics) - used directly by "single_circle"'s hold-to-talk gesture. */
@@ -919,6 +1025,7 @@ class TranslateFragment : Fragment(), FoldAwareLayoutHost {
         }
         b.btnCamera.setOnClickListener { launchCameraCapture() }
         b.btnSpeak.setOnClickListener { speakLastResult() }
+        b.btnLlmExplain.setOnClickListener { onLlmExplainClicked() }
         if (lastInputText.isNotEmpty()) b.editInput.setText(lastInputText)
 
         refreshModelStatus()

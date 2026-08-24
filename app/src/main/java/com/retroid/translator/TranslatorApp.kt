@@ -3,6 +3,7 @@ package com.retroid.translator
 import android.app.Application
 import com.retroid.translator.audio.MicPipeline
 import com.retroid.translator.engine.EspeakEngine
+import com.retroid.translator.engine.LlmAssistEngine
 import com.retroid.translator.engine.PiperTtsEngine
 import com.retroid.translator.engine.TtsRouter
 import com.retroid.translator.engine.VoskEngine
@@ -19,6 +20,9 @@ class TranslatorApp : Application() {
     val piper: PiperTtsEngine by lazy { PiperTtsEngine(this) }
     val vosk: VoskEngine by lazy { VoskEngine(this) }
     val mic: MicPipeline by lazy { MicPipeline() }
+
+    /** Gemma 3 1B on-device assist (fold5-device-version) - see LlmAssistEngine's doc comment. Not touched unless the user downloads the pack and taps the assist button; nothing here runs it eagerly. */
+    val llmAssist: LlmAssistEngine by lazy { LlmAssistEngine(this) }
 
     /** Every screen speaks through this - it picks Piper (natural) when downloaded, else eSpeak. */
     val tts: TtsRouter by lazy { TtsRouter(espeak, piper) }

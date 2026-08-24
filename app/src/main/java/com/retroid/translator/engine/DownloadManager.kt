@@ -150,6 +150,30 @@ object DownloadManager {
     }
 
     /**
+     * Same Wi-Fi-gated download UX as [downloadAndUnzip], but for a single
+     * plain file - the Gemma 3 1B `.task` model
+     * ([com.retroid.translator.engine.LlmAssistEngine]) ships as one large
+     * file, not an archive, so there's nothing to extract: [extract]'s
+     * "produce the final on-disk artifact from the downloaded temp file"
+     * contract is satisfied here by a plain move-into-place instead of
+     * unzip/untar.
+     */
+    fun downloadPlainFile(
+        context: Context,
+        url: String,
+        destFile: File,
+        requireWifi: Boolean = true,
+        onProgress: (percent: Int) -> Unit = {},
+        onDone: (success: Boolean, error: String?) -> Unit
+    ) {
+        runDownload(context, url, "dl_${System.currentTimeMillis()}.bin", destFile, requireWifi, onProgress, onDone) { tmp ->
+            destFile.parentFile?.mkdirs()
+            if (destFile.exists()) destFile.delete()
+            tmp.copyTo(destFile, overwrite = true)
+        }
+    }
+
+    /**
      * Shared Wi-Fi-gated "download to a temp file, then hand it off to
      * [extract]" flow. If anything goes wrong partway through - the download
      * connection drops, the device loses connectivity, extraction throws -
