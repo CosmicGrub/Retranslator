@@ -981,7 +981,13 @@ class TranslateFragment : Fragment(), FoldAwareLayoutHost {
     private fun refreshSttStatus() {
         val app = mainActivity?.app ?: return
         val code = sourceCode
-        val info = VoskModelCatalog.forLanguage(code)
+        // effectiveModelInfo, not forLanguage: if this language has an
+        // accuracy tier (VoskModelCatalog.ACCURACY_TIERS) and the user
+        // opted in (ManagePacksFragment's toggle), status/size/download
+        // here should reflect that tier too - this is the same download
+        // path VoskAccuracyPreference's doc comment describes, just reached
+        // from Translate's own inline STT button instead of Manage Packs.
+        val info = VoskModelCatalog.effectiveModelInfo(requireContext(), code)
         if (info == null) {
             sttStatusText = "No offline voice-input model available for ${LanguageCatalog.displayNameFor(code)}."
             defaultBinding?.textSttStatus?.text = sttStatusText
@@ -1000,7 +1006,7 @@ class TranslateFragment : Fragment(), FoldAwareLayoutHost {
     private fun downloadSttModel() {
         val app = mainActivity?.app ?: return
         val code = sourceCode
-        val info = VoskModelCatalog.forLanguage(code) ?: return
+        val info = VoskModelCatalog.effectiveModelInfo(requireContext(), code) ?: return
         sttStatusText = "Downloading voice-input pack..."
         defaultBinding?.textSttStatus?.text = sttStatusText
         DownloadManager.downloadAndUnzip(

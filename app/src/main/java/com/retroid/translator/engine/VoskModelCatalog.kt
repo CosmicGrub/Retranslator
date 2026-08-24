@@ -1,5 +1,7 @@
 package com.retroid.translator.engine
 
+import android.content.Context
+
 /**
  * Curated from the official Vosk model catalog
  * (https://alphacephei.com/vosk/models/model-list.json), keeping only the
@@ -50,4 +52,40 @@ object VoskModelCatalog {
     fun forLanguage(mlKitCode: String): VoskModelInfo? = byCode[mlKitCode]
 
     fun supportedCodes(): Set<String> = byCode.keys
+
+    /**
+     * Opt-in "accuracy tier" models - a real, cheap middle ground between
+     * [MODELS]' small default and Vosk's much larger "big" tier, per
+     * docs/specs/engines-upgrade-plan.md's scoped recommendation. English is
+     * the one entry piloted here: `vosk-model-en-us-0.22-lgraph`, ~124.5MiB
+     * vs. the default's 39MiB, WER 7.82/8.20 vs. 9.85/10.38 (~20% relative
+     * accuracy improvement for ~3x the download - the "big" tier would be
+     * ~46x for a further ~1.4x gain, not worth defaulting to). Deliberately
+     * NOT folded into [MODELS]/[byCode]: those feed [PackInventory]'s
+     * flat "one row per language" pack list, and this is a quality toggle
+     * on an existing language's row, not a second downloadable language.
+     */
+    val ACCURACY_TIERS: Map<String, VoskModelInfo> = mapOf(
+        "en" to VoskModelInfo(
+            "en", "English (high accuracy)",
+            "https://alphacephei.com/vosk/models/vosk-model-en-us-0.22-lgraph.zip", 125
+        ),
+    )
+
+    fun accuracyTierFor(mlKitCode: String): VoskModelInfo? = ACCURACY_TIERS[mlKitCode]
+
+    /**
+     * The model to actually download/load for [mlKitCode] right now: the
+     * accuracy tier if one exists for this language AND the user opted in
+     * via [VoskAccuracyPreference], otherwise the standard [forLanguage]
+     * entry. This is the ONE seam real downloads should read through -
+     * [forLanguage] alone stays the base-catalog lookup every existing
+     * "is this language supported at all" check already uses and shouldn't
+     * have to change.
+     */
+    fun effectiveModelInfo(context: Context, mlKitCode: String): VoskModelInfo? {
+        val tier = accuracyTierFor(mlKitCode)
+        if (tier != null && VoskAccuracyPreference.isHighAccuracyEnabled(context, mlKitCode)) return tier
+        return forLanguage(mlKitCode)
+    }
 }

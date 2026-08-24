@@ -11,10 +11,15 @@ import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import androidx.cardview.widget.CardView
 import androidx.fragment.app.Fragment
+import com.google.android.material.switchmaterial.SwitchMaterial
 import com.retroid.translator.MainActivity
 import com.retroid.translator.databinding.FragmentManagePacksBinding
 import com.retroid.translator.engine.DownloadManager
+import com.retroid.translator.engine.LanguageCatalog
 import com.retroid.translator.engine.TranslationEngine
+import com.retroid.translator.engine.VoskAccuracyPreference
+import com.retroid.translator.engine.VoskModelCatalog
+import com.retroid.translator.engine.VoskModelInfo
 import com.retroid.translator.packs.BulkDownloadCoordinator
 import com.retroid.translator.packs.LanguagePackPreferences
 import com.retroid.translator.packs.PackCategory
@@ -157,30 +162,47 @@ class ManagePacksFragment : Fragment() {
     // -------------------------------------------------------------------
 
     private fun buildPackRow(item: PackDescriptor, downloaded: Boolean): View {
-        val card = CardView(requireContext()).apply {
+        val ctx = requireContext()
+        // Only PackDescriptor.VoiceInput entries can have an accuracy tier
+        // (VoskModelCatalog.ACCURACY_TIERS) - null for every other pack, and
+        // for VoiceInput languages without one (everything except English
+        // today).
+        val voiceInput = item as? PackDescriptor.VoiceInput
+        val accuracyTier = voiceInput?.let { VoskModelCatalog.accuracyTierFor(it.info.mlKitCode) }
+        val accuracyEnabled = accuracyTier != null &&
+            VoskAccuracyPreference.isHighAccuracyEnabled(ctx, accuracyTier.mlKitCode)
+        // What this row should actually show/download right now - the
+        // accuracy tier's name/size when opted in, the base catalog entry
+        // otherwise. Downloading itself already reads through the same
+        // effectiveModelInfo seam (BulkDownloadCoordinator.downloadSingle).
+        val effectiveName = if (accuracyEnabled) accuracyTier!!.displayName else item.displayName
+        val effectiveSizeMiB = if (accuracyEnabled) accuracyTier!!.approxSizeMiB else item.approxSizeMiB
+
+        val card = CardView(ctx).apply {
             layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT).apply {
                 bottomMargin = dp(6)
             }
             radius = dp(8).toFloat()
             cardElevation = dp(1).toFloat()
         }
-        val row = LinearLayout(requireContext()).apply {
+        val cardCol = LinearLayout(ctx).apply { orientation = LinearLayout.VERTICAL }
+        val row = LinearLayout(ctx).apply {
             orientation = LinearLayout.HORIZONTAL
             gravity = android.view.Gravity.CENTER_VERTICAL
             setPadding(dp(12), dp(10), dp(12), dp(10))
         }
-        val textCol = LinearLayout(requireContext()).apply {
+        val textCol = LinearLayout(ctx).apply {
             orientation = LinearLayout.VERTICAL
             layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
         }
-        val title = TextView(requireContext()).apply { text = item.displayName; textSize = 15f }
-        val subtitle = TextView(requireContext()).apply {
+        val title = TextView(ctx).apply { text = effectiveName; textSize = 15f }
+        val subtitle = TextView(ctx).apply {
             textSize = 12f
-            text = if (downloaded) "Downloaded" else "Not downloaded (~${item.approxSizeMiB}MB)"
+            text = if (downloaded) "Downloaded" else "Not downloaded (~${effectiveSizeMiB}MB)"
         }
         textCol.addView(title)
         textCol.addView(subtitle)
-        val btn = Button(requireContext()).apply {
+        val btn = Button(ctx).apply {
             text = if (downloaded) "Delete" else "Download"
         }
         btn.setOnClickListener {
@@ -188,8 +210,59 @@ class ManagePacksFragment : Fragment() {
         }
         row.addView(textCol)
         row.addView(btn)
-        card.addView(row)
+        cardCol.addView(row)
+        if (accuracyTier != null) {
+            cardCol.addView(buildAccuracyToggleRow(accuracyTier.mlKitCode, accuracyTier, accuracyEnabled, downloaded))
+        }
+        card.addView(cardCol)
         return card
+    }
+
+    /**
+     * The opt-in "high accuracy" toggle for a language that has an entry in
+     * [VoskModelCatalog.ACCURACY_TIERS] (English only today - see that
+     * catalog's doc comment). Lives inside the language's own pack row
+     * rather than as a separate list entry, because it's a quality setting
+     * on that language, not another downloadable pack -
+     * [com.retroid.translator.packs.PackInventory]'s flat list stays exactly
+     * as it was.
+     */
+    private fun buildAccuracyToggleRow(langCode: String, tier: VoskModelInfo, enabled: Boolean, packDownloaded: Boolean): View {
+        val ctx = requireContext()
+        val row = LinearLayout(ctx).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = android.view.Gravity.CENTER_VERTICAL
+            setPadding(dp(12), 0, dp(12), dp(10))
+        }
+        val textCol = LinearLayout(ctx).apply {
+            orientation = LinearLayout.VERTICAL
+            layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
+        }
+        val title = TextView(ctx).apply { text = "Higher accuracy"; textSize = 13f }
+        val subtitle = TextView(ctx).apply {
+            textSize = 11f
+            text = "~${tier.approxSizeMiB}MB, roughly 20% fewer recognition errors than the default pack."
+        }
+        textCol.addView(title)
+        textCol.addView(subtitle)
+        val toggle = SwitchMaterial(ctx).apply { isChecked = enabled }
+        toggle.setOnCheckedChangeListener { _, isChecked ->
+            if (isChecked == VoskAccuracyPreference.isHighAccuracyEnabled(ctx, langCode)) return@setOnCheckedChangeListener
+            VoskAccuracyPreference.setHighAccuracyEnabled(ctx, langCode, isChecked)
+            if (packDownloaded) {
+                // The file(s) on disk are now the WRONG tier for this
+                // preference - VoskEngine keys storage by language only
+                // (see VoskAccuracyPreference's doc comment), so the honest
+                // move is to delete them immediately rather than let
+                // PackStatus keep reporting a stale tier as "downloaded".
+                mainActivity()?.app?.vosk?.deleteModel(langCode)
+                Toast.makeText(ctx, "Switched tiers - re-download ${LanguageCatalog.displayNameFor(langCode)}'s voice-input pack to apply it.", Toast.LENGTH_LONG).show()
+            }
+            refresh()
+        }
+        row.addView(textCol)
+        row.addView(toggle)
+        return row
     }
 
     private fun downloadPack(item: PackDescriptor, subtitle: TextView, btn: Button) {

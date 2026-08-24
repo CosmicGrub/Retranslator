@@ -5,6 +5,7 @@ import android.util.Log
 import com.retroid.translator.TranslatorApp
 import com.retroid.translator.engine.DownloadManager
 import com.retroid.translator.engine.TranslationEngine
+import com.retroid.translator.engine.VoskModelCatalog
 
 /**
  * Sequential downloader for a batch of [PackDescriptor]s - drives the
@@ -71,11 +72,20 @@ class BulkDownloadCoordinator(private val context: Context, private val app: Tra
         when (item) {
             is PackDescriptor.Translation ->
                 TranslationEngine.downloadModel(context, item.mlKitCode, requireWifi = true) { ok, err -> onDone(ok, err) }
-            is PackDescriptor.VoiceInput ->
+            is PackDescriptor.VoiceInput -> {
+                // Reads through VoskModelCatalog.effectiveModelInfo, not
+                // item.info directly, so a language with an opted-in
+                // accuracy tier (VoskAccuracyPreference) downloads THAT
+                // model's URL - same target directory either way
+                // (app.vosk.modelRootDir is keyed by language only), which
+                // is exactly the "one tier resident at a time" contract
+                // VoskAccuracyPreference's doc comment describes.
+                val effective = VoskModelCatalog.effectiveModelInfo(context, item.info.mlKitCode) ?: item.info
                 DownloadManager.downloadAndUnzip(
-                    context, item.info.url, app.vosk.modelRootDir(item.info.mlKitCode), requireWifi = true,
+                    context, effective.url, app.vosk.modelRootDir(item.info.mlKitCode), requireWifi = true,
                     onProgress = onProgress, onDone = onDone
                 )
+            }
             is PackDescriptor.NaturalVoice ->
                 app.piper.downloadVoice(context, item.info, onProgress = onProgress) { ok, err -> onDone(ok, err) }
         }
