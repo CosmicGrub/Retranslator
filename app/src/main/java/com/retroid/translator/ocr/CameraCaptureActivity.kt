@@ -6,12 +6,18 @@ import android.content.Intent
 import android.content.pm.PackageManager
 import android.os.Bundle
 import android.util.Log
+import android.view.GestureDetector
+import android.view.MotionEvent
+import android.view.ScaleGestureDetector
 import android.view.View
 import android.widget.ArrayAdapter
+import android.widget.ImageView
 import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
+import androidx.camera.core.Camera
 import androidx.camera.core.CameraSelector
+import androidx.camera.core.FocusMeteringAction
 import androidx.camera.core.ImageCapture
 import androidx.camera.core.ImageCaptureException
 import androidx.camera.core.ImageProxy
@@ -22,6 +28,7 @@ import com.google.mlkit.vision.common.InputImage
 import com.retroid.translator.R
 import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
+import java.util.concurrent.TimeUnit
 
 /**
  * Camera OCR translate capture screen (docs/specs/fold5-adaptation.md
@@ -46,6 +53,7 @@ class CameraCaptureActivity : AppCompatActivity() {
 
     private lateinit var cameraExecutor: ExecutorService
     private var imageCapture: ImageCapture? = null
+    private var camera: Camera? = null
     private var selectedScript: OcrScript = OcrScript.LATIN
     private var recognizing = false
 
@@ -55,6 +63,10 @@ class CameraCaptureActivity : AppCompatActivity() {
     private lateinit var textOcrStatus: android.widget.TextView
     private lateinit var btnCapture: android.widget.ImageButton
     private lateinit var progressRecognizing: android.widget.ProgressBar
+    private lateinit var focusRing: ImageView
+
+    private lateinit var scaleGestureDetector: ScaleGestureDetector
+    private lateinit var tapGestureDetector: GestureDetector
 
     private val cameraPermissionLauncher =
         registerForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
@@ -76,10 +88,12 @@ class CameraCaptureActivity : AppCompatActivity() {
         textOcrStatus = findViewById(R.id.textOcrStatus)
         btnCapture = findViewById(R.id.btnCapture)
         progressRecognizing = findViewById(R.id.progressRecognizing)
+        focusRing = findViewById(R.id.focusRing)
 
         cameraExecutor = Executors.newSingleThreadExecutor()
 
         setupScriptSpinner()
+        setupZoomAndFocus()
         findViewById<View>(R.id.btnClose).setOnClickListener { finish() }
         btnCapture.setOnClickListener { captureAndRecognize() }
         btnDownloadScript.setOnClickListener { downloadSelectedScript() }
@@ -166,6 +180,63 @@ class CameraCaptureActivity : AppCompatActivity() {
     }
 
     // -------------------------------------------------------------------
+    // Pinch-to-zoom + tap-to-focus. Framing accuracy directly affects OCR
+    // quality (a soft-focused or too-far-away frame is the single most
+    // common cause of the "no text detected" outcome onRecognized already
+    // discloses), so this isn't cosmetic polish - it's the same
+    // "meet the hardware where it is" scoping this branch already applied
+    // to the hinge-angle sensor. CameraX exposes both as one-line calls on
+    // Camera.cameraControl once bound; the two gesture detectors just
+    // translate touch events into that API, they don't reimplement zoom or
+    // AF themselves.
+    // -------------------------------------------------------------------
+
+    private fun setupZoomAndFocus() {
+        scaleGestureDetector = ScaleGestureDetector(this, object : ScaleGestureDetector.SimpleOnScaleGestureListener() {
+            override fun onScale(detector: ScaleGestureDetector): Boolean {
+                val cam = camera ?: return false
+                val zoomState = cam.cameraInfo.zoomState.value ?: return false
+                val newRatio = (zoomState.zoomRatio * detector.scaleFactor)
+                    .coerceIn(zoomState.minZoomRatio, zoomState.maxZoomRatio)
+                cam.cameraControl.setZoomRatio(newRatio)
+                return true
+            }
+        })
+        tapGestureDetector = GestureDetector(this, object : GestureDetector.SimpleOnGestureListener() {
+            override fun onSingleTapUp(e: MotionEvent): Boolean {
+                focusAt(e.x, e.y)
+                return true
+            }
+        })
+        previewView.setOnTouchListener { _, event ->
+            scaleGestureDetector.onTouchEvent(event)
+            tapGestureDetector.onTouchEvent(event)
+            true
+        }
+    }
+
+    private fun focusAt(x: Float, y: Float) {
+        val cam = camera ?: return
+        val point = previewView.meteringPointFactory.createPoint(x, y)
+        val action = FocusMeteringAction.Builder(point, FocusMeteringAction.FLAG_AF or FocusMeteringAction.FLAG_AE)
+            .setAutoCancelDuration(3, TimeUnit.SECONDS)
+            .build()
+        cam.cameraControl.startFocusAndMetering(action)
+        showFocusRing(x, y)
+    }
+
+    /** Purely a visual acknowledgement that the tap registered - startFocusAndMetering above already fired regardless of whether this ring is seen. */
+    private fun showFocusRing(x: Float, y: Float) {
+        focusRing.translationX = x - focusRing.width / 2f
+        focusRing.translationY = y - focusRing.height / 2f
+        focusRing.alpha = 1f
+        focusRing.visibility = View.VISIBLE
+        focusRing.animate().alpha(0f).setStartDelay(500).setDuration(300)
+            .withEndAction { focusRing.visibility = View.GONE }
+            .start()
+    }
+
+    // -------------------------------------------------------------------
     // CameraX preview + single-shot capture
     // -------------------------------------------------------------------
 
@@ -187,7 +258,7 @@ class CameraCaptureActivity : AppCompatActivity() {
             imageCapture = capture
             try {
                 provider.unbindAll()
-                provider.bindToLifecycle(this, CameraSelector.DEFAULT_BACK_CAMERA, preview, capture)
+                camera = provider.bindToLifecycle(this, CameraSelector.DEFAULT_BACK_CAMERA, preview, capture)
             } catch (e: Exception) {
                 Log.e(TAG, "CameraX bind failed", e)
                 Toast.makeText(this, "Couldn't start the camera: ${e.message}", Toast.LENGTH_LONG).show()

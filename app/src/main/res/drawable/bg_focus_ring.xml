@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Tap-to-focus acknowledgement ring (activity_camera_capture.xml's focusRing) -
+     an unfilled white circle so it reads as a focus reticle over live preview
+     content instead of occluding it, matching bg_capture_button.xml's "plain
+     shape drawable, no new asset pipeline" approach. -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android"
+    android:shape="oval">
+    <solid android:color="@android:color/transparent" />
+    <stroke
+        android:width="2dp"
+        android:color="#FFFFFF" />
+</shape>
