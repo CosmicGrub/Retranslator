@@ -48,3 +48,15 @@ jobs:
           # red X - real report paths, confirmed present on disk after a
           # local `./gradlew testDebugUnitTest` run.
           if-no-files-found: warn
+
+  gesture-accessibility-guardrail:
+    runs-on: ubuntu-latest
+    # Separate, fast job (no Gradle/JDK setup needed) - deliberately sized to
+    # match how small the actual surface is: a plain grep-based check, not a
+    # real lint rule (docs/specs/engineering-systems-pitch.md system #6).
+    # Flags the exact recurrence this repo already had once: a raw
+    # setOnTouchListener gesture handler with zero TalkBack path.
+    steps:
+      - uses: actions/checkout@v4
+      - name: Every setOnTouchListener site has an accessibility path
+        run: bash scripts/check_gesture_accessibility.sh

@@ -47,6 +47,8 @@ import com.retroid.translator.databinding.FragmentPracticeFlexPhraseFeedBinding
 import com.retroid.translator.databinding.FragmentPracticeFlexWaveformWallBinding
 import com.retroid.translator.databinding.ItemPracticeFeedCardBinding
 import com.retroid.translator.databinding.ItemPracticePhraseRowBinding
+import com.retroid.translator.ui.a11y.AccessibleGestureAction
+import com.retroid.translator.ui.a11y.installAccessibleGestureCard
 import com.retroid.translator.databinding.ItemPracticeRailPhraseBinding
 import com.retroid.translator.databinding.ItemPracticeWaveformThumbBinding
 import com.retroid.translator.databinding.ItemRecordingBinding
@@ -1025,10 +1027,48 @@ class PracticeFragment : Fragment(), FoldAwareLayoutHost {
         }
 
         b.btnCarouselAction.setOnClickListener { performCarouselAction(b) }
+
+        // TalkBack path for a card otherwise reachable only via the raw
+        // swipe handler above - the exact gap TranslateFragment's cardCircle
+        // already hit once and fixed via installSingleCircleAccessibility
+        // (docs/specs/engineering-systems-pitch.md system #6). Reuses the
+        // same moveCarousel/performCarouselAction functions the swipe/tap
+        // path already calls - nothing reimplemented.
+        installAccessibleGestureCard(
+            view = b.cardCarouselPhrase,
+            actions = listOf(
+                AccessibleGestureAction("Previous phrase", { phraseQueue.size > 1 }) { moveCarousel(-1) },
+                AccessibleGestureAction("Next phrase", { phraseQueue.size > 1 }) { moveCarousel(1) },
+            ),
+            onClick = { if (currentCarouselPhrase() != null) performCarouselAction(b) },
+        )
+
         refreshDrillCarouselContent(b)
     }
 
     private fun currentCarouselPhrase(): String? = phraseQueue.getOrNull(carouselIndex)?.text
+
+    /**
+     * Real, state-reflecting TalkBack announcement for `cardCarouselPhrase` -
+     * mirrors exactly what [refreshDrillCarouselContent] already renders
+     * visually per [carouselStep], not a static label. Assigned from
+     * [refreshDrillCarouselContent] on every state change (same technique
+     * as [TranslateFragment.singleCircleAccessibilityDescription]) so a
+     * focused TalkBack user hears the current phrase and step as they
+     * change, without needing to re-navigate to the card.
+     */
+    private fun drillCarouselAccessibilityDescription(): String {
+        val phrase = currentCarouselPhrase() ?: return "Practice drill card. No phrases yet - add one above."
+        val position = "Phrase ${carouselIndex + 1} of ${phraseQueue.size}"
+        val recording = mainActivity?.app?.mic?.isRunning() == true
+        val stepHint = when {
+            recording -> "Recording, tap to stop"
+            carouselStep == CarouselStep.HEAR_REFERENCE -> "Tap to hear the reference"
+            carouselStep == CarouselStep.RECORD -> "Tap to record your attempt"
+            else -> "Tap to hear yours"
+        }
+        return "$position: $phrase. $stepHint."
+    }
 
     private fun moveCarousel(delta: Int) {
         if (phraseQueue.isEmpty()) return
@@ -1087,6 +1127,10 @@ class PracticeFragment : Fragment(), FoldAwareLayoutHost {
             carouselStep == CarouselStep.RECORD -> { b.textCarouselActionIcon.text = "🎙"; b.textCarouselStepHint.text = "Tap to record your attempt" }
             carouselStep == CarouselStep.HEAR_MINE -> { b.textCarouselActionIcon.text = "▶"; b.textCarouselStepHint.text = "Tap to hear yours" }
         }
+
+        // Real, state-reflecting TalkBack announcement - see
+        // drillCarouselAccessibilityDescription's doc comment.
+        b.cardCarouselPhrase.contentDescription = drillCarouselAccessibilityDescription()
 
         b.rowCarouselDots.removeAllViews()
         val density = resources.displayMetrics.density
