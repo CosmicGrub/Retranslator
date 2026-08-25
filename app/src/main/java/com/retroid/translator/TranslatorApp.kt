@@ -2,6 +2,7 @@ package com.retroid.translator
 
 import android.app.Application
 import com.retroid.translator.audio.MicPipeline
+import com.retroid.translator.engine.DownloadManager
 import com.retroid.translator.engine.EspeakEngine
 import com.retroid.translator.engine.PiperTtsEngine
 import com.retroid.translator.engine.TtsRouter
@@ -31,5 +32,9 @@ class TranslatorApp : Application() {
         // Kick off eSpeak init in the background right away so it's usually
         // ready before the user reaches for the speak button.
         espeak.initAsync { }
+        // Storage hygiene, not a resume-related correctness step - abandoned
+        // partial-download checkpoints older than a week get swept once per
+        // process lifetime (docs/specs/engineering-systems-pitch.md system #4).
+        DownloadManager.pruneStaleResumeCheckpoints(this)
     }
 }

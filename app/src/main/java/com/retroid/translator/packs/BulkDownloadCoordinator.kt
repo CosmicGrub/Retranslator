@@ -1,6 +1,8 @@
 package com.retroid.translator.packs
 
 import android.content.Context
+import android.os.Handler
+import android.os.Looper
 import android.util.Log
 import com.retroid.translator.TranslatorApp
 import com.retroid.translator.engine.DownloadManager
@@ -23,7 +25,19 @@ import com.retroid.translator.engine.TranslationEngine
  * this pass deliberately avoids touching beyond what's additive), not an
  * oversight - "cancel" here means "don't start anything new", which is the
  * common case users actually want (stop the download from continuing to eat
- * data/battery) even though the very last item completes first.
+ * data/battery) even though the very last item completes first. A scheduled
+ * retry (see below) is a form of "not started yet" too - [cancel] is
+ * checked before a retry fires, same as before any fresh item starts.
+ *
+ * Per-item retry with backoff (docs/specs/engineering-systems-pitch.md
+ * system #4): a failed item gets up to [MAX_RETRIES_PER_ITEM] retries,
+ * each waiting longer than the last, before this coordinator gives up on it
+ * and moves on - previously a single transient failure (a dropped Wi-Fi
+ * connection on item 7 of a ~92-pack run) permanently skipped that item for
+ * the whole run, zero retry. This composes with [DownloadManager]'s own
+ * resume support: each retry of a [PackDescriptor.VoiceInput]/
+ * [PackDescriptor.NaturalVoice] item resumes from wherever the previous
+ * attempt's temp file stopped rather than re-fetching from byte zero.
  */
 class BulkDownloadCoordinator(private val context: Context, private val app: TranslatorApp) {
 
@@ -36,6 +50,7 @@ class BulkDownloadCoordinator(private val context: Context, private val app: Tra
 
     @Volatile private var cancelled = false
     private var listener: Listener? = null
+    private val mainHandler = Handler(Looper.getMainLooper())
 
     fun cancel() {
         cancelled = true
@@ -47,7 +62,14 @@ class BulkDownloadCoordinator(private val context: Context, private val app: Tra
         downloadNext(items, 0, items.size, 0, 0)
     }
 
-    private fun downloadNext(items: List<PackDescriptor>, index: Int, total: Int, successCount: Int, failCount: Int) {
+    private fun downloadNext(
+        items: List<PackDescriptor>,
+        index: Int,
+        total: Int,
+        successCount: Int,
+        failCount: Int,
+        attempt: Int = 0
+    ) {
         if (cancelled || index >= items.size) {
             listener?.onFinished(successCount, failCount, cancelled)
             return
@@ -58,8 +80,17 @@ class BulkDownloadCoordinator(private val context: Context, private val app: Tra
             item,
             onProgress = { pct -> listener?.onProgress(index, total, item, pct) }
         ) { success, error ->
+            if (!success && attempt < MAX_RETRIES_PER_ITEM) {
+                val backoffMs = BASE_BACKOFF_MS * (1L shl attempt) // 2s, 4s, 8s
+                Log.w(TAG, "Bulk download: item id=${item.id} attempt ${attempt + 1} failed ($error), retrying in ${backoffMs}ms")
+                mainHandler.postDelayed(
+                    { downloadNext(items, index, total, successCount, failCount, attempt + 1) },
+                    backoffMs
+                )
+                return@downloadSingle
+            }
             if (!success) {
-                Log.w(TAG, "Bulk download: item failed id=${item.id} category=${item.category} error=$error")
+                Log.w(TAG, "Bulk download: item failed id=${item.id} category=${item.category} error=$error (out of retries)")
                 listener?.onItemFailed(item, error)
             }
             downloadNext(items, index + 1, total, successCount + if (success) 1 else 0, failCount + if (success) 0 else 1)
@@ -83,5 +114,17 @@ class BulkDownloadCoordinator(private val context: Context, private val app: Tra
 
     companion object {
         private const val TAG = "BulkDownloadCoordinator"
+
+        /**
+         * Unmeasured starting defaults, not numbers derived from any
+         * measured failure rate - this app has no telemetry, by design, to
+         * calibrate them from (docs/specs/engineering-systems-pitch.md
+         * system #4's own disclosed limitation). 3 retries at 2s/4s/8s caps
+         * the worst case for a permanently-unreachable host at ~14s wasted
+         * per item across a large batch - a deliberate trade against an
+         * instant, un-retried skip.
+         */
+        private const val MAX_RETRIES_PER_ITEM = 3
+        private const val BASE_BACKOFF_MS = 2_000L
     }
 }
