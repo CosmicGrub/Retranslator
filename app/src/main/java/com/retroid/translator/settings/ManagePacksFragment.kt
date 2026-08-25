@@ -226,9 +226,19 @@ class ManagePacksFragment : Fragment() {
      * on that language, not another downloadable pack -
      * [com.retroid.translator.packs.PackInventory]'s flat list stays exactly
      * as it was.
+     *
+     * docs/specs/engineering-systems-pitch.md system #3: gated on real free
+     * storage at the Vosk model directory, not offered unconditionally. No
+     * RAM-based gate here (unlike [com.retroid.translator.engine.LlmAssistEngine]'s
+     * load path) - deliberately: no measured RAM delta for a resident lgraph
+     * model exists anywhere in this codebase, only a storage-headroom
+     * question this CAN answer honestly ([File.usableSpace] reports real
+     * filesystem-wide free space, not the app's own sandboxed storage
+     * quota - a real, disclosed limit on how precise this check can be).
      */
     private fun buildAccuracyToggleRow(langCode: String, tier: VoskModelInfo, enabled: Boolean, packDownloaded: Boolean): View {
         val ctx = requireContext()
+        val app = mainActivity()?.app
         val row = LinearLayout(ctx).apply {
             orientation = LinearLayout.HORIZONTAL
             gravity = android.view.Gravity.CENTER_VERTICAL
@@ -245,7 +255,27 @@ class ManagePacksFragment : Fragment() {
         }
         textCol.addView(title)
         textCol.addView(subtitle)
-        val toggle = SwitchMaterial(ctx).apply { isChecked = enabled }
+
+        // Temp zip (DownloadManager.runDownload's cacheDir download) and the
+        // fully-extracted model directory coexist briefly during extraction
+        // before the temp file is cleaned up - 2x the pack's own declared
+        // size is a real margin for that overlap, not an arbitrary buffer.
+        val neededBytes = tier.approxSizeMiB.toLong() * 1024 * 1024 * 2
+        val usableBytes = app?.vosk?.modelRootDir(langCode)?.parentFile?.usableSpace ?: 0L
+        val hasHeadroom = usableBytes >= neededBytes
+        if (!hasHeadroom) {
+            val warning = TextView(ctx).apply {
+                textSize = 11f
+                setTextColor(android.graphics.Color.parseColor("#F44336"))
+                text = "Not enough free storage for this pack right now (~${tier.approxSizeMiB}MB needed)."
+            }
+            textCol.addView(warning)
+        }
+
+        val toggle = SwitchMaterial(ctx).apply {
+            isChecked = enabled
+            isEnabled = hasHeadroom || enabled // never lock a user out of turning OFF an already-enabled tier
+        }
         toggle.setOnCheckedChangeListener { _, isChecked ->
             if (isChecked == VoskAccuracyPreference.isHighAccuracyEnabled(ctx, langCode)) return@setOnCheckedChangeListener
             VoskAccuracyPreference.setHighAccuracyEnabled(ctx, langCode, isChecked)
@@ -255,7 +285,7 @@ class ManagePacksFragment : Fragment() {
                 // (see VoskAccuracyPreference's doc comment), so the honest
                 // move is to delete them immediately rather than let
                 // PackStatus keep reporting a stale tier as "downloaded".
-                mainActivity()?.app?.vosk?.deleteModel(langCode)
+                app?.vosk?.deleteModel(langCode)
                 Toast.makeText(ctx, "Switched tiers - re-download ${LanguageCatalog.displayNameFor(langCode)}'s voice-input pack to apply it.", Toast.LENGTH_LONG).show()
             }
             refresh()

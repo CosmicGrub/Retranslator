@@ -10,7 +10,14 @@
         android:paddingTop="8dp"
         android:paddingBottom="8dp">
 
+        <!-- docs/specs/engineering-systems-pitch.md system #3: this whole
+             section (header + 4 rows + their dividers) is hidden at runtime
+             on hardware with no fold, via SettingsHubFragment.applyFoldRowVisibility -
+             real hinge detection (FoldPostureProvider), not a per-branch XML
+             hack. Every element below needs its own id specifically so that
+             visibility toggle can reach it. -->
         <TextView
+            android:id="@+id/foldSectionLabel"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:paddingStart="16dp"
@@ -32,7 +39,7 @@
                 android:text="Cover-screen and Flex Mode layout for the Translate tab" />
         </LinearLayout>
 
-        <View style="@style/SettingsHubDivider" />
+        <View android:id="@+id/dividerTranslateLayout" style="@style/SettingsHubDivider" />
 
         <LinearLayout
             android:id="@+id/rowPracticeLayout"
@@ -45,7 +52,7 @@
                 android:text="Cover-screen and Flex Mode layout for the Practice tab" />
         </LinearLayout>
 
-        <View style="@style/SettingsHubDivider" />
+        <View android:id="@+id/dividerPracticeLayout" style="@style/SettingsHubDivider" />
 
         <LinearLayout
             android:id="@+id/rowLearnLayout"
@@ -58,7 +65,7 @@
                 android:text="Cover-screen and Flex Mode layout for the Learn tab" />
         </LinearLayout>
 
-        <View style="@style/SettingsHubDivider" />
+        <View android:id="@+id/dividerLearnLayout" style="@style/SettingsHubDivider" />
 
         <LinearLayout
             android:id="@+id/rowFoldBehavior"
@@ -71,7 +78,7 @@
                 android:text="Auto-switch on fold, and a manual compact-layout toggle" />
         </LinearLayout>
 
-        <View style="@style/SettingsHubDivider" />
+        <View android:id="@+id/dividerFoldBehavior" style="@style/SettingsHubDivider" />
 
         <TextView
             android:layout_width="match_parent"

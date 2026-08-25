@@ -731,10 +731,31 @@ class TranslateFragment : Fragment(), FoldAwareLayoutHost {
             return
         }
         if (!app.llmAssist.isModelDownloaded()) {
+            // docs/specs/engineering-systems-pitch.md system #3: distinct
+            // confirmation from every other download in this app - the
+            // ~529MB Gemma model is ~10x the size of anything else this app
+            // downloads, so "cellular is allowed" alone isn't the same
+            // question as "download something this big right now."
+            if (DownloadManager.isLargeMeteredDownload(requireContext(), LlmAssistEngine.APPROX_SIZE_MIB)) {
+                confirmLargeMeteredLlmDownload(app)
+                return
+            }
             downloadLlmModelThenExplain(app)
             return
         }
         runLlmExplain(app)
+    }
+
+    private fun confirmLargeMeteredLlmDownload(app: TranslatorApp) {
+        AlertDialog.Builder(requireContext())
+            .setTitle("Download on-device AI model?")
+            .setMessage(
+                "The on-device AI model is about ${LlmAssistEngine.APPROX_SIZE_MIB}MB - much larger than " +
+                    "any other pack in this app - and you're currently on a metered connection. Download it now?"
+            )
+            .setPositiveButton("Download") { _, _ -> downloadLlmModelThenExplain(app) }
+            .setNegativeButton("Not now", null)
+            .show()
     }
 
     private fun downloadLlmModelThenExplain(app: TranslatorApp) {

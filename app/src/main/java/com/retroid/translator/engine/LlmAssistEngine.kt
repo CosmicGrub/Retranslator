@@ -47,9 +47,23 @@ class LlmAssistEngine(context: Context) {
 
     fun isModelDownloaded(): Boolean = modelFile().let { it.exists() && it.length() > 0L }
 
+    /**
+     * docs/specs/engineering-systems-pitch.md system #3: a device can pass
+     * every other check here and still be under real memory pressure at the
+     * exact moment this ~529MB model load is requested - this surfaces that
+     * as the same [onResult] error path a missing download already uses,
+     * instead of a native-level OOM with no user-facing explanation at all.
+     * [DeviceCapabilities.hasHeadroomForLlm]'s own doc comment is explicit
+     * that its multiplier is engineering judgment, not a citation - no real
+     * on-device memory-footprint measurement exists for this model yet.
+     */
     fun loadAsync(onResult: (success: Boolean, error: String?) -> Unit) {
         if (llmInference != null) {
             onResult(true, null)
+            return
+        }
+        if (!DeviceCapabilities.hasHeadroomForLlm(appContext, APPROX_SIZE_MIB)) {
+            onResult(false, "Not enough free memory on this device to load the on-device AI model right now")
             return
         }
         worker.execute {

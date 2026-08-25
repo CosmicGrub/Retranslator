@@ -145,7 +145,6 @@ class MainActivity : AppCompatActivity() {
 
         observeFoldAutoSwitch()
         checkBulkPackDownloadPrompt()
-        seedFold5LayoutDefaultsIfNeeded()
     }
 
     /**
@@ -169,16 +168,27 @@ class MainActivity : AppCompatActivity() {
      * closed) is this device's single most defining posture, unlike the
      * rarer tabletop/Flex posture.
      *
+     * [hasFold] - docs/specs/engineering-systems-pitch.md system #3: this
+     * used to seed unconditionally, meaning a QA install of this branch's
+     * APK on non-fold hardware would silently pre-seed cover-screen-only
+     * variants a device with no cover screen has no business defaulting to.
+     * Now gated on [FoldPosture.NO_FOLDING_FEATURE] - real runtime hardware
+     * detection, not an assumption baked in from which branch built the
+     * APK - via [observeFoldAutoSwitch]'s own `postureFlow()` collector,
+     * the same signal [onPostureForAutoSwitch] already trusts for the same
+     * "does this real device have a hinge" question.
+     *
      * Guarded by [LayoutPreferences.areDeviceDefaultsSeeded] so this only
      * ever runs once per install - a user who later picks something else
      * (including Default) through Settings keeps that choice permanently;
      * this never re-forces itself on a later launch.
      */
-    private fun seedFold5LayoutDefaultsIfNeeded() {
-        if (LayoutPreferences.areDeviceDefaultsSeeded(this)) return
-        LayoutPreferences.setVariant(this, SettingsTab.TRANSLATE, ScreenMode.COVER, TranslateCoverVariant.SINGLE_CIRCLE)
-        LayoutPreferences.setVariant(this, SettingsTab.PRACTICE, ScreenMode.COVER, PracticeCoverVariant.DRILL_CAROUSEL)
-        LayoutPreferences.setVariant(this, SettingsTab.LEARN, ScreenMode.COVER, LearnCoverVariant.LISTEN_CHOOSE)
+    private fun seedFold5LayoutDefaultsIfNeeded(hasFold: Boolean) {
+        if (hasFold) {
+            LayoutPreferences.setVariant(this, SettingsTab.TRANSLATE, ScreenMode.COVER, TranslateCoverVariant.SINGLE_CIRCLE)
+            LayoutPreferences.setVariant(this, SettingsTab.PRACTICE, ScreenMode.COVER, PracticeCoverVariant.DRILL_CAROUSEL)
+            LayoutPreferences.setVariant(this, SettingsTab.LEARN, ScreenMode.COVER, LearnCoverVariant.LISTEN_CHOOSE)
+        } // else: real hardware has no hinge - leave every tab on LayoutPreferences.DEFAULT_VARIANT
         LayoutPreferences.markDeviceDefaultsSeeded(this)
     }
 
@@ -240,9 +250,21 @@ class MainActivity : AppCompatActivity() {
     private fun observeFoldAutoSwitch() {
         val provider = FoldPostureProvider(this)
         foldPostureProvider = provider
+        // Set once per Activity instance - repeatOnLifecycle below can
+        // re-run its block across a background/foreground cycle without
+        // observeFoldAutoSwitch() being called again, and this flag (plus
+        // LayoutPreferences.areDeviceDefaultsSeeded's own persisted guard)
+        // keeps a re-entry from re-checking every single posture emission.
+        var seedChecked = false
         lifecycleScope.launch {
             repeatOnLifecycle(Lifecycle.State.STARTED) {
-                provider.postureFlow().collect { state -> onPostureForAutoSwitch(state) }
+                provider.postureFlow().collect { state ->
+                    if (!seedChecked && !LayoutPreferences.areDeviceDefaultsSeeded(this@MainActivity)) {
+                        seedChecked = true
+                        seedFold5LayoutDefaultsIfNeeded(hasFold = state.posture != FoldPosture.NO_FOLDING_FEATURE)
+                    }
+                    onPostureForAutoSwitch(state)
+                }
             }
         }
     }

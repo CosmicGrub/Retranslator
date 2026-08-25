@@ -66,6 +66,26 @@ object DownloadManager {
             .edit().putBoolean(KEY_ALLOW_CELLULAR, allowed).apply()
     }
 
+    /**
+     * docs/specs/engineering-systems-pitch.md system #3: a real signal
+     * distinct from [allowCellularDownloads]'s binary policy - this app's
+     * every other download (30-65MB translation/voice-input/natural-voice
+     * packs) is small enough that "allow cellular" alone is a reasonable
+     * one-time decision; the ~529MB Gemma 3 1B model
+     * ([LlmAssistEngine.APPROX_SIZE_MIB]) is large enough to warrant its own
+     * confirmation even when cellular is already allowed, so a user isn't
+     * surprised by one download costing 10x what every other pack in this
+     * app costs. [android.net.ConnectivityManager.isActiveNetworkMetered]
+     * (via [DeviceCapabilities.isMeteredConnection]) is checked instead of
+     * [isOnWifi] alone - a mobile hotspot's Wi-Fi can be metered too.
+     */
+    private const val LARGE_DOWNLOAD_THRESHOLD_MIB = 100
+
+    fun isLargeMeteredDownload(context: Context, approxSizeMib: Int): Boolean =
+        approxSizeMib >= LARGE_DOWNLOAD_THRESHOLD_MIB &&
+            !isOnWifi(context) &&
+            DeviceCapabilities.isMeteredConnection(context)
+
     fun isOnWifi(context: Context): Boolean {
         val cm = context.getSystemService(Context.CONNECTIVITY_SERVICE) as? ConnectivityManager ?: return false
         val network = cm.activeNetwork ?: return false
