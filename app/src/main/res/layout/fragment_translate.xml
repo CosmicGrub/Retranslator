@@ -254,7 +254,7 @@
             android:textSize="12sp"
             android:textStyle="italic" />
 
-        <!-- On-device AI assist (Gemma 3 1B via MediaPipe LLM Inference) -
+        <!-- On-device AI assist (Qwen2.5 1.5B via MediaPipe LLM Inference) -
              a single bounded action on the CURRENT translation result, not a
              general chat interface. DEFAULT layout only, same scope
              precedent as the camera-OCR entry point
@@ -309,7 +309,7 @@
                         android:layout_marginTop="8dp"
                         android:textSize="10sp"
                         android:textStyle="italic"
-                        android:text="On-device AI (Gemma 3 1B) response - may be inaccurate. Not a substitute for the translation above." />
+                        android:text="On-device AI (Qwen2.5 1.5B) response - may be inaccurate. Not a substitute for the translation above." />
                 </LinearLayout>
             </androidx.cardview.widget.CardView>
         </LinearLayout>

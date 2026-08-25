@@ -71,11 +71,11 @@ object DownloadManager {
      * distinct from [allowCellularDownloads]'s binary policy - this app's
      * every other download (30-65MB translation/voice-input/natural-voice
      * packs) is small enough that "allow cellular" alone is a reasonable
-     * one-time decision; the ~529MB Gemma 3 1B model
+     * one-time decision; the ~1.5GB on-device AI model
      * ([LlmAssistEngine.APPROX_SIZE_MIB]) is large enough to warrant its own
      * confirmation even when cellular is already allowed, so a user isn't
-     * surprised by one download costing 10x what every other pack in this
-     * app costs. [android.net.ConnectivityManager.isActiveNetworkMetered]
+     * surprised by one download costing far more than every other pack in
+     * this app. [android.net.ConnectivityManager.isActiveNetworkMetered]
      * (via [DeviceCapabilities.isMeteredConnection]) is checked instead of
      * [isOnWifi] alone - a mobile hotspot's Wi-Fi can be metered too.
      */
@@ -171,7 +171,7 @@ object DownloadManager {
 
     /**
      * Same Wi-Fi-gated download UX as [downloadAndUnzip], but for a single
-     * plain file - the Gemma 3 1B `.task` model
+     * plain file - the on-device AI assist `.task` model
      * ([com.retroid.translator.engine.LlmAssistEngine]) ships as one large
      * file, not an archive, so there's nothing to extract: [extract]'s
      * "produce the final on-disk artifact from the downloaded temp file"

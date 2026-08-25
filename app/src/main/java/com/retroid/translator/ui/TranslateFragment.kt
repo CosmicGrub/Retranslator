@@ -717,10 +717,12 @@ class TranslateFragment : Fragment(), FoldAwareLayoutHost {
     }
 
     // -------------------------------------------------------------------
-    // On-device AI assist (Gemma 3 1B, LlmAssistEngine) - one bounded
+    // On-device AI assist (Qwen2.5 1.5B, LlmAssistEngine) - one bounded
     // "explain this translation" action, not a chat interface. See
     // LlmAssistEngine's class doc for the load -> generate -> unload shape
-    // this deliberately uses instead of keeping the model resident.
+    // this deliberately uses instead of keeping the model resident, and for
+    // why this is Qwen2.5 1.5B rather than the originally-scoped Gemma 3 1B
+    // (Gemma's real distribution is HF-account-gated; this isn't).
     // -------------------------------------------------------------------
 
     private fun onLlmExplainClicked() {
@@ -733,9 +735,9 @@ class TranslateFragment : Fragment(), FoldAwareLayoutHost {
         if (!app.llmAssist.isModelDownloaded()) {
             // docs/specs/engineering-systems-pitch.md system #3: distinct
             // confirmation from every other download in this app - the
-            // ~529MB Gemma model is ~10x the size of anything else this app
-            // downloads, so "cellular is allowed" alone isn't the same
-            // question as "download something this big right now."
+            // ~1.5GB on-device AI model is far larger than anything else
+            // this app downloads, so "cellular is allowed" alone isn't the
+            // same question as "download something this big right now."
             if (DownloadManager.isLargeMeteredDownload(requireContext(), LlmAssistEngine.APPROX_SIZE_MIB)) {
                 confirmLargeMeteredLlmDownload(app)
                 return
@@ -747,10 +749,11 @@ class TranslateFragment : Fragment(), FoldAwareLayoutHost {
     }
 
     private fun confirmLargeMeteredLlmDownload(app: TranslatorApp) {
+        val sizeGb = "%.1f".format(LlmAssistEngine.APPROX_SIZE_MIB / 1024.0)
         AlertDialog.Builder(requireContext())
             .setTitle("Download on-device AI model?")
             .setMessage(
-                "The on-device AI model is about ${LlmAssistEngine.APPROX_SIZE_MIB}MB - much larger than " +
+                "The on-device AI model is about ${sizeGb}GB - much larger than " +
                     "any other pack in this app - and you're currently on a metered connection. Download it now?"
             )
             .setPositiveButton("Download") { _, _ -> downloadLlmModelThenExplain(app) }
@@ -760,7 +763,8 @@ class TranslateFragment : Fragment(), FoldAwareLayoutHost {
 
     private fun downloadLlmModelThenExplain(app: TranslatorApp) {
         llmBusy = true
-        setLlmStatus("Downloading on-device AI model (~${LlmAssistEngine.APPROX_SIZE_MIB}MB, one-time)... 0%")
+        val sizeGb = "%.1f".format(LlmAssistEngine.APPROX_SIZE_MIB / 1024.0)
+        setLlmStatus("Downloading on-device AI model (~${sizeGb}GB, one-time)... 0%")
         DownloadManager.downloadPlainFile(
             requireContext(), LlmAssistEngine.MODEL_URL, app.llmAssist.modelFile(), requireWifi = true,
             onProgress = { pct -> if (contentContainer != null) setLlmStatus("Downloading on-device AI model... $pct%") }

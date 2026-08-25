@@ -166,8 +166,11 @@ dependencies {
     // (Apache-2.0, Maven Central) is the standard, well-known library for this.
     implementation("org.apache.commons:commons-compress:1.26.1")
 
-    // On-device LLM assist (Gemma 3 1B, docs/specs/engines-upgrade-plan.md) -
-    // MediaPipe's LLM Inference API, not the newer LiteRT-LM Kotlin API
+    // On-device LLM assist (docs/specs/engines-upgrade-plan.md; model is
+    // Qwen2.5 1.5B as of LlmAssistEngine.kt - see that file for why the
+    // originally-scoped Gemma 3 1B was swapped out, a real Hugging Face
+    // gated-repo problem, not an API choice) - MediaPipe's LLM Inference
+    // API, not the newer LiteRT-LM Kotlin API
     // Google is migrating toward: LiteRT-LM's Android surface is marked
     // @ExperimentalApi and its docs don't even state a minimum API level,
     // where tasks-genai is a real, currently-shipping, precisely-versioned

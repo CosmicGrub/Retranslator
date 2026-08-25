@@ -21,7 +21,7 @@ class TranslatorApp : Application() {
     val vosk: VoskEngine by lazy { VoskEngine(this) }
     val mic: MicPipeline by lazy { MicPipeline() }
 
-    /** Gemma 3 1B on-device assist (fold5-device-version) - see LlmAssistEngine's doc comment. Not touched unless the user downloads the pack and taps the assist button; nothing here runs it eagerly. */
+    /** On-device LLM assist, Qwen2.5 1.5B (fold5-device-version) - see LlmAssistEngine's doc comment. Not touched unless the user downloads the pack and taps the assist button; nothing here runs it eagerly. */
     val llmAssist: LlmAssistEngine by lazy { LlmAssistEngine(this) }
 
     /** Every screen speaks through this - it picks Piper (natural) when downloaded, else eSpeak. */

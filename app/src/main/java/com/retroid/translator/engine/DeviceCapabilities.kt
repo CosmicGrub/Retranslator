@@ -112,12 +112,12 @@ object DeviceCapabilities {
 
     /**
      * NOT a measured threshold, unlike [HIGH_RAM_THRESHOLD_BYTES] (grounded
-     * in real Fold5/Tab-S9-FE /proc/meminfo captures) - no on-device Gemma 3
-     * 1B memory-footprint measurement exists anywhere in this codebase
-     * ([LlmAssistEngine]'s own introducing commit discloses this
-     * explicitly). 2.5x on-disk model size is engineering judgment for
-     * runtime tensor/activation overhead, not a citation - replace the
-     * moment a real measurement exists.
+     * in real Fold5/Tab-S9-FE /proc/meminfo captures) - no on-device
+     * memory-footprint measurement for [LlmAssistEngine]'s model exists
+     * anywhere in this codebase ([LlmAssistEngine]'s own introducing commit
+     * discloses this explicitly). 2.5x on-disk model size is engineering
+     * judgment for runtime tensor/activation overhead, not a citation -
+     * replace the moment a real measurement exists.
      */
     private const val LLM_RAM_MULTIPLIER_X10 = 25L
 
