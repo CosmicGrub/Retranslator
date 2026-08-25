@@ -260,8 +260,20 @@ class ManagePacksFragment : Fragment() {
         // fully-extracted model directory coexist briefly during extraction
         // before the temp file is cleaned up - 2x the pack's own declared
         // size is a real margin for that overlap, not an arbitrary buffer.
+        //
+        // Real bug caught on-device (Fold 5, RFCW80CK2RW): File.usableSpace
+        // returns 0 on Android for a path that doesn't exist yet, unlike
+        // desktop JVMs which fall back to the nearest existing ancestor -
+        // querying app.vosk.modelRootDir(langCode)'s parent (vosk-models/)
+        // reported "not enough storage" with ~38GB actually free, simply
+        // because that directory hadn't been created yet (no Vosk model
+        // downloaded on this device at all). Fixed by querying filesDir
+        // directly - guaranteed to exist from the moment the app first
+        // runs, and on the same filesystem/partition as vosk-models/, so
+        // the reported usable space is identical either way once that
+        // directory does exist.
         val neededBytes = tier.approxSizeMiB.toLong() * 1024 * 1024 * 2
-        val usableBytes = app?.vosk?.modelRootDir(langCode)?.parentFile?.usableSpace ?: 0L
+        val usableBytes = ctx.filesDir.usableSpace
         val hasHeadroom = usableBytes >= neededBytes
         if (!hasHeadroom) {
             val warning = TextView(ctx).apply {
