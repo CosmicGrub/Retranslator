@@ -1,0 +1,50 @@
+name: CI
+
+# Real topology: main + device-specific branches (fold5-*, tab-s9fe-*,
+# watch6-*, etc.), not just main - every one of them can silently break the
+# build or regress an already-tested file today (docs/specs/
+# engineering-systems-pitch.md's "CI test-gate" system). Runs on push to any
+# branch, on PRs, and on manual dispatch.
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  unit-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          # Matches compileOptions/kotlinOptions in both app/build.gradle.kts
+          # and wear/build.gradle.kts (sourceCompatibility/jvmTarget = 17).
+          java-version: "17"
+
+      - uses: gradle/actions/setup-gradle@v4
+        # Reads gradle/wrapper/gradle-wrapper.properties (gradle-8.7-bin.zip)
+        # rather than pinning a version here that could silently drift from
+        # the committed wrapper.
+
+      - name: Run JVM unit tests (both modules)
+        run: ./gradlew testDebugUnitTest --continue
+        # Deliberately NOT `./gradlew build` / assembleDebug: this scope is
+        # the existing plain-JVM test suite, not a full APK build gate -
+        # that's a separate, larger decision (see the pitch doc's honest
+        # gaps), not folded into this pass.
+
+      - name: Upload JUnit reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: junit-test-results
+          path: |
+            app/build/test-results/testDebugUnitTest/*.xml
+            wear/build/test-results/testDebugUnitTest/*.xml
+          # Makes a failure inspectable from the Actions UI instead of just a
+          # red X - real report paths, confirmed present on disk after a
+          # local `./gradlew testDebugUnitTest` run.
+          if-no-files-found: warn
