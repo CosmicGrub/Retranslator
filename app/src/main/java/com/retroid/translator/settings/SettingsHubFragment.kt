@@ -7,11 +7,12 @@ import android.view.ViewGroup
 import androidx.appcompat.app.AppCompatActivity
 import androidx.fragment.app.Fragment
 import com.retroid.translator.R
+import com.retroid.translator.backup.DataBackupFragment
 import com.retroid.translator.databinding.FragmentSettingsHubBinding
 import com.retroid.translator.diagnostics.DiagnosticsFragment
 
 /**
- * Settings hub: a simple list linking to the six Settings destinations.
+ * Settings hub: a simple list linking to the seven Settings destinations.
  * Reachable from the overflow/settings icon `MainActivity`'s toolbar adds
  * (see `MainActivity.onOptionsItemSelected`).
  *
@@ -43,6 +44,7 @@ class SettingsHubFragment : Fragment() {
         binding.rowFoldBehavior.setOnClickListener { openDestination(FoldBehaviorFragment(), "fold_behavior") }
         binding.rowLanguagePacks.setOnClickListener { openDestination(ManagePacksFragment(), "language_packs") }
         binding.rowDiagnostics.setOnClickListener { openDestination(DiagnosticsFragment(), "diagnostics") }
+        binding.rowDataBackup.setOnClickListener { openDestination(DataBackupFragment(), "data_backup") }
     }
 
     override fun onResume() {

@@ -17,11 +17,24 @@
   CrashHandler; reviewed and confirmed it only ever logs metadata - voice
   IDs, language codes, URLs, exception messages - never translated/
   recognized/conversation text, but it's still ephemeral device-local debug
-  data with no reason to follow the user to a new device or a cloud backup).
+  data with no reason to follow the user to a new device or a cloud backup),
+  backup_safety_net/ (internal pre-import snapshots
+  com.retroid.translator.backup.BackupManager writes before an import - the
+  user's own real backup files are wherever they chose to save/pick them
+  via Storage Access Framework, not here; these are a same-device-only
+  undo net, redundant to sync anywhere else), and the learn_progress.db
+  database itself (see below): now that system #7's Local Data Vault gives
+  the user a deliberate, visible, versioned way to back this up themselves,
+  relying on silent OS Auto Backup for the same data is no longer the only
+  path and is inconsistent with this app's own stated "nothing happens
+  invisibly" stance - a real product decision, not an omission the way its
+  absence here used to be.
 -->
 <full-backup-content>
     <exclude domain="file" path="recordings/" />
     <exclude domain="file" path="vosk-models/" />
     <exclude domain="file" path="piper-voices/" />
     <exclude domain="file" path="diagnostics/" />
+    <exclude domain="file" path="backup_safety_net/" />
+    <exclude domain="database" path="learn_progress.db" />
 </full-backup-content>

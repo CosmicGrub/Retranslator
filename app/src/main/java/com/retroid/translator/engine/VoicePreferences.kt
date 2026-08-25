@@ -10,7 +10,11 @@ import android.content.Context
  * small value; no need for anything heavier.
  */
 object VoicePreferences {
-    private const val PREFS = "voice_prefs"
+    // internal, not private: com.retroid.translator.backup.BackupManager
+    // (docs/specs/engineering-systems-pitch.md system #7) references this
+    // real constant directly rather than duplicating the literal - the
+    // pitch doc's own disclosed risk was exactly this kind of drift.
+    internal const val PREFS = "voice_prefs"
     private const val KEY_GENDER = "gender"
 
     fun getGender(context: Context): VoiceGender {

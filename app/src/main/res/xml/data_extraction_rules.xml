@@ -15,11 +15,15 @@
         <exclude domain="file" path="vosk-models/" />
         <exclude domain="file" path="piper-voices/" />
         <exclude domain="file" path="diagnostics/" />
+        <exclude domain="file" path="backup_safety_net/" />
+        <exclude domain="database" path="learn_progress.db" />
     </cloud-backup>
     <device-transfer>
         <exclude domain="file" path="recordings/" />
         <exclude domain="file" path="vosk-models/" />
         <exclude domain="file" path="piper-voices/" />
         <exclude domain="file" path="diagnostics/" />
+        <exclude domain="file" path="backup_safety_net/" />
+        <exclude domain="database" path="learn_progress.db" />
     </device-transfer>
 </data-extraction-rules>

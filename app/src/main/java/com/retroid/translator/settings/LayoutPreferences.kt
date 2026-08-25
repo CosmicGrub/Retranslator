@@ -59,7 +59,8 @@ object LayoutPreferences {
     /** The always-available layout every tab already ships today. Returned until the user picks something else. */
     const val DEFAULT_VARIANT = "default"
 
-    private const val PREFS_NAME = "layout_prefs"
+    // internal, not private: see VoicePreferences.PREFS's identical comment.
+    internal const val PREFS_NAME = "layout_prefs"
     private const val KEY_AUTO_SWITCH_ON_FOLD = "auto_switch_on_fold"
     private const val KEY_FORCE_COMPACT_LAYOUT = "force_compact_layout"
 

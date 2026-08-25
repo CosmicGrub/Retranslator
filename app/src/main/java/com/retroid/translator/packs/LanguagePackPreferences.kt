@@ -11,7 +11,8 @@ import android.content.Context
  * a new persistence dependency for a handful of small values.
  */
 object LanguagePackPreferences {
-    private const val PREFS_NAME = "language_pack_prefs"
+    // internal, not private: see VoicePreferences.PREFS's identical comment.
+    internal const val PREFS_NAME = "language_pack_prefs"
     private const val KEY_HAS_PROMPTED_BULK_DOWNLOAD = "has_prompted_bulk_download"
     private const val KEY_BULK_DOWNLOAD_COMPLETED = "bulk_download_completed"
     private const val KEY_LAST_UPDATE_CHECK_AT = "last_update_check_at"

@@ -110,5 +110,18 @@
 
         <View style="@style/SettingsHubDivider" />
 
+        <LinearLayout
+            android:id="@+id/rowDataBackup"
+            style="@style/SettingsHubRow">
+            <TextView
+                style="@style/SettingsHubRowTitle"
+                android:text="Data &amp; backup" />
+            <TextView
+                style="@style/SettingsHubRowSubtitle"
+                android:text="Export or import your Learn progress and settings as a file you control" />
+        </LinearLayout>
+
+        <View style="@style/SettingsHubDivider" />
+
     </LinearLayout>
 </ScrollView>

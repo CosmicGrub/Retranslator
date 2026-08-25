@@ -231,7 +231,11 @@ class LearnProgressStore(context: Context) : SQLiteOpenHelper(context.applicatio
     }
 
     companion object {
-        private const val DB_NAME = "learn_progress.db"
+        // internal, not private: com.retroid.translator.backup.BackupManager
+        // (docs/specs/engineering-systems-pitch.md system #7) references
+        // this real constant directly (context.getDatabasePath(DB_NAME))
+        // rather than duplicating the literal.
+        internal const val DB_NAME = "learn_progress.db"
         private const val DB_VERSION = 1
         private const val KEY_XP = "xp_total"
         private const val KEY_STREAK = "streak_count"
