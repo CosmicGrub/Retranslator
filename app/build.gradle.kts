@@ -55,6 +55,13 @@ android {
 }
 
 dependencies {
+    // Pure-Kotlin engine-layer decision logic, split out per docs/specs/
+    // engineering-systems-pitch.md system #2 - VoiceGender, EspeakLanguageMap,
+    // PiperVoiceCatalog, VoskResultParsing, VoskModelCatalog, DownloadPolicy,
+    // TtsEngineLabel. Same package name (com.retroid.translator.engine) as
+    // before the split, so no import changes needed anywhere else in :app.
+    implementation(project(":core"))
+
     implementation("androidx.core:core-ktx:1.12.0")
     implementation("androidx.appcompat:appcompat:1.6.1")
     implementation("com.google.android.material:material:1.11.0")

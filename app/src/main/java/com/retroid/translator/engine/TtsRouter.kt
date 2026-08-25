@@ -119,11 +119,8 @@ class TtsRouter(private val espeak: EspeakEngine, private val piper: PiperTtsEng
         PiperVoiceCatalog.forLanguageAndGender(langCode, gender)
 
     /** Short label for "what will actually speak this (language, gender) right now", for status text in the UI. */
-    fun activeEngineLabel(langCode: String, gender: VoiceGender): String = when {
-        isNaturalVoiceDownloaded(langCode, gender) -> "natural voice"
-        espeak.supportsLanguage(langCode) -> "eSpeak (built-in, robotic)"
-        else -> "no voice available yet"
-    }
+    fun activeEngineLabel(langCode: String, gender: VoiceGender): String =
+        TtsEngineLabel.forState(isNaturalVoiceDownloaded(langCode, gender), espeak.supportsLanguage(langCode))
 
     companion object {
         private const val TAG = "TtsRouter"

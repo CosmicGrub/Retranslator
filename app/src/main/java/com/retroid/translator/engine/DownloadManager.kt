@@ -130,7 +130,7 @@ object DownloadManager {
         onDone: (success: Boolean, error: String?) -> Unit,
         extract: (File) -> Unit
     ) {
-        if (requireWifi && !isOnWifi(context)) {
+        if (DownloadPolicy.shouldBlockDownload(requireWifi, isOnWifi(context))) {
             onDone(false, "Wi-Fi required for the first-time download")
             return
         }

@@ -16,3 +16,4 @@ dependencyResolutionManagement {
 rootProject.name = "RetroidTranslator"
 include(":app")
 include(":wear")
+include(":core")

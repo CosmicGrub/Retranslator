@@ -116,7 +116,7 @@ object TranslationEngine {
         onResult: (String) -> Unit,
         onError: (String) -> Unit
     ) {
-        if (!bothReady && !DownloadManager.isOnWifi(context)) {
+        if (DownloadPolicy.shouldBlockDownload(!bothReady, DownloadManager.isOnWifi(context))) {
             onError(
                 "Translation pack not downloaded yet. Connect to Wi-Fi, then translate " +
                     "again to download it - after that this language pair works fully offline."
