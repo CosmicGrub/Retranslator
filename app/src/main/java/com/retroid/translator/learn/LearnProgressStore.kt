@@ -74,9 +74,16 @@ class LearnProgressStore(context: Context) : SQLiteOpenHelper(context.applicatio
     // Streak - date-based, no cloud/account needed
     // ---------------------------------------------------------------------
 
-    /** Call once when the user completes at least one exercise "today". Returns the new streak count. */
-    fun recordActivityToday(): Int {
-        val today = LocalDate.now(ZoneId.systemDefault())
+    /**
+     * Call once when the user completes at least one exercise "today".
+     * Returns the new streak count. [today] defaults to the real current
+     * date - the same injectable-default-parameter shape [dueExerciseKeys]/
+     * [dueCountsByBox] already use below, widened here too so
+     * LearnProgressStoreTest can exercise real day-to-day streak transitions
+     * deterministically instead of depending on the wall clock
+     * (docs/specs/engineering-systems-pitch.md system #1 Part C).
+     */
+    fun recordActivityToday(today: LocalDate = LocalDate.now(ZoneId.systemDefault())): Int {
         val lastActive = getState(KEY_LAST_ACTIVE_DATE)?.let { runCatching { LocalDate.parse(it) }.getOrNull() }
         val currentStreak = getState(KEY_STREAK)?.toIntOrNull() ?: 0
         val newStreak = when {
@@ -116,7 +123,18 @@ class LearnProgressStore(context: Context) : SQLiteOpenHelper(context.applicatio
 
     private val boxIntervalDays = intArrayOf(0, 1, 2, 4, 7)
 
-    fun recordAnswer(exerciseKey: String, correct: Boolean) {
+    /**
+     * [today] defaults to the real current date - same injectable-default
+     * shape as [recordActivityToday]/[dueExerciseKeys]/[dueCountsByBox],
+     * widened here for the same reason: [nextReviewDay] below is otherwise
+     * computed from the real wall clock with no way for a test to control
+     * it, which LearnProgressStoreTest genuinely needed (a test asserting
+     * "not due yet" vs. "due after N days" against a real wall-clock date
+     * would be either flaky or need to compute its expectations from
+     * `LocalDate.now()` itself, defeating the point of a deterministic
+     * test).
+     */
+    fun recordAnswer(exerciseKey: String, correct: Boolean, today: LocalDate = LocalDate.now(ZoneId.systemDefault())) {
         val db = writableDatabase
         var box = 0
         var correctCount = 0
@@ -133,7 +151,7 @@ class LearnProgressStore(context: Context) : SQLiteOpenHelper(context.applicatio
         }
         box = if (correct) (box + 1).coerceAtMost(boxIntervalDays.size - 1) else 0
         if (correct) correctCount++ else incorrectCount++
-        val nextReviewDay = LocalDate.now(ZoneId.systemDefault()).toEpochDay() + boxIntervalDays[box]
+        val nextReviewDay = today.toEpochDay() + boxIntervalDays[box]
         val values = ContentValues().apply {
             put("exercise_key", exerciseKey)
             put("box", box)

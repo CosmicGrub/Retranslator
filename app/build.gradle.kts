@@ -184,4 +184,27 @@ dependencies {
     // real implementation shadows that stub for src/test only, so
     // VoskResultParsingTest actually exercises real JSON parsing.
     testImplementation("org.json:json:20240303")
+
+    // This repo's first-ever Robolectric dependency (docs/specs/
+    // engineering-systems-pitch.md system #1 Part C), scoped narrowly to
+    // LearnProgressStoreTest - the one existing untested class with real
+    // SQLiteOpenHelper logic but no JNI/audio/network dependency. Versions
+    // confirmed against real Maven Central / google() metadata at the time
+    // this was added, not assumed: 4.16.1 is Robolectric's latest non-beta
+    // release (4.17 is still beta), 1.7.0 is androidx.test:core's latest
+    // stable (needed for ApplicationProvider.getApplicationContext()).
+    //
+    // Real, disclosed risk (not hypothetical): Robolectric's android-all
+    // shadow jar ships its own real org.json.JSONObject implementation,
+    // sharing this same :app test classpath with the explicit
+    // org.json:json:20240303 dependency directly above - two libraries
+    // independently shadowing the Android SDK is a plausible source of the
+    // exact silent-wrong-value bug class VoskResultParsingTest was
+    // introduced to catch (see its own doc comment). VoskResultParsingTest's
+    // existing real-captured-JSON assertions (exact averaged confidence
+    // values to 1e-9 precision) already serve as a canary for this - it was
+    // re-run and confirmed still passing with the same real values after
+    // this dependency was added, not just read through.
+    testImplementation("org.robolectric:robolectric:4.16.1")
+    testImplementation("androidx.test:core:1.7.0")
 }
