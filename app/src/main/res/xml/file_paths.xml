@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Backs the .diagnostics.DiagnosticsFileProvider declared in
+  AndroidManifest.xml - the only FileProvider path this app declares, and
+  deliberately scoped to one narrow cache subdirectory
+  (cache/diagnostics_export/), not the whole cache or files root. Nothing
+  else in the app writes there, so this can never accidentally expose an
+  unrelated file (a downloaded voice pack, a recording) through the same
+  provider (docs/specs/engineering-systems-pitch.md system #5).
+-->
+<paths>
+    <cache-path name="diagnostics_export" path="diagnostics_export/" />
+</paths>

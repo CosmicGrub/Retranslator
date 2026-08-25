@@ -3,6 +3,7 @@ package com.retroid.translator.engine
 import android.content.Context
 import android.util.Log
 import com.reecedunn.espeak.CheckVoiceData
+import com.retroid.translator.diagnostics.Diag
 import java.io.File
 
 /**
@@ -38,7 +39,7 @@ object EspeakDataInstaller {
             Log.i(TAG, "espeak-ng-data installed to ${destRoot.path}")
             true
         } catch (e: Exception) {
-            Log.e(TAG, "Failed to install espeak-ng-data", e)
+            Diag.e(TAG, "Failed to install espeak-ng-data", e)
             false
         }
     }

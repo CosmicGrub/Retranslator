@@ -6,6 +6,7 @@ import android.media.MediaRecorder
 import android.os.Handler
 import android.os.Looper
 import android.util.Log
+import com.retroid.translator.diagnostics.Diag
 import org.json.JSONObject
 import org.vosk.Recognizer
 import java.io.File
@@ -123,7 +124,7 @@ class MicPipeline {
         val wavWriter = try {
             recordToFile?.let { WavFileWriter(it, sampleRate) }
         } catch (e: Exception) {
-            Log.e(TAG, "Could not open recording file", e)
+            Diag.e(TAG, "Could not open recording file", e)
             null
         }
 
@@ -147,7 +148,7 @@ class MicPipeline {
                         val isFinal = try {
                             recognizer.acceptWaveForm(buffer, read)
                         } catch (e: Exception) {
-                            Log.e(TAG, "acceptWaveForm failed", e)
+                            Diag.e(TAG, "acceptWaveForm failed", e)
                             false
                         }
                         if (isFinal) {
@@ -176,7 +177,7 @@ class MicPipeline {
                     }
                 }
             } catch (e: Exception) {
-                Log.e(TAG, "MicPipeline capture failed", e)
+                Diag.e(TAG, "MicPipeline capture failed", e)
                 mainHandler.post { listener.onError(e.message ?: "Recording error") }
             } finally {
                 try { record.stop() } catch (e: Exception) { /* ignore */ }
@@ -352,7 +353,7 @@ class MicPipeline {
                     listener.onSpeechEnd()
                 }
             } catch (e: Exception) {
-                Log.e(TAG, "MicPipeline continuous capture failed", e)
+                Diag.e(TAG, "MicPipeline continuous capture failed", e)
                 mainHandler.post { listener.onError(e.message ?: "Recording error") }
             } finally {
                 try { record.stop() } catch (e: Exception) { /* ignore */ }

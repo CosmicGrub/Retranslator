@@ -2,6 +2,7 @@ package com.retroid.translator.engine
 
 import android.content.Context
 import android.util.Log
+import com.retroid.translator.diagnostics.Diag
 
 /**
  * Single entry point every screen speaks through. Picks the best available
@@ -51,7 +52,7 @@ class TtsRouter(private val espeak: EspeakEngine, private val piper: PiperTtsEng
                     if (ok) {
                         speakPiper(info, text, langCode, gender, onDone, onError, onAudioStart)
                     } else {
-                        Log.w(TAG, "Natural voice load failed for ${info.voiceId} ($err), falling back to eSpeak")
+                        Diag.w(TAG, "Natural voice load failed for ${info.voiceId} ($err), falling back to eSpeak")
                         speakEspeak(text, langCode, gender, onDone, onError, onAudioStart)
                     }
                 }
@@ -66,7 +67,7 @@ class TtsRouter(private val espeak: EspeakEngine, private val piper: PiperTtsEng
         onDone: () -> Unit, onError: (String) -> Unit, onAudioStart: (() -> Unit)?
     ) {
         piper.speak(text, info, onDone = onDone, onError = { err ->
-            Log.w(TAG, "Natural voice synthesis failed for ${info.voiceId} ($err), falling back to eSpeak")
+            Diag.w(TAG, "Natural voice synthesis failed for ${info.voiceId} ($err), falling back to eSpeak")
             speakEspeak(text, langCode, gender, onDone, onError, onAudioStart)
         }, onAudioStart = onAudioStart)
     }

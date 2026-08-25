@@ -5,7 +5,7 @@ import android.net.ConnectivityManager
 import android.net.NetworkCapabilities
 import android.os.Handler
 import android.os.Looper
-import android.util.Log
+import com.retroid.translator.wear.diagnostics.WearDiag
 import java.io.File
 import java.net.HttpURLConnection
 import java.net.URL
@@ -108,7 +108,7 @@ object DownloadManager {
                 }
                 mainHandler.post { onDone(true, null) }
             } catch (e: Exception) {
-                Log.e(TAG, "Download/extract failed for $url", e)
+                WearDiag.e(TAG, "Download/extract failed for $url", e)
                 try { if (destDir.exists()) destDir.deleteRecursively() } catch (e2: Exception) { /* ignore */ }
                 mainHandler.post { onDone(false, e.message ?: "Download failed") }
             } finally {

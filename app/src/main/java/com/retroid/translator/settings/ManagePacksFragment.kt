@@ -13,6 +13,7 @@ import androidx.cardview.widget.CardView
 import androidx.fragment.app.Fragment
 import com.retroid.translator.MainActivity
 import com.retroid.translator.databinding.FragmentManagePacksBinding
+import com.retroid.translator.diagnostics.Diag
 import com.retroid.translator.engine.TranslationEngine
 import com.retroid.translator.packs.BulkDownloadCoordinator
 import com.retroid.translator.packs.LanguagePackPreferences
@@ -227,7 +228,7 @@ class ManagePacksFragment : Fragment() {
             }
             override fun onItemFailed(item: PackDescriptor, error: String?) {
                 if (_binding == null) return
-                android.util.Log.w("ManagePacksFragment", "Pack failed: ${item.displayName} ($error)")
+                Diag.w("ManagePacksFragment", "Pack failed: ${item.displayName} ($error)")
             }
             override fun onFinished(successCount: Int, failCount: Int, cancelled: Boolean) {
                 if (_binding == null) return

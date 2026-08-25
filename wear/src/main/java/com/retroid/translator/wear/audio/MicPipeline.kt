@@ -5,7 +5,7 @@ import android.media.AudioRecord
 import android.media.MediaRecorder
 import android.os.Handler
 import android.os.Looper
-import android.util.Log
+import com.retroid.translator.wear.diagnostics.WearDiag
 import kotlin.math.sqrt
 
 /**
@@ -153,7 +153,7 @@ class MicPipeline {
                     listener.onSpeechEnd()
                 }
             } catch (e: Exception) {
-                Log.e(TAG, "MicPipeline continuous capture failed", e)
+                WearDiag.e(TAG, "MicPipeline continuous capture failed", e)
                 mainHandler.post { listener.onError(e.message ?: "Recording error") }
             } finally {
                 try { record.stop() } catch (e: Exception) { /* ignore */ }

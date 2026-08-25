@@ -10,6 +10,7 @@ import android.util.Log
 import com.reecedunn.espeak.SpeechSynthesis
 import com.reecedunn.espeak.Voice
 import com.reecedunn.espeak.VoiceVariant
+import com.retroid.translator.wear.diagnostics.WearDiag
 import java.util.concurrent.Executors
 import java.util.concurrent.atomic.AtomicBoolean
 
@@ -81,7 +82,7 @@ class WearEspeakEngine(context: Context) {
                 // standard the phone app's EspeakEngine uses.
                 framesWrittenThisUtterance += audioData.size / 2
             } catch (e: Exception) {
-                Log.e(TAG, "AudioTrack write failed", e)
+                WearDiag.e(TAG, "AudioTrack write failed", e)
             }
         }
 
@@ -107,7 +108,7 @@ class WearEspeakEngine(context: Context) {
             }
             val s = SpeechSynthesis(appContext, synthCallback)
             if (s.sampleRate == 0) {
-                Log.e(TAG, "espeak-ng failed to initialize (sampleRate=0)")
+                WearDiag.e(TAG, "espeak-ng failed to initialize (sampleRate=0)")
                 initFailed = true
                 return
             }
@@ -117,7 +118,7 @@ class WearEspeakEngine(context: Context) {
             Log.i(TAG, "espeak-ng ready: sampleRate=${s.sampleRate}, voices=${voicesByLang.size}, version=${SpeechSynthesis.getVersion()}")
             ready = true
         } catch (e: Throwable) {
-            Log.e(TAG, "espeak-ng init failed", e)
+            WearDiag.e(TAG, "espeak-ng init failed", e)
             initFailed = true
         }
     }

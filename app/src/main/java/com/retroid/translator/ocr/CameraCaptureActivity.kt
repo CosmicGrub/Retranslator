@@ -20,6 +20,7 @@ import androidx.camera.lifecycle.ProcessCameraProvider
 import androidx.core.content.ContextCompat
 import com.google.mlkit.vision.common.InputImage
 import com.retroid.translator.R
+import com.retroid.translator.diagnostics.Diag
 import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
 
@@ -175,7 +176,7 @@ class CameraCaptureActivity : AppCompatActivity() {
             val provider = try {
                 providerFuture.get()
             } catch (e: Exception) {
-                Log.e(TAG, "Couldn't obtain ProcessCameraProvider", e)
+                Diag.e(TAG, "Couldn't obtain ProcessCameraProvider", e)
                 Toast.makeText(this, "Couldn't start the camera: ${e.message}", Toast.LENGTH_LONG).show()
                 finish()
                 return@addListener
@@ -189,7 +190,7 @@ class CameraCaptureActivity : AppCompatActivity() {
                 provider.unbindAll()
                 provider.bindToLifecycle(this, CameraSelector.DEFAULT_BACK_CAMERA, preview, capture)
             } catch (e: Exception) {
-                Log.e(TAG, "CameraX bind failed", e)
+                Diag.e(TAG, "CameraX bind failed", e)
                 Toast.makeText(this, "Couldn't start the camera: ${e.message}", Toast.LENGTH_LONG).show()
                 finish()
             }

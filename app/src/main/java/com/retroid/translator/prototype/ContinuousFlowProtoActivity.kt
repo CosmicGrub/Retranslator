@@ -8,6 +8,7 @@ import android.widget.ScrollView
 import android.widget.TextView
 import com.retroid.translator.TranslatorApp
 import com.retroid.translator.conversation.ContinuousConversationController
+import com.retroid.translator.diagnostics.Diag
 import com.retroid.translator.engine.TranslationEngine
 import com.retroid.translator.engine.VoiceGender
 import com.retroid.translator.engine.VoskEngine
@@ -218,7 +219,7 @@ class ContinuousFlowProtoActivity : Activity() {
             appendLog(summary)
             appendLog("DONE.")
         } catch (e: Throwable) {
-            Log.e(TAG, "Continuous-flow prototype run failed", e)
+            Diag.e(TAG, "Continuous-flow prototype run failed", e)
             appendLog("FATAL ERROR: ${e.javaClass.simpleName}: ${e.message}")
         }
     }

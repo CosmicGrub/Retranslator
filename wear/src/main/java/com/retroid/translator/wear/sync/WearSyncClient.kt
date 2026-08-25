@@ -1,9 +1,9 @@
 package com.retroid.translator.wear.sync
 
 import android.content.Context
-import android.util.Log
 import com.google.android.gms.wearable.CapabilityClient
 import com.google.android.gms.wearable.Wearable
+import com.retroid.translator.wear.diagnostics.WearDiag
 
 /**
  * Phone-sync SCAFFOLD ONLY - matches this pass's "functionally independent
@@ -32,7 +32,7 @@ class WearSyncClient(context: Context) {
         capabilityClient.getCapability(PHONE_CAPABILITY, CapabilityClient.FILTER_REACHABLE)
             .addOnSuccessListener { info -> onResult(info.nodes.isNotEmpty()) }
             .addOnFailureListener { e ->
-                Log.w(TAG, "Capability lookup failed (expected if no phone paired - standalone is the priority mode)", e)
+                WearDiag.w(TAG, "Capability lookup failed (expected if no phone paired - standalone is the priority mode)", e)
                 onResult(false)
             }
     }

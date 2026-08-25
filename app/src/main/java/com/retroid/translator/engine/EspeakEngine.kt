@@ -11,6 +11,7 @@ import android.util.Log
 import com.reecedunn.espeak.SpeechSynthesis
 import com.reecedunn.espeak.Voice
 import com.reecedunn.espeak.VoiceVariant
+import com.retroid.translator.diagnostics.Diag
 import java.util.concurrent.Executors
 import java.util.concurrent.atomic.AtomicBoolean
 
@@ -66,7 +67,7 @@ class EspeakEngine(context: Context) {
                 // for Piper's sample counts, rather than just "no exception".
                 framesWrittenThisUtterance += audioData.size / 2
             } catch (e: Exception) {
-                Log.e(TAG, "AudioTrack write failed", e)
+                Diag.e(TAG, "AudioTrack write failed", e)
             }
         }
 
@@ -98,7 +99,7 @@ class EspeakEngine(context: Context) {
             }
             val s = SpeechSynthesis(appContext, synthCallback)
             if (s.sampleRate == 0) {
-                Log.e(TAG, "espeak-ng failed to initialize (sampleRate=0)")
+                Diag.e(TAG, "espeak-ng failed to initialize (sampleRate=0)")
                 initFailed = true
                 return
             }
@@ -108,7 +109,7 @@ class EspeakEngine(context: Context) {
             Log.i(TAG, "espeak-ng ready: sampleRate=${s.sampleRate}, voices=${voicesByLang.size}, version=${SpeechSynthesis.getVersion()}")
             ready = true
         } catch (e: Throwable) {
-            Log.e(TAG, "espeak-ng init failed", e)
+            Diag.e(TAG, "espeak-ng init failed", e)
             initFailed = true
         }
     }

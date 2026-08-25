@@ -6,6 +6,7 @@ import android.net.NetworkCapabilities
 import android.os.Handler
 import android.os.Looper
 import android.util.Log
+import com.retroid.translator.diagnostics.Diag
 import org.apache.commons.compress.archivers.tar.TarArchiveInputStream
 import org.apache.commons.compress.compressors.bzip2.BZip2CompressorInputStream
 import java.io.File
@@ -136,7 +137,7 @@ object DownloadManager {
         try {
             journalFile(tmp).writeText("$url\n$validator")
         } catch (e: Exception) {
-            Log.w(TAG, "Couldn't write resume journal (non-fatal - next attempt just won't resume)", e)
+            Diag.w(TAG, "Couldn't write resume journal (non-fatal - next attempt just won't resume)", e)
         }
     }
 
@@ -174,7 +175,7 @@ object DownloadManager {
                 ?.filter { now - it.lastModified() > maxAgeMs }
                 ?.forEach { it.delete() }
         } catch (e: Exception) {
-            Log.w(TAG, "pruneStaleResumeCheckpoints failed (non-fatal)", e)
+            Diag.w(TAG, "pruneStaleResumeCheckpoints failed (non-fatal)", e)
         }
     }
 
@@ -290,7 +291,7 @@ object DownloadManager {
                 clearResumeCheckpoint(tmp)
                 mainHandler.post { onDone(true, null) }
             } catch (e: Exception) {
-                Log.e(TAG, "Download/extract failed for $url", e)
+                Diag.e(TAG, "Download/extract failed for $url", e)
                 try { if (destDir.exists()) destDir.deleteRecursively() } catch (e2: Exception) { /* ignore */ }
                 // tmp is deliberately NOT deleted here - see this function's
                 // own doc comment. It's the next attempt's resume checkpoint.

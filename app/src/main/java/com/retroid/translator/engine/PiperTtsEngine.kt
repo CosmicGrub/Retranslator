@@ -11,6 +11,7 @@ import com.k2fsa.sherpa.onnx.OfflineTts
 import com.k2fsa.sherpa.onnx.OfflineTtsConfig
 import com.k2fsa.sherpa.onnx.OfflineTtsModelConfig
 import com.k2fsa.sherpa.onnx.OfflineTtsVitsModelConfig
+import com.retroid.translator.diagnostics.Diag
 import java.io.File
 import java.util.concurrent.Executors
 import java.util.concurrent.atomic.AtomicBoolean
@@ -139,7 +140,7 @@ class PiperTtsEngine(context: Context) {
                 // The download/unzip reported success but the result doesn't pass
                 // completeness validation - treat it as a failure and clean up
                 // rather than leaving a half-extracted pack that would crash on load.
-                Log.w(TAG, "Voice pack ${info.voiceId} failed completeness check after extraction; discarding it")
+                Diag.w(TAG, "Voice pack ${info.voiceId} failed completeness check after extraction; discarding it")
                 DownloadManager.deleteDir(voiceRootDir(info))
                 actualSuccess = false
                 actualError = "Downloaded pack was incomplete, please try again"
@@ -191,7 +192,7 @@ class PiperTtsEngine(context: Context) {
                 Log.i(TAG, "Piper voice loaded: lang=${info.mlKitCode} gender=${info.gender} voice=${info.voiceId} sampleRate=${t.sampleRate()}")
                 mainHandler.post { onResult(true, null) }
             } catch (e: Throwable) {
-                Log.e(TAG, "Failed to load Piper voice ${info.voiceId}", e)
+                Diag.e(TAG, "Failed to load Piper voice ${info.voiceId}", e)
                 tts = null
                 loadedVoiceId = null
                 mainHandler.post { onResult(false, e.message ?: "Failed to load natural voice") }
@@ -259,7 +260,7 @@ class PiperTtsEngine(context: Context) {
                 mainHandler.post { onDone() }
             } catch (e: Throwable) {
                 speaking.set(false)
-                Log.e(TAG, "Piper synthesis failed", e)
+                Diag.e(TAG, "Piper synthesis failed", e)
                 mainHandler.post { onError(e.message ?: "Natural voice synthesis failed") }
             }
         }

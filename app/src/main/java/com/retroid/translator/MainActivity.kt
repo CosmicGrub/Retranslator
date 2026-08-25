@@ -23,6 +23,7 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
 import com.google.android.material.bottomnavigation.BottomNavigationView
+import com.retroid.translator.diagnostics.Diag
 import com.retroid.translator.fold.FoldPosture
 import com.retroid.translator.fold.FoldPostureProvider
 import com.retroid.translator.fold.FoldState
@@ -321,7 +322,7 @@ class MainActivity : AppCompatActivity() {
         try {
             cm.registerNetworkCallback(request, callback)
         } catch (e: Exception) {
-            Log.w(TAG, "Couldn't register Wi-Fi wait callback for bulk-download prompt (non-fatal)", e)
+            Diag.w(TAG, "Couldn't register Wi-Fi wait callback for bulk-download prompt (non-fatal)", e)
             wifiWaitCallback = null
         }
     }

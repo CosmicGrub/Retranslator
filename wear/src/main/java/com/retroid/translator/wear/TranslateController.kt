@@ -11,6 +11,7 @@ import androidx.compose.runtime.setValue
 import androidx.core.content.ContextCompat
 import com.retroid.translator.wear.audio.ContinuousListeningService
 import com.retroid.translator.wear.audio.MicPipeline
+import com.retroid.translator.wear.diagnostics.WearDiag
 import com.retroid.translator.wear.engine.TranslationEngine
 import com.retroid.translator.wear.engine.VoskEngine
 import com.retroid.translator.wear.engine.VoskResultParsing
@@ -111,7 +112,7 @@ class TranslateController(private val context: Context) {
                     "This is a real device test of the eSpeak engine on Wear OS.",
                     "en",
                     onDone = { Log.i("ESPEAK_SELFTEST", "self-test speak completed") },
-                    onError = { err -> Log.w("ESPEAK_SELFTEST", "self-test speak failed: $err") }
+                    onError = { err -> WearDiag.w("ESPEAK_SELFTEST", "self-test speak failed: $err") }
                 )
             }
         }
@@ -221,7 +222,7 @@ class TranslateController(private val context: Context) {
                     try {
                         activeRecognizer?.acceptWaveForm(buffer, length)
                     } catch (e: Exception) {
-                        Log.e(TAG, "acceptWaveForm failed", e)
+                        WearDiag.e(TAG, "acceptWaveForm failed", e)
                     }
                 }
                 override fun onSpeechEnd() {
@@ -283,14 +284,14 @@ class TranslateController(private val context: Context) {
     private fun speakTranslated(text: String) {
         if (espeak.supportsLanguage(targetLang.code)) {
             espeak.speak(text, targetLang.code, onDone = {}, onError = { err ->
-                Log.w(TAG, "eSpeak speak failed, falling back to system TTS: $err")
+                WearDiag.w(TAG, "eSpeak speak failed, falling back to system TTS: $err")
                 ttsSpeaker.speak(text, targetLang.code, onDone = {}, onError = { err2 ->
-                    Log.w(TAG, "TTS speak failed: $err2")
+                    WearDiag.w(TAG, "TTS speak failed: $err2")
                 })
             })
         } else {
             ttsSpeaker.speak(text, targetLang.code, onDone = {}, onError = { err ->
-                Log.w(TAG, "TTS speak failed: $err")
+                WearDiag.w(TAG, "TTS speak failed: $err")
             })
         }
     }

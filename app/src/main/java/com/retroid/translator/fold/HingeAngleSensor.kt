@@ -7,6 +7,7 @@ import android.hardware.SensorEventListener
 import android.hardware.SensorManager
 import android.os.Build
 import android.util.Log
+import com.retroid.translator.diagnostics.Diag
 
 /**
  * Optional progressive-enhancement layer over the discrete [FoldingFeature]
@@ -69,7 +70,7 @@ class HingeAngleSensor(context: Context) {
         listener = l
         val registered = sm.registerListener(l, s, SensorManager.SENSOR_DELAY_UI)
         if (!registered) {
-            Log.w(TAG, "registerListener for TYPE_HINGE_ANGLE returned false")
+            Diag.w(TAG, "registerListener for TYPE_HINGE_ANGLE returned false")
             listener = null
         }
         return registered

@@ -6,6 +6,7 @@ import android.util.Log
 import android.view.Gravity
 import android.widget.ScrollView
 import android.widget.TextView
+import com.retroid.translator.diagnostics.Diag
 import com.retroid.translator.engine.VoskEngine
 import java.io.File
 import java.util.concurrent.CountDownLatch
@@ -124,7 +125,7 @@ class DualRecognizerProtoActivity : Activity() {
             logProcMeminfo("after_all_clips")
             appendLog("DONE.")
         } catch (e: Throwable) {
-            Log.e(TAG, "Prototype run failed", e)
+            Diag.e(TAG, "Prototype run failed", e)
             appendLog("FATAL ERROR: ${e.javaClass.simpleName}: ${e.message}")
         }
     }
@@ -167,7 +168,7 @@ class DualRecognizerProtoActivity : Activity() {
             val memFree = text.lineSequence().firstOrNull { it.startsWith("MemFree:") }?.trim()
             Log.i(TAG, "PROC_MEMINFO[$label] (in-app read): $memAvailable | $memFree")
         } catch (e: Exception) {
-            Log.w(TAG, "PROC_MEMINFO[$label]: could not read /proc/meminfo from app process (${e.message})")
+            Diag.w(TAG, "PROC_MEMINFO[$label]: could not read /proc/meminfo from app process (${e.message})")
         }
     }
 }

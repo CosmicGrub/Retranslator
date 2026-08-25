@@ -5,6 +5,7 @@ import android.os.Handler
 import android.os.Looper
 import android.util.Log
 import com.retroid.translator.TranslatorApp
+import com.retroid.translator.diagnostics.Diag
 import com.retroid.translator.engine.DownloadManager
 import com.retroid.translator.engine.TranslationEngine
 
@@ -82,7 +83,7 @@ class BulkDownloadCoordinator(private val context: Context, private val app: Tra
         ) { success, error ->
             if (!success && attempt < MAX_RETRIES_PER_ITEM) {
                 val backoffMs = BASE_BACKOFF_MS * (1L shl attempt) // 2s, 4s, 8s
-                Log.w(TAG, "Bulk download: item id=${item.id} attempt ${attempt + 1} failed ($error), retrying in ${backoffMs}ms")
+                Diag.w(TAG, "Bulk download: item id=${item.id} attempt ${attempt + 1} failed ($error), retrying in ${backoffMs}ms")
                 mainHandler.postDelayed(
                     { downloadNext(items, index, total, successCount, failCount, attempt + 1) },
                     backoffMs
@@ -90,7 +91,7 @@ class BulkDownloadCoordinator(private val context: Context, private val app: Tra
                 return@downloadSingle
             }
             if (!success) {
-                Log.w(TAG, "Bulk download: item failed id=${item.id} category=${item.category} error=$error (out of retries)")
+                Diag.w(TAG, "Bulk download: item failed id=${item.id} category=${item.category} error=$error (out of retries)")
                 listener?.onItemFailed(item, error)
             }
             downloadNext(items, index + 1, total, successCount + if (success) 1 else 0, failCount + if (success) 0 else 1)

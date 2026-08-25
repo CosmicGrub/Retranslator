@@ -50,6 +50,7 @@ import com.retroid.translator.databinding.FragmentTranslateFlexMirrorPanesBindin
 import com.retroid.translator.databinding.FragmentTranslateFlexMultiBroadcastBinding
 import com.retroid.translator.databinding.ViewTranslateBroadcastRowBinding
 import com.retroid.translator.databinding.ViewTranslateTranscriptBubbleBinding
+import com.retroid.translator.diagnostics.Diag
 import com.retroid.translator.engine.DownloadManager
 import com.retroid.translator.engine.LanguageCatalog
 import com.retroid.translator.engine.TranslationEngine
@@ -1356,7 +1357,7 @@ class TranslateFragment : Fragment(), FoldAwareLayoutHost {
             try {
                 rec.acceptWaveForm(buffer, length)
             } catch (e: Exception) {
-                Log.e(TAG, "single_circle continuous acceptWaveForm failed", e)
+                Diag.e(TAG, "single_circle continuous acceptWaveForm failed", e)
             }
         }
 

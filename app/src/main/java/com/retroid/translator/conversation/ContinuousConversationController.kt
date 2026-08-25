@@ -4,6 +4,7 @@ import android.os.Handler
 import android.os.Looper
 import android.util.Log
 import com.retroid.translator.audio.MicPipeline
+import com.retroid.translator.diagnostics.Diag
 import com.retroid.translator.engine.VoskEngine
 import com.retroid.translator.engine.VoskResultParsing
 import org.vosk.Recognizer
@@ -124,7 +125,7 @@ class ContinuousConversationController(
 
     private fun handleSpeechStart() {
         if (busy) {
-            Log.w(TAG, "handleSpeechStart: previous utterance still finalizing/speaking - new speech start ignored (see class doc §2)")
+            Diag.w(TAG, "handleSpeechStart: previous utterance still finalizing/speaking - new speech start ignored (see class doc §2)")
             return
         }
         val recA = engineA.newRecognizer(SAMPLE_RATE)
@@ -241,7 +242,7 @@ class ContinuousConversationController(
                         val isFinal = try {
                             recognizer.acceptWaveForm(item.buf, item.len)
                         } catch (e: Exception) {
-                            Log.e(TAG, "acceptWaveForm failed ($langCode)", e)
+                            Diag.e(TAG, "acceptWaveForm failed ($langCode)", e)
                             false
                         }
                         if (isFinal) {

@@ -2,6 +2,9 @@ package com.retroid.translator
 
 import android.app.Application
 import com.retroid.translator.audio.MicPipeline
+import com.retroid.translator.diagnostics.CrashHandler
+import com.retroid.translator.diagnostics.Diag
+import com.retroid.translator.diagnostics.DiagnosticsStore
 import com.retroid.translator.engine.DownloadManager
 import com.retroid.translator.engine.EspeakEngine
 import com.retroid.translator.engine.PiperTtsEngine
@@ -27,8 +30,19 @@ class TranslatorApp : Application() {
     /** Local-only XP/streak/lesson-completion/SRS state for the Learn tab. */
     val learnProgress: LearnProgressStore by lazy { LearnProgressStore(this) }
 
+    /** Local-only crash/error journal - see docs/specs/engineering-systems-pitch.md system #5. */
+    val diagnostics: DiagnosticsStore by lazy { DiagnosticsStore(this) }
+
     override fun onCreate() {
         super.onCreate()
+        // Installed first, before anything else gets a chance to throw -
+        // wraps (doesn't replace) the platform's own uncaught-exception
+        // handler, so crash/ANR reporting behavior is unchanged.
+        CrashHandler.install(this)
+        Diag.init(this)
+        // Fold any crash record left by the *previous* process into the
+        // real store now that we're back in a healthy, non-crashing state.
+        CrashHandler.reconcile(this, diagnostics)
         // Kick off eSpeak init in the background right away so it's usually
         // ready before the user reaches for the speak button.
         espeak.initAsync { }

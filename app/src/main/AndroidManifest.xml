@@ -137,6 +137,22 @@
                     android:pathPrefix="/retroid" />
             </intent-filter>
         </service>
+
+        <!-- Local diagnostics journal's "Share diagnostic log" export
+             (docs/specs/engineering-systems-pitch.md system #5,
+             DiagnosticsFragment) - the standard FileProvider pattern for
+             handing a cache file to a share-sheet target app without
+             granting it broader filesystem access. Scoped to just the
+             cache/diagnostics_export/ subdirectory - see file_paths.xml. -->
+        <provider
+            android:name="androidx.core.content.FileProvider"
+            android:authorities="${applicationId}.diagnostics.fileprovider"
+            android:exported="false"
+            android:grantUriPermissions="true">
+            <meta-data
+                android:name="android.support.FILE_PROVIDER_PATHS"
+                android:resource="@xml/file_paths" />
+        </provider>
     </application>
 
 </manifest>

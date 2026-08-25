@@ -5,6 +5,7 @@ import android.media.AudioFormat
 import android.media.AudioRecord
 import android.os.Debug
 import android.util.Log
+import com.retroid.translator.diagnostics.Diag
 import com.retroid.translator.engine.VoskEngine
 import com.retroid.translator.engine.VoskResultParsing
 import org.vosk.Recognizer
@@ -74,14 +75,14 @@ object DualRecognizerPrototype {
         Log.i(TAG, "loadEngines: loading langA=$langA into engineA")
         engineA.loadModelAsync(langA) { okA, errA ->
             if (!okA) {
-                Log.e(TAG, "loadEngines: engineA failed for $langA: $errA")
+                Diag.e(TAG, "loadEngines: engineA failed for $langA: $errA")
                 onDone(engineA, engineB, false, "engineA($langA): $errA")
                 return@loadModelAsync
             }
             Log.i(TAG, "loadEngines: engineA ready for $langA. Now loading langB=$langB into engineB")
             engineB.loadModelAsync(langB) inner@{ okB, errB ->
                 if (!okB) {
-                    Log.e(TAG, "loadEngines: engineB failed for $langB: $errB")
+                    Diag.e(TAG, "loadEngines: engineB failed for $langB: $errB")
                     onDone(engineA, engineB, false, "engineB($langB): $errB")
                     return@inner
                 }
@@ -131,7 +132,7 @@ object DualRecognizerPrototype {
             try {
                 recognizer.setWords(true)
             } catch (e: Throwable) {
-                Log.w(TAG, "runRecognizer($langCode): setWords(true) not available/failed: ${e.message}")
+                Diag.w(TAG, "runRecognizer($langCode): setWords(true) not available/failed: ${e.message}")
             }
 
             val timings = mutableListOf<ChunkTiming>()
@@ -146,7 +147,7 @@ object DualRecognizerPrototype {
                 val isFinal = try {
                     recognizer.acceptWaveForm(chunk, len)
                 } catch (e: Exception) {
-                    Log.e(TAG, "runRecognizer($langCode): acceptWaveForm failed at chunk $chunkIndex", e)
+                    Diag.e(TAG, "runRecognizer($langCode): acceptWaveForm failed at chunk $chunkIndex", e)
                     false
                 }
                 val cElapsed = System.nanoTime() - cT0

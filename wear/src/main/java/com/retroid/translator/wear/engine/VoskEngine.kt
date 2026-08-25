@@ -4,6 +4,7 @@ import android.content.Context
 import android.os.Handler
 import android.os.Looper
 import android.util.Log
+import com.retroid.translator.wear.diagnostics.WearDiag
 import org.vosk.LibVosk
 import org.vosk.LogLevel
 import org.vosk.Model
@@ -48,7 +49,7 @@ class VoskEngine(context: Context) {
             // native libvosk.so failed to load for this device's ABI. See
             // this class's LAST_NATIVE_LOAD_ERROR for how MainActivity
             // surfaces this to the on-screen diagnostic panel.
-            Log.w(TAG, "LibVosk.setLogLevel failed", e)
+            WearDiag.w(TAG, "LibVosk.setLogLevel failed", e)
             lastNativeLoadError = e
         }
     }
@@ -87,7 +88,7 @@ class VoskEngine(context: Context) {
                 Log.i(TAG, "Vosk model loaded for $langCode from ${path.path}")
                 mainHandler.post { onResult(true, null) }
             } catch (e: Exception) {
-                Log.e(TAG, "Failed to load Vosk model for $langCode", e)
+                WearDiag.e(TAG, "Failed to load Vosk model for $langCode", e)
                 mainHandler.post { onResult(false, e.message ?: "Failed to load model") }
             }
         }
@@ -98,7 +99,7 @@ class VoskEngine(context: Context) {
         return try {
             Recognizer(model, sampleRate)
         } catch (e: Exception) {
-            Log.e(TAG, "Failed to create recognizer", e)
+            WearDiag.e(TAG, "Failed to create recognizer", e)
             null
         }
     }

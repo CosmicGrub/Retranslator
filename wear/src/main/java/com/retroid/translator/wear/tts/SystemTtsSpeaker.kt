@@ -3,7 +3,7 @@ package com.retroid.translator.wear.tts
 import android.content.Context
 import android.speech.tts.TextToSpeech
 import android.speech.tts.UtteranceProgressListener
-import android.util.Log
+import com.retroid.translator.wear.diagnostics.WearDiag
 import java.util.Locale
 import java.util.UUID
 
@@ -40,7 +40,7 @@ class SystemTtsSpeaker(context: Context) {
         val locale = Locale.forLanguageTag(langCode)
         val result = engine.setLanguage(locale)
         if (result == TextToSpeech.LANG_MISSING_DATA || result == TextToSpeech.LANG_NOT_SUPPORTED) {
-            Log.w(TAG, "TTS locale $langCode not directly supported (result=$result), speaking anyway with engine default")
+            WearDiag.w(TAG, "TTS locale $langCode not directly supported (result=$result), speaking anyway with engine default")
         }
         val utteranceId = UUID.randomUUID().toString()
         engine.setOnUtteranceProgressListener(object : UtteranceProgressListener() {

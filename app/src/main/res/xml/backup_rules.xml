@@ -12,10 +12,16 @@
   backup-quota/no-value-preserving reasons instead), vosk-models/ and
   piper-voices/ (large, fully re-downloadable model packs - no privacy
   content, but no reason to consume backup quota on multi-hundred-MB files
-  that download fresh on any new device anyway).
+  that download fresh on any new device anyway), and diagnostics/ (local
+  crash/error journal - com.retroid.translator.diagnostics.DiagnosticsStore/
+  CrashHandler; reviewed and confirmed it only ever logs metadata - voice
+  IDs, language codes, URLs, exception messages - never translated/
+  recognized/conversation text, but it's still ephemeral device-local debug
+  data with no reason to follow the user to a new device or a cloud backup).
 -->
 <full-backup-content>
     <exclude domain="file" path="recordings/" />
     <exclude domain="file" path="vosk-models/" />
     <exclude domain="file" path="piper-voices/" />
+    <exclude domain="file" path="diagnostics/" />
 </full-backup-content>

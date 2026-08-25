@@ -4,6 +4,7 @@ import android.content.Context
 import android.os.Handler
 import android.os.Looper
 import android.util.Log
+import com.retroid.translator.diagnostics.Diag
 import org.vosk.LibVosk
 import org.vosk.LogLevel
 import org.vosk.Model
@@ -29,7 +30,7 @@ class VoskEngine(context: Context) {
         try {
             LibVosk.setLogLevel(LogLevel.WARNINGS)
         } catch (e: Throwable) {
-            Log.w(TAG, "LibVosk.setLogLevel failed (non-fatal)", e)
+            Diag.w(TAG, "LibVosk.setLogLevel failed (non-fatal)", e)
         }
     }
 
@@ -68,7 +69,7 @@ class VoskEngine(context: Context) {
                 Log.i(TAG, "Vosk model loaded for $langCode from ${path.path}")
                 mainHandler.post { onResult(true, null) }
             } catch (e: Exception) {
-                Log.e(TAG, "Failed to load Vosk model for $langCode", e)
+                Diag.e(TAG, "Failed to load Vosk model for $langCode", e)
                 mainHandler.post { onResult(false, e.message ?: "Failed to load model") }
             }
         }
@@ -80,7 +81,7 @@ class VoskEngine(context: Context) {
         return try {
             Recognizer(model, sampleRate)
         } catch (e: Exception) {
-            Log.e(TAG, "Failed to create recognizer", e)
+            Diag.e(TAG, "Failed to create recognizer", e)
             null
         }
     }
