@@ -440,3 +440,33 @@ Ordinary (non-doze, non-adversarial) launch — force-stop, wake screen, `am sta
 Identical to the Addendum-1/2 numbers (`voices=115`, `framesWritten=70663`), no crash, process stayed alive (`pidof` still resolved afterward). `:wear:testDebugUnitTest` → `BUILD SUCCESSFUL` (no failures) against the same `HEAD`.
 
 Not re-attempted this run: the doze-mid-init adversarial repro from Addendum 2 (killing/reinstalling `.installed_v1` and racing `KEYCODE_BACK`) — this task's scope is the plain self-test check, not re-proving the crash fix's repro, and Addendum 2 already did that with a real before/after A/B. The "nobody has heard it" gap also remains open, unchanged.
+
+### Addendum 4 (scheduled task, 2026-08-25 ~22:30 local): third consecutive clean self-test; adds AudioTrack *playback-lifecycle* evidence, otherwise a repeat
+
+Bookkeeping note first, so this addendum isn't mistaken for new information: the scheduled task that produced it is still worded as though the on-device eSpeak evidence has never been captured (it was written on 2026-08-17, while the watch was unreachable). It has since been captured three times — Addenda 1, 3, and now this one. This run therefore confirms rather than discovers. It is recorded only because a third independent launch on the same `HEAD` is cheap corroboration, and because it does add one detail the earlier addenda did not quote.
+
+Watch was already present on `adb devices -l` (`adb-RFAWA2T9APN-lqG2RY (2)._adb-tls-connect._tcp`, `model:SM_R965U`, `transport_id:3`); `adb mdns services` returned an empty list, so the connection was an existing one rather than a fresh discovery. `git pull --ff-only` → already up to date, `HEAD=24c5fd2` (Addendum 3's doc commit; the last code commit is still `e046c1b`, so this tests the same fixed binary as Addendum 3). `./gradlew :wear:assembleDebug` → `BUILD SUCCESSFUL` (fully `UP-TO-DATE`, i.e. byte-identical APK to the previous run — worth stating plainly, since it means this is a re-launch of the same artifact, not an independent rebuild). `adb install -r` → `Success`. Logcat cleared, force-stop, `am start`:
+
+```
+08-25 22:30:12.682 14578 14603 I WearEspeakEngine: espeak-ng ready: sampleRate=22050, voices=115, version=1.52.0
+08-25 22:30:12.683 14578 14578 I TranslateController: WearEspeakEngine init: success=true
+08-25 22:30:15.794 14578 14603 I WearEspeakEngine: eSpeak synth: lang=en framesWritten=70663
+08-25 22:30:15.800 14578 14578 I ESPEAK_SELFTEST: self-test speak completed
+```
+
+Identical constants again (`voices=115`, `version=1.52.0`, `framesWritten=70663`). No crash; the process stayed up and was later frozen normally by the platform (`MARsmini_FreecessController: freezePackage com.retroid.translator.wear ... reason: LEV`) rather than dying.
+
+**What's new here:** Addendum 1 quoted only the `new player` registration line from `dumpsys audio`. This run captured the full player lifecycle for the self-test's track, which shows it did not merely get *created* but actually **started, routed to a real output device, and ran for the expected duration**:
+
+```
+08-25 22:30:10:121 new player piid:9359 uid/pid:10210/14578 package:com.retroid.translator.wear
+  type:android.media.AudioTrack attr:AudioAttributes: usage=USAGE_MEDIA content=CONTENT_TYPE_SPEECH ... session:8377
+08-25 22:30:12:705 player piid:9359 event:started
+08-25 22:30:12:740 player piid:9359 format update:FormatInfo{... channelMask=0x1, sampleRate=22050}
+08-25 22:30:12:768 player piid:9359 event:device updated deviceIds:[2]
+08-25 22:30:15:801 player piid:9359 event:stopped
+```
+
+The `started`→`stopped` span is 22:30:12.705 → 22:30:15.801 ≈ **3.10 s**, which matches the ≈3.20 s implied by `framesWritten=70663 / 22050` and lands within 1 ms of the `ESPEAK_SELFTEST: self-test speak completed` line at 22:30:15.800. `deviceIds:[2]` is `TYPE_BUILTIN_SPEAKER`, so the track was routed to the watch's own speaker, not to a stale or null endpoint. `channelMask=0x1` = mono, matching the engine's 16-bit mono PCM.
+
+**Still not established, unchanged from every prior addendum:** nobody has *heard* it. Speaker routing and a started track are not the same as an unmuted speaker producing intelligible speech to a human ear; media volume was not checked this run either. That final tier still requires a person wearing the watch, and remains the one open item in this section.
