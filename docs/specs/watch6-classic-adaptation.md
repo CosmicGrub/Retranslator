@@ -421,3 +421,22 @@ The load-bearing detail is what is **absent**: init still runs to completion (`s
 **Regression check.** Undisturbed launch on the fixed build is unchanged: `framesWritten=70663`, `ESPEAK_SELFTEST: self-test speak completed`, and `dumpsys audio` shows a fresh real player for that pid (`piid:9223 ... usage=USAGE_MEDIA content=CONTENT_TYPE_SPEECH`). `:wear:testDebugUnitTest` passes (4 tests, 0 failures).
 
 **Still not established**, unchanged from Addendum 1: nobody has *heard* the audio. That remains the one open item for this section.
+
+### Addendum 3 (scheduled task, 2026-08-25 ~21:30 local): fresh self-test run against current `main` (`HEAD=e046c1b`, includes the Addendum-2 fix), confirms the fix holds
+
+This is a routine re-check from the watch-availability scheduled task, not a new investigation — it exists because the device had been unreachable earlier in the day and this task's job is specifically to catch it coming back and capture one more data point. It changes nothing about the analysis above; it just confirms it still holds on the code that's actually on `main` now.
+
+Watch reappeared via mDNS (`adb-RFAWA2T9APN-lqG2RY._adb-tls-connect._tcp`, `model:SM_R965U`) at ~21:29 local. `git pull --ff-only` on `main` → already up to date at `e046c1b` (the Addendum-2 fix commit, i.e. this run is testing the *fixed* code, not the pre-fix state Addendum 1 originally found). `./gradlew :wear:assembleDebug` → `BUILD SUCCESSFUL`, `adb install -r` → `Success`.
+
+Ordinary (non-doze, non-adversarial) launch — force-stop, wake screen, `am start`:
+
+```
+08-25 21:30:47.653  8845  8876 I WearEspeakEngine: espeak-ng ready: sampleRate=22050, voices=115, version=1.52.0
+08-25 21:30:48.032  8845  8845 I TranslateController: WearEspeakEngine init: success=true
+08-25 21:30:51.181  8845  8876 I WearEspeakEngine: eSpeak synth: lang=en framesWritten=70663
+08-25 21:30:51.193  8845  8845 I ESPEAK_SELFTEST: self-test speak completed
+```
+
+Identical to the Addendum-1/2 numbers (`voices=115`, `framesWritten=70663`), no crash, process stayed alive (`pidof` still resolved afterward). `:wear:testDebugUnitTest` → `BUILD SUCCESSFUL` (no failures) against the same `HEAD`.
+
+Not re-attempted this run: the doze-mid-init adversarial repro from Addendum 2 (killing/reinstalling `.installed_v1` and racing `KEYCODE_BACK`) — this task's scope is the plain self-test check, not re-proving the crash fix's repro, and Addendum 2 already did that with a real before/after A/B. The "nobody has heard it" gap also remains open, unchanged.
