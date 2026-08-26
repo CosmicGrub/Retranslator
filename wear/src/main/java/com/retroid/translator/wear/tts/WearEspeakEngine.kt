@@ -12,6 +12,7 @@ import com.reecedunn.espeak.Voice
 import com.reecedunn.espeak.VoiceVariant
 import com.retroid.translator.wear.diagnostics.WearDiag
 import java.util.concurrent.Executors
+import java.util.concurrent.RejectedExecutionException
 import java.util.concurrent.atomic.AtomicBoolean
 
 /**
@@ -57,14 +58,36 @@ class WearEspeakEngine(context: Context) {
     private val mainHandler = Handler(Looper.getMainLooper())
     private val worker = Executors.newSingleThreadExecutor()
 
-    private var synth: SpeechSynthesis? = null
-    private var audioTrack: AudioTrack? = null
+    @Volatile private var synth: SpeechSynthesis? = null
+    @Volatile private var audioTrack: AudioTrack? = null
     private var voicesByLang: Map<String, Voice> = emptyMap()
 
     @Volatile var ready = false
         private set
     @Volatile var initFailed = false
         private set
+
+    /**
+     * Set by [release] and never cleared - this engine is deliberately
+     * single-use, because [release] shuts [worker] down for good and a
+     * `ThreadPoolExecutor` cannot be restarted.
+     *
+     * **Real crash this exists to prevent** (found on the real Watch6
+     * Classic on 2026-08-25, see docs/specs/watch6-classic-adaptation.md
+     * section 14's addendum for the captured logcat): launching while the
+     * display is dozing gets `MainActivity` destroyed almost immediately, so
+     * `onDestroy -> TranslateController.release() -> release()` here runs
+     * *while [initBlocking] is still executing on [worker]*.
+     * `ExecutorService.shutdown()` lets that already-running init task run to
+     * completion, so init then posted its `onReady(true)` to the main thread,
+     * `TranslateController`'s startup self-test called [speak], and [speak]'s
+     * `worker.execute` threw `RejectedExecutionException` on the main thread
+     * - uncaught, taking the process with it. Guarding the submits alone
+     * would not have been enough: the honest fix is that a released engine
+     * must stop calling *back* as well as stop accepting work, which is what
+     * this flag gates.
+     */
+    @Volatile private var released = false
 
     private val speaking = AtomicBoolean(false)
     @Volatile private var currentOnDone: (() -> Unit)? = null
@@ -117,6 +140,12 @@ class WearEspeakEngine(context: Context) {
             voicesByLang = s.availableVoices.associateBy { it.locale.language }
             Log.i(TAG, "espeak-ng ready: sampleRate=${s.sampleRate}, voices=${voicesByLang.size}, version=${SpeechSynthesis.getVersion()}")
             ready = true
+            // [release] can land mid-init (see [released]), in which case it
+            // already tore the field down before the line above replaced it -
+            // so the track built moments ago would leak a real AudioTrack for
+            // the life of the process. Tear it down here rather than pretend
+            // the ordering cannot happen.
+            if (released) teardownAudio()
         } catch (e: Throwable) {
             WearDiag.e(TAG, "espeak-ng init failed", e)
             initFailed = true
@@ -124,9 +153,16 @@ class WearEspeakEngine(context: Context) {
     }
 
     fun initAsync(onReady: (Boolean) -> Unit) {
-        worker.execute {
+        // A rejected submit here means [release] already ran, so there is no
+        // longer anyone to call back - dropping it is the correct outcome,
+        // not a swallowed error.
+        submitToWorker {
             initBlocking()
-            mainHandler.post { onReady(ready) }
+            // The load-bearing half of the crash fix: init runs to completion
+            // even after `worker.shutdown()`, so without this guard a
+            // destroyed Activity's callback still fires and drives fresh work
+            // back into the dead executor. See [released].
+            mainHandler.post { if (!released) onReady(ready) }
         }
     }
 
@@ -140,6 +176,10 @@ class WearEspeakEngine(context: Context) {
         onDone: () -> Unit,
         onError: (String) -> Unit
     ) {
+        if (released) {
+            onError("Offline speech engine was shut down")
+            return
+        }
         if (!ready) {
             onError("Offline speech engine is not ready yet")
             return
@@ -159,9 +199,9 @@ class WearEspeakEngine(context: Context) {
         currentOnError = onError
         currentLangCode = langCode
         speaking.set(true)
-        worker.execute {
+        val submitted = submitToWorker {
             try {
-                val variant = VoiceVariant.parseVoiceVariant("female") ?: return@execute
+                val variant = VoiceVariant.parseVoiceVariant("female") ?: return@submitToWorker
                 synth?.setVoice(voice, variant)
                 audioTrack?.play()
                 synth?.synthesize(text, false)
@@ -179,6 +219,16 @@ class WearEspeakEngine(context: Context) {
                 mainHandler.post { err?.invoke(e.message ?: "Speech synthesis failed") }
             }
         }
+        if (!submitted) {
+            // [release] won the race against the `released` check above. Undo
+            // the speaking bookkeeping and report through the caller's own
+            // error path, so the "exactly one of onDone/onError always fires"
+            // contract still holds here and callers cannot hang.
+            speaking.set(false)
+            currentOnDone = null
+            currentOnError = null
+            onError("Offline speech engine was shut down")
+        }
     }
 
     fun stop() {
@@ -191,11 +241,40 @@ class WearEspeakEngine(context: Context) {
     }
 
     fun release() {
+        // Set first, so anything racing this on another thread observes the
+        // engine as dead before the executor actually goes away. See
+        // [released] for the crash that ordering prevents.
+        released = true
         stop()
-        try { audioTrack?.release() } catch (e: Exception) { /* ignore */ }
-        audioTrack = null
+        teardownAudio()
         worker.shutdown()
     }
+
+    private fun teardownAudio() {
+        val track = audioTrack
+        audioTrack = null
+        try { track?.release() } catch (e: Exception) { /* ignore */ }
+    }
+
+    /**
+     * Submits [task] to [worker], returning false instead of throwing when
+     * the executor is already shut down.
+     *
+     * `Executors.newSingleThreadExecutor()` throws
+     * `RejectedExecutionException` - an *unchecked* exception - from
+     * `execute()` after `shutdown()`, which is exactly how this class used to
+     * kill the process from a main-thread callback (see [released]). Every
+     * submit goes through here so a post-[release] straggler degrades into a
+     * dropped task instead of a crash.
+     */
+    private fun submitToWorker(task: () -> Unit): Boolean =
+        try {
+            worker.execute { task() }
+            true
+        } catch (e: RejectedExecutionException) {
+            Log.i(TAG, "worker task dropped: engine already released")
+            false
+        }
 
     private fun buildAudioTrack(sampleRate: Int): AudioTrack {
         val minBuf = AudioTrack.getMinBufferSize(

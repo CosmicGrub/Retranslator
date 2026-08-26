@@ -378,3 +378,46 @@ Scope and severity, honestly:
 
 **Net change to this section's status**: the eSpeak NG on-`:wear` work is now verified on real hardware end-to-end from native-library load through PCM-into-`AudioTrack`, with one real, newly-discovered lifecycle crash bug attached to it that did not exist in the "build-verified only" picture. §12's follow-up list should gain that bug fix; Piper/sherpa-onnx status is unchanged by this addendum.
 
+
+### Addendum 2 (2026-08-25): the lifecycle crash above is fixed, with a deterministic on-device repro and a before/after A/B
+
+Addendum 1 recorded the `RejectedExecutionException` crash but explicitly did not fix it ("No fix was made here"), and hedged its trigger as *strongly indicated, not proven*. Both of those are now closed. This addendum supersedes only those two points; everything else in Addendum 1 stands.
+
+**A deterministic repro exists.** Addendum 1's suspected trigger (screen-off launch) turned out not to be reliably reproducible by itself - three attempts at it (launch-then-doze, doze-then-launch, config change) all passed, because the race needs `release()` to land *while `initBlocking` is still running*, and once eSpeak's data is already unpacked init finishes in ~1.3s and simply wins. The real controlling variable is **how long init takes**, not the display state. Reliable repro:
+
+1. `adb shell run-as com.retroid.translator.wear rm -f app_voices/espeak-ng-data/.installed_v1` - forces `EspeakDataInstaller` to redo the full 18MB unpack, stretching init back out to ~3-4s. (Deliberately surgical: `pm clear` would also destroy `files/vosk-models`, which holds real downloaded STT packs.)
+2. Ensure the display is actually `mWakefulness=Awake` - while dozing, `KEYCODE_BACK` never reaches the activity, which is why several early attempts silently proved nothing.
+3. `am start`, `sleep 1.2`, `input keyevent KEYCODE_BACK`. Back finishes the root activity → `onDestroy` → `release()` lands mid-init.
+
+Screen-off launch was a *sufficient* trigger, not the necessary one - so Addendum 1's hedge was correctly placed, just aimed at the wrong variable.
+
+**Before/after, identical conditions, real device.** Pre-fix build:
+
+```
+I EspeakDataInstaller: espeak-ng-data installed to /data/user/0/com.retroid.translator.wear/app_voices/espeak-ng-data
+I WearEspeakEngine: espeak-ng ready: sampleRate=22050, voices=115, version=1.52.0
+I TranslateController: WearEspeakEngine init: success=true
+E AndroidRuntime: FATAL EXCEPTION: main
+E AndroidRuntime: java.util.concurrent.RejectedExecutionException: Task ... rejected from java.util.concurrent.ThreadPoolExecutor@f281b08[Shutting down, pool size = 1, active threads = 1, queued tasks = 0, completed tasks = 0]
+E AndroidRuntime: 	at com.retroid.translator.wear.tts.WearEspeakEngine.speak(WearEspeakEngine.kt:162)
+E AndroidRuntime: 	at com.retroid.translator.wear.tts.WearEspeakEngine.initAsync$lambda$2$lambda$1(WearEspeakEngine.kt:129)
+```
+
+Post-fix build, same steps (run twice, both identical):
+
+```
+I EspeakDataInstaller: espeak-ng-data installed to /data/user/0/com.retroid.translator.wear/app_voices/espeak-ng-data
+I WearEspeakEngine: espeak-ng ready: sampleRate=22050, voices=115, version=1.52.0
+```
+
+The load-bearing detail is what is **absent**: init still runs to completion (`shutdown()` does not interrupt a running task), but `WearEspeakEngine init: success=true` never appears, because the `onReady` post is now gated on `released`. Nothing is driven back into the dead executor, and there is no crash.
+
+**The fix** (`WearEspeakEngine`), three layers, because guarding the submit alone is not sufficient:
+
+- A `@Volatile released` flag set first in `release()`. A released engine must stop *calling back*, not just stop accepting work: `initAsync` posts `if (!released) onReady(ready)`, and `speak()` returns through `onError` immediately.
+- `submitToWorker()` wraps every `worker.execute`, returning `false` instead of throwing `RejectedExecutionException`, so a straggler that loses the race degrades into a dropped task. `speak()` unwinds its `speaking`/callback bookkeeping and fires `onError`, preserving the "exactly one of `onDone`/`onError` always fires" contract so callers cannot hang.
+- `teardownAudio()`, covering a latent leak found while tracing this: because init runs to completion after `shutdown()`, the `AudioTrack` it builds is created *after* `release()` already nulled the field, leaking a real `AudioTrack` for the life of the process. `synth`/`audioTrack` are now `@Volatile` as well.
+
+**Regression check.** Undisturbed launch on the fixed build is unchanged: `framesWritten=70663`, `ESPEAK_SELFTEST: self-test speak completed`, and `dumpsys audio` shows a fresh real player for that pid (`piid:9223 ... usage=USAGE_MEDIA content=CONTENT_TYPE_SPEECH`). `:wear:testDebugUnitTest` passes (4 tests, 0 failures).
+
+**Still not established**, unchanged from Addendum 1: nobody has *heard* the audio. That remains the one open item for this section.
