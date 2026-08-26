@@ -325,3 +325,56 @@ lib/x86_64/libttsespeak.so
 - **The male/female gender toggle was not added to `:wear`** — `WearEspeakEngine` always speaks with the female voice variant. `:app`'s gender toggle is real UI/settings-surface work outside this pass's scope (proving/wiring the native TTS stack), not an oversight.
 - **Piper/sherpa-onnx remains unimplemented in `:wear`**, by deliberate choice given the crash-risk and download-permission constraints above — see the four concrete numbered steps above for exactly what a follow-up pass needs to do, none of which require a from-source NDK cross-compile.
 
+### Addendum (2026-08-25): the missing on-device evidence, captured — eSpeak NG confirmed synthesizing real audio on the real Watch6 Classic, **and** a real crash bug found alongside it
+
+This addendum closes the first "Honest gaps" bullet above. It does **not** replace that paragraph — that paragraph accurately described what was and wasn't established as of 2026-08-16, and it stands as written.
+
+**Device finally reachable.** The Watch6 Classic reappeared on wireless adb on 2026-08-25 at ~19:07 local. Its previously-recorded endpoint was stale (`adb connect 192.168.1.211:39555` → `actively refused`), but restarting the adb server re-resolved it via mDNS on its own: `adb-RFAWA2T9APN-lqG2RY._adb-tls-connect._tcp`, `model:SM_R965U device:wise6ul`. Confirmed device identity and ABI directly rather than assuming: `ro.product.model=SM-R965U`, `ro.build.display.id=BP2A.250325.020.R965USQS2CZF5`, `ro.build.version.release=16` (API 36), and — the load-bearing one for this whole section — **`ro.product.cpu.abilist=armeabi-v7a,armeabi`**, i.e. the device really is 32-bit-ARM-only, exactly as §14 assumed throughout. Repo was at `main` / `58abbb1`, `git pull --ff-only` → already up to date, with `3ed9159` (the eSpeak merge) confirmed an ancestor of `HEAD`. `./gradlew :wear:assembleDebug` → `BUILD SUCCESSFUL`; installed with `adb install -r` → `Success`.
+
+**Result: the self-test genuinely passed. Real logcat lines, unedited:**
+
+```
+08-25 19:07:34.799 24580 24580 I VOSK_NATIVE_PROBE: outcome=CLEAN_MANAGED_REJECTION detail=IOException: Failed to create a model
+08-25 19:07:37.192 24580 24628 I WearEspeakEngine: espeak-ng ready: sampleRate=22050, voices=115, version=1.52.0
+08-25 19:07:37.202 24580 24580 I TranslateController: WearEspeakEngine init: success=true
+08-25 19:07:40.690 24580 24628 I WearEspeakEngine: eSpeak synth: lang=en framesWritten=70663
+08-25 19:07:40.718 24580 24580 I ESPEAK_SELFTEST: self-test speak completed
+```
+
+What this actually proves, stated at the tier the evidence supports:
+
+- **The vendored `armeabi-v7a` `libttsespeak.so` loads and executes on the real hardware.** `espeak-ng ready: ... version=1.52.0` comes back through the JNI layer from the native library itself — the version string is read out of the `.so`, so this is the library running, not merely being present in the APK.
+- **The 18MB `espeak-ng-data` asset unpack worked on-device** — `voices=115` is the count of voices the native library enumerated from the unpacked data directory, so the data install path (`EspeakDataInstaller`) is verified too, not just the binary.
+- **Real audio samples were produced, not just a "completed" callback.** `framesWritten=70663` is counted in `WearEspeakEngine`'s `onSynthDataReady` as bytes-written-to-`AudioTrack` ÷ 2 (16-bit mono PCM). At the reported `sampleRate=22050`, 70,663 frames = **≈3.20 seconds of audio**, which is a sane duration for the fixed self-test sentence ("This is a real device test of the eSpeak engine on Wear OS."). A no-op or silently-failing synth path would have logged `framesWritten=0`.
+- **Secondary confirmation from the audio framework**, per this task's suggested cross-check — `dumpsys audio`'s player event log independently shows the app registering a real `AudioTrack` with exactly the attributes `WearEspeakEngine.buildAudioTrack` constructs:
+
+```
+08-25 19:07:35:227 new player piid:8711 uid/pid:10210/24580 package:com.retroid.translator.wear
+  type:android.media.AudioTrack attr:AudioAttributes: usage=USAGE_MEDIA content=CONTENT_TYPE_SPEECH ... session:7745
+```
+
+- **Reproduced.** A third launch (19:10:28, fresh process 25278) produced byte-identical output — `voices=115`, `framesWritten=70663`, `self-test speak completed` — so the first run was not a one-off.
+
+**Still not established, and deliberately not claimed:** nobody *heard* it. Everything above proves PCM was synthesized and written into a started `AudioTrack` routed to `USAGE_MEDIA`/`CONTENT_TYPE_SPEECH`; it does not prove the watch's speaker was unmuted or that a human perceived intelligible speech. That last step needs a person wearing the watch and remains open. This is the same distinction §14 drew originally, just moved one tier up rather than declared finished.
+
+**A real bug found in the process (this is why on-device runs matter — §10 makes the same point).** The *second* of the three launches **crashed the app outright**:
+
+```
+08-25 19:08:34.443 24869 24869 E AndroidRuntime: FATAL EXCEPTION: main
+08-25 19:08:34.443 24869 24869 E AndroidRuntime: Process: com.retroid.translator.wear, PID: 24869
+08-25 19:08:34.443 24869 24869 E AndroidRuntime: java.util.concurrent.RejectedExecutionException: Task ...WearEspeakEngine$$ExternalSyntheticLambda2 rejected from java.util.concurrent.ThreadPoolExecutor@6f87103[Shutting down, pool size = 1, active threads = 1, queued tasks = 0, completed tasks = 0]
+08-25 19:08:34.443 24869 24869 E AndroidRuntime: 	at com.retroid.translator.wear.tts.WearEspeakEngine.speak(WearEspeakEngine.kt:162)
+08-25 19:08:34.443 24869 24869 E AndroidRuntime: 	at com.retroid.translator.wear.TranslateController$2.invoke(TranslateController.kt:111)
+08-25 19:08:34.443 24869 24869 E AndroidRuntime: 	at com.retroid.translator.wear.tts.WearEspeakEngine.initAsync$lambda$2$lambda$1(WearEspeakEngine.kt:129)
+```
+
+The process died (`pidof` empty afterwards). Mechanism, traced rather than guessed: that launch happened while the watch display was asleep — the same logcat shows `Display{#0 state=DOZE_SUSPEND ...}` and `isSleeping=true` on the launching task — so Wear OS tore the activity down almost immediately, `MainActivity.onDestroy` → `controller.release()` → `espeak.release()` → `worker.shutdown()`, *while `initBlocking` was still running on that worker* (the executor is reported mid-`Shutting down` with `active threads = 1, completed tasks = 0`). eSpeak init takes ~2.5–4s on this device, so the window is wide. When init then finished and posted its `onReady(true)` callback to the main thread, `TranslateController`'s callback called `espeak.speak(...)`, which does `worker.execute { ... }` on the now-shut-down executor → uncaught `RejectedExecutionException` on the main looper.
+
+Scope and severity, honestly:
+
+- It is **not** merely a self-test artifact. `WearEspeakEngine.speak()` guards on `ready` but not on the worker's lifecycle, so *any* `speak()` after `release()` throws — the startup self-test just makes the race easy to hit, because it fires `speak()` the instant init completes, which is precisely the window `release()` can land in.
+- The trigger is ordinary: **launching (or being resumed into) the app with the screen dozing/off**. Two of the three launches this session had the screen asleep or awake respectively; the asleep one crashed, and both awake ones passed. That's a small sample and the causal chain is inferred from the lifecycle/display logs above, not from a deliberately-constructed repro, so treat "screen-off launch reliably crashes it" as *strongly indicated*, not proven.
+- **No fix was made here.** This run's scope was explicitly "capture the missing eSpeak evidence, doc-only commit," so the bug is recorded rather than patched. The obvious shape of the fix (guard `speak()`/`initAsync`'s callback against a released engine, e.g. a `released` flag checked before `worker.execute`, and/or have `TranslateController` skip the self-test if it has already been released) is left to a follow-up pass that can test it on-device.
+
+**Net change to this section's status**: the eSpeak NG on-`:wear` work is now verified on real hardware end-to-end from native-library load through PCM-into-`AudioTrack`, with one real, newly-discovered lifecycle crash bug attached to it that did not exist in the "build-verified only" picture. §12's follow-up list should gain that bug fix; Piper/sherpa-onnx status is unchanged by this addendum.
+
